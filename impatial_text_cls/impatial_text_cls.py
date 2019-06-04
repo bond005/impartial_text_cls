@@ -46,7 +46,12 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
 
     def fit(self, X: Union[list, tuple, np.array], y: Union[list, tuple, np.array],
             validation_data: Union[None, Tuple[Union[list, tuple, np.array], Union[list, tuple, np.array]]]=None):
-        self.n_classes_ = self.check_Xy(X, 'X', y, 'y')
+        classes_in_dataset = self.check_Xy(X, 'X', y, 'y')
+        if (classes_in_dataset[0] != 0) or (classes_in_dataset[-1] != (len(classes_in_dataset) - 1)):
+            raise ValueError('`y` is wrong! Labels of classes are not ordered. '
+                             'Expected a `{0}`, but got a `{1}`.'.format(
+                list(range(len(classes_in_dataset))), classes_in_dataset))
+        self.n_classes_ = len(classes_in_dataset)
         if hasattr(self, 'tokenizer_'):
             del self.tokenizer_
         self.finalize_model()
@@ -75,9 +80,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 raise ValueError('')
             if len(validation_data) != 2:
                 raise ValueError('')
-            n_classes_for_validation = self.check_Xy(validation_data[0], 'X_val', validation_data[1], 'y_val')
-            if n_classes_for_validation > self.n_classes_:
-                raise ValueError('')
+            classes_for_validation = self.check_Xy(validation_data[0], 'X_val', validation_data[1], 'y_val')
+            if not (set(classes_for_validation) <= set(range(self.n_classes_))):
+                unknown_classes = sorted(list(set(classes_for_validation) - set(range(self.n_classes_))))
+                if len(unknown_classes) == 1:
+                    raise ValueError('`y_val` is wrong. Class {0} is unknown.'.format(unknown_classes[0]))
+                else:
+                    raise ValueError('`y_val` is wrong. Classes {0} are unknown.'.format(unknown_classes))
             X_train_ = X
             y_train_ = y
             X_val_ = validation_data[0]
@@ -374,12 +383,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             num_monte_carlo=self.num_monte_carlo, hidden_layer_sizes=self.hidden_layer_sizes
         )
         self.is_fitted()
-        n_classes = self.check_Xy(X, 'X', y, 'y')
-        if n_classes > self.n_classes_:
-            if (n_classes - self.n_classes_) == 1:
-                raise ValueError('`y` is wrong. Class {0} is unknown.'.format(n_classes - 1))
+        classes_list = self.check_Xy(X, 'X', y, 'y')
+        if not (set(classes_list) <= set(range(self.n_classes_))):
+            unknown_classes = sorted(list(set(classes_list) - set(range(self.n_classes_))))
+            if len(unknown_classes) == 1:
+                raise ValueError('`y` is wrong. Class {0} is unknown.'.format(unknown_classes[0]))
             else:
-                raise ValueError('`y` is wrong. Classes {0}..{1} are unknown.'.format(self.n_classes_, n_classes - 1))
+                raise ValueError('`y` is wrong. Classes {0} are unknown.'.format(unknown_classes))
         y_pred = self.predict(X)
         return f1_score(y_true=y, y_pred=y_pred, average='macro')
 
@@ -854,7 +864,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     idx, X_name))
 
     @staticmethod
-    def check_Xy(X: Union[list, tuple, np.array], X_name: str, y: Union[list, tuple, np.array], y_name: str) -> int:
+    def check_Xy(X: Union[list, tuple, np.array], X_name: str,
+                 y: Union[list, tuple, np.array], y_name: str) -> List[int]:
         ImpatialTextClassifier.check_X(X, X_name)
         if (not hasattr(y, '__len__')) or (not hasattr(y, '__getitem__')):
             raise ValueError('`{0}` is wrong, because it is not a list-like object!'.format(y_name))
@@ -882,9 +893,4 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 classes_list.add(class_idx)
         if len(classes_list) < 2:
             raise ValueError('`{0}` is wrong! There are too few classes in the `{0}`.'.format(y_name))
-        classes_list = sorted(list(classes_list))
-        n_classes = len(classes_list)
-        if (classes_list[0] != 0) or (classes_list[-1] != (n_classes - 1)):
-            raise ValueError('`{0}` is wrong! Labels of classes are not ordered. '
-                             'Expected a `{1}`, but got a `{2}`.'.format(y_name, list(range(n_classes)), classes_list))
-        return n_classes
+        return sorted(list(classes_list))

@@ -503,27 +503,6 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train')
 
-    def test_check_Xy_negative_08(self):
-        n_classes = 4
-        classes_list = [0, 1, 2, 4]
-        true_err_msg = re.escape('`y_train` is wrong! Labels of classes are not ordered. Expected a `{0}`, but got a '
-                                 '`{1}`.'.format(list(range(n_classes)), classes_list))
-        X = [
-            "I'd like to have this track onto my Classical Relaxations playlist.",
-            'Add the album to my Flow Español playlist.',
-            'Book a reservation for my babies and I',
-            'need a table somewhere in Quarryville 14 hours from now',
-            'what is the weather here',
-            'What kind of weather is forecast in MS now?',
-            'Please play something catchy on Youtube',
-            'The East Slavs emerged as a recognizable group in Europe between the 3rd and 8th centuries AD.',
-            'The Soviet Union played a decisive role in the Allied victory in World War II.',
-            'Most of Northern European Russia and Siberia has a subarctic climate'
-        ]
-        y = [0, 0, 1, 1, 2, 2, 4, -1, -1, -1]
-        with self.assertRaisesRegex(ValueError, true_err_msg):
-            ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train')
-
     def test_serialize_positive01(self):
         self.cls = ImpatialTextClassifier(random_seed=31)
         old_hidden_layer_sizes = self.cls.hidden_layer_sizes
@@ -1125,6 +1104,188 @@ class TestClassifier(unittest.TestCase):
                                        np.exp(log_probabilities[sample_idx][class_idx]),
                                        places=3, msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
 
+    def test_fit_negative_01(self):
+        n_classes = 4
+        classes_list = [0, 1, 2, 4]
+        true_err_msg = re.escape('`y` is wrong! Labels of classes are not ordered. Expected a `{0}`, but got a '
+                                 '`{1}`.'.format(list(range(n_classes)), classes_list))
+        X = [
+            "I'd like to have this track onto my Classical Relaxations playlist.",
+            'Add the album to my Flow Español playlist.',
+            'Book a reservation for my babies and I',
+            'need a table somewhere in Quarryville 14 hours from now',
+            'what is the weather here',
+            'What kind of weather is forecast in MS now?',
+            'Please play something catchy on Youtube',
+            'The East Slavs emerged as a recognizable group in Europe between the 3rd and 8th centuries AD.',
+            'The Soviet Union played a decisive role in the Allied victory in World War II.',
+            'Most of Northern European Russia and Siberia has a subarctic climate'
+        ]
+        y = [0, 0, 1, 1, 2, 2, 4, -1, -1, -1]
+        self.cls = ImpatialTextClassifier(batch_size=4)
+        with self.assertRaisesRegex(ValueError, true_err_msg):
+            self.cls.fit(X, y)
+
+    def test_fit_negative02(self):
+        train_texts = np.array(
+            [
+                'add Stani, stani Ibar vodo songs in my playlist música libre',
+                'add this album to my Blues playlist',
+                'Add the tune to the Rage Radio playlist.',
+                'Add WC Handy to my Sax and the City playlist',
+                'Add BSlade to women of k-pop playlist',
+                'Book a reservation for seven people at a bakery in Osage City',
+                'Book spot for three at Maid-Rite Sandwich Shop in Antigua and Barbuda',
+                'I need a table for breakfast in MI at the pizzeria',
+                'Book a restaurant reservation for me and my child for 2 Pm in Faysville',
+                'I want to book a highly rated churrascaria ten months from now.',
+                'How\'s the weather in Munchique National Natural Park',
+                'Tell me the weather forecast for France',
+                'Will there be wind in Hornitos DC?',
+                'Is it warm here now?',
+                'what is the forecast for Roulo for foggy conditions on February the eighteenth, 2018',
+                'I\'d like to hear music that\'s popular from Trick-trick on the Slacker service',
+                'Play Making Out by Alexander Rosenbaum off Google Music.',
+                'I want to hear Pamela Jintana Racine from 1986 on Lastfm',
+                'is there something new you can play by Lola Monroe',
+                'I want to hear something from Post-punk Revival',
+                'Rate All That Remains a five Give this album 4 points',
+                'Give The Best Mysteries of Isaac Asimov four stars out of 6.',
+                'Rate this current novel 1 out of 6 points.',
+                'Give this textbook 5 points',
+                'Give this series 0 out of 6 stars',
+                'Please help me find the Bloom: Remix Album song.',
+                'Find me the soundtrack called Enter the Chicken',
+                'Can you please search Ellington at Newport?',
+                'Please find me the Youth Against Fascism television show.',
+                'Find me the book called Suffer',
+                'Find movie times for Landmark Theatres.',
+                'What are the movie times for Amco Entertainment',
+                'what films are showing at Bow Tie Cinemas',
+                'Show me the movies close by',
+                'I want to see The Da Vinci Code',
+                'Paleo-Indians migrated from Siberia to the North American mainland at least 12,000 years ago.',
+                'Hello, world!',
+                'Originating in U.S. defense networks, the Internet spread to international academic networks',
+                'The WHO is a member of the United Nations Development Group.',
+                'In 443, Geneva was taken by Burgundy.',
+                'How are you?',
+                'Don\'t mention it!',
+                'I communicate a lot with advertising and media agencies.',
+                'Hey, good morning, peasant!',
+                'Neural networks can actually escalate or amplify the intensity of the initial signal.',
+                'I was an artist.',
+                'He\'s a con artist…among other things.',
+                'Application area: growth factors study, cell biology.',
+                'Have you taken physical chemistry?',
+                'London is the capital of Great Britain'
+            ],
+            dtype=np.str
+        )
+        train_labels = np.array([0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5,
+                                 5, 6, 6, 6, 6, 6, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+                                dtype=np.int32)
+        valid_texts = np.array(
+            [
+                "I'd like to have this track onto my Classical Relaxations playlist.",
+                'Add the album to my Flow Español playlist.',
+                'Book a reservation for my babies and I',
+                'need a table somewhere in Quarryville 14 hours from now',
+                'what is the weather here',
+                'What kind of weather is forecast in MS now?',
+                'Please play something catchy on Youtube',
+                'The East Slavs emerged as a recognizable group in Europe between the 3rd and 8th centuries AD.',
+                'The Soviet Union played a decisive role in the Allied victory in World War II.',
+                'Most of Northern European Russia and Siberia has a subarctic climate'
+            ],
+            dtype=np.str
+        )
+        valid_labels = np.array([0, 0, 1, 1, 2, 2, 4, 7, 7, 7], dtype=np.int32)
+        self.cls = ImpatialTextClassifier(validation_fraction=0.2, batch_size=4)
+        true_err_msg = re.escape('`y_val` is wrong. Class 7 is unknown.')
+        with self.assertRaisesRegex(ValueError, true_err_msg):
+            self.cls.fit(train_texts, train_labels, validation_data=(valid_texts, valid_labels))
+
+    def test_fit_negative03(self):
+        train_texts = np.array(
+            [
+                'add Stani, stani Ibar vodo songs in my playlist música libre',
+                'add this album to my Blues playlist',
+                'Add the tune to the Rage Radio playlist.',
+                'Add WC Handy to my Sax and the City playlist',
+                'Add BSlade to women of k-pop playlist',
+                'Book a reservation for seven people at a bakery in Osage City',
+                'Book spot for three at Maid-Rite Sandwich Shop in Antigua and Barbuda',
+                'I need a table for breakfast in MI at the pizzeria',
+                'Book a restaurant reservation for me and my child for 2 Pm in Faysville',
+                'I want to book a highly rated churrascaria ten months from now.',
+                'How\'s the weather in Munchique National Natural Park',
+                'Tell me the weather forecast for France',
+                'Will there be wind in Hornitos DC?',
+                'Is it warm here now?',
+                'what is the forecast for Roulo for foggy conditions on February the eighteenth, 2018',
+                'I\'d like to hear music that\'s popular from Trick-trick on the Slacker service',
+                'Play Making Out by Alexander Rosenbaum off Google Music.',
+                'I want to hear Pamela Jintana Racine from 1986 on Lastfm',
+                'is there something new you can play by Lola Monroe',
+                'I want to hear something from Post-punk Revival',
+                'Rate All That Remains a five Give this album 4 points',
+                'Give The Best Mysteries of Isaac Asimov four stars out of 6.',
+                'Rate this current novel 1 out of 6 points.',
+                'Give this textbook 5 points',
+                'Give this series 0 out of 6 stars',
+                'Please help me find the Bloom: Remix Album song.',
+                'Find me the soundtrack called Enter the Chicken',
+                'Can you please search Ellington at Newport?',
+                'Please find me the Youth Against Fascism television show.',
+                'Find me the book called Suffer',
+                'Find movie times for Landmark Theatres.',
+                'What are the movie times for Amco Entertainment',
+                'what films are showing at Bow Tie Cinemas',
+                'Show me the movies close by',
+                'I want to see The Da Vinci Code',
+                'Paleo-Indians migrated from Siberia to the North American mainland at least 12,000 years ago.',
+                'Hello, world!',
+                'Originating in U.S. defense networks, the Internet spread to international academic networks',
+                'The WHO is a member of the United Nations Development Group.',
+                'In 443, Geneva was taken by Burgundy.',
+                'How are you?',
+                'Don\'t mention it!',
+                'I communicate a lot with advertising and media agencies.',
+                'Hey, good morning, peasant!',
+                'Neural networks can actually escalate or amplify the intensity of the initial signal.',
+                'I was an artist.',
+                'He\'s a con artist…among other things.',
+                'Application area: growth factors study, cell biology.',
+                'Have you taken physical chemistry?',
+                'London is the capital of Great Britain'
+            ],
+            dtype=np.str
+        )
+        train_labels = np.array([0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5,
+                                 5, 6, 6, 6, 6, 6, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+                                dtype=np.int32)
+        valid_texts = np.array(
+            [
+                "I'd like to have this track onto my Classical Relaxations playlist.",
+                'Add the album to my Flow Español playlist.',
+                'Book a reservation for my babies and I',
+                'need a table somewhere in Quarryville 14 hours from now',
+                'what is the weather here',
+                'What kind of weather is forecast in MS now?',
+                'Please play something catchy on Youtube',
+                'The East Slavs emerged as a recognizable group in Europe between the 3rd and 8th centuries AD.',
+                'The Soviet Union played a decisive role in the Allied victory in World War II.',
+                'Most of Northern European Russia and Siberia has a subarctic climate'
+            ],
+            dtype=np.str
+        )
+        valid_labels = np.array([0, 0, 1, 1, 2, 2, 8, 7, 7, 7], dtype=np.int32)
+        self.cls = ImpatialTextClassifier(validation_fraction=0.2, batch_size=4)
+        true_err_msg = re.escape('`y` is wrong. Classes {0} are unknown.'.format([7, 8]))
+        with self.assertRaisesRegex(ValueError, true_err_msg):
+            self.cls.fit(train_texts, train_labels, validation_data=(valid_texts, valid_labels))
+
     def test_score_negative01(self):
         train_texts = np.array(
             [
@@ -1283,7 +1444,7 @@ class TestClassifier(unittest.TestCase):
         valid_labels = np.array([0, 0, 1, 1, 2, 2, 8, 7, 7, 7], dtype=np.int32)
         self.cls = ImpatialTextClassifier(validation_fraction=0.2, batch_size=4)
         res = self.cls.fit(train_texts, train_labels)
-        true_err_msg = re.escape('`y` is wrong. Classes 7..8 are unknown.')
+        true_err_msg = re.escape('`y` is wrong. Classes {0} are unknown.'.format([7, 8]))
         with self.assertRaisesRegex(ValueError, true_err_msg):
             _ = res.score(valid_texts, valid_labels)
 
