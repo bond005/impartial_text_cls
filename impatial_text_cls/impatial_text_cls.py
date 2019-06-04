@@ -97,7 +97,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         if self.verbose:
             lengths_of_texts = []
             sum_of_lengths = 0
-            for sample_idx in range(len(y_train_)):
+            for sample_idx in range(len(y_train_tokenized)):
                 lengths_of_texts.append(sum(X_train_tokenized[1][sample_idx]))
                 sum_of_lengths += lengths_of_texts[-1]
             if X_unlabeled_tokenized is not None:
