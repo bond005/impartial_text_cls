@@ -149,7 +149,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 batch_start = iteration * self.batch_size
                 batch_end = min(batch_start + self.batch_size, X_val_tokenized[0].shape[0])
                 bounds_of_batches_for_validation.append((batch_start, batch_end))
-            classes_dict_for_validation = sorted(list(set(y_val_.tolist())))
+            classes_dict_for_validation = sorted(list(set(y_val_tokenized.tolist())))
         init = tf.global_variables_initializer()
         init.run(session=self.sess_)
         tmp_model_name = self.get_temp_model_name()
@@ -194,7 +194,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         impatial_text_cls_logger.info('  Train log-likelihood: {0: 10.8f}'.format(acc_train))
                         impatial_text_cls_logger.info('  Val. log-likelihood:  {0: 10.8f}'.format(acc_test))
                     precision_by_classes, recall_by_classes, f1_by_classes, _ = precision_recall_fscore_support(
-                        y_val_, y_pred[0:len(y_val_)], average=None, labels=classes_dict_for_validation
+                        y_val_tokenized, y_pred[0:len(y_val_tokenized)], average=None,
+                        labels=classes_dict_for_validation
                     )
                     f1_test = np.mean(f1_by_classes)
                     precision_test = np.mean(precision_by_classes)
