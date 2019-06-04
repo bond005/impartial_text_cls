@@ -373,8 +373,8 @@ class TestClassifier(unittest.TestCase):
             'Most of Northern European Russia and Siberia has a subarctic climate'
         ]
         y = [0, 0, 1, 1, 2, 2, 3, -1, -1, -1]
-        true_n_classes = 4
-        self.assertEqual(true_n_classes, ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train'))
+        true_classes = [0, 1, 2, 3]
+        self.assertEqual(true_classes, ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train'))
 
     def test_check_Xy_negative_01(self):
         true_err_msg = re.escape('`X_train` is wrong, because it is not a list-like object!')
@@ -1282,7 +1282,7 @@ class TestClassifier(unittest.TestCase):
         )
         valid_labels = np.array([0, 0, 1, 1, 2, 2, 8, 7, 7, 7], dtype=np.int32)
         self.cls = ImpatialTextClassifier(validation_fraction=0.2, batch_size=4)
-        true_err_msg = re.escape('`y` is wrong. Classes {0} are unknown.'.format([7, 8]))
+        true_err_msg = re.escape('`y_val` is wrong. Classes {0} are unknown.'.format([7, 8]))
         with self.assertRaisesRegex(ValueError, true_err_msg):
             self.cls.fit(train_texts, train_labels, validation_data=(valid_texts, valid_labels))
 

@@ -438,7 +438,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         y_ext = np.concatenate(
             (
                 y,
-                np.full(shape=(n_extend, self.MAX_SEQ_LENGTH), fill_value=y[-1], dtype=y.dtype)
+                np.full(shape=(n_extend,), fill_value=y[-1], dtype=y.dtype)
             )
         )
         if shuffle:
