@@ -354,7 +354,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             batch_start = iteration * self.batch_size
             batch_end = batch_start + self.batch_size
             bounds_of_batches.append((batch_start, batch_end))
-        probabilities = np.zeros((X_tokenized[0].shape[0], self.n_classes_), dtype=np.int32)
+        probabilities = np.zeros((X_tokenized[0].shape[0], self.n_classes_), dtype=np.float32)
         for cur_batch in bounds_of_batches:
             feed_dict = self.fill_feed_dict(
                 [
