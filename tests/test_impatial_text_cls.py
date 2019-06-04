@@ -881,7 +881,7 @@ class TestClassifier(unittest.TestCase):
             'Most of Northern European Russia and Siberia has a subarctic climate'
         ]
         valid_labels = [0, 0, 1, 1, 2, 2, 4, -1, -1, -1]
-        self.cls = ImpatialTextClassifier(batch_size=4)
+        self.cls = ImpatialTextClassifier(batch_size=4, verbose=True)
         res = self.cls.fit(train_texts, train_labels, validation_data=(valid_texts, valid_labels))
         self.assertIsInstance(res, ImpatialTextClassifier)
         self.assertTrue(hasattr(res, 'hidden_layer_sizes'))
@@ -1030,7 +1030,7 @@ class TestClassifier(unittest.TestCase):
             dtype=np.str
         )
         valid_labels = np.array([0, 0, 1, 1, 2, 2, 4, -1, -1, -1], dtype=np.int32)
-        self.cls = ImpatialTextClassifier(validation_fraction=0.2, batch_size=4)
+        self.cls = ImpatialTextClassifier(validation_fraction=0.2, batch_size=4, verbose=True)
         res = self.cls.fit(train_texts, train_labels)
         self.assertIsInstance(res, ImpatialTextClassifier)
         self.assertTrue(hasattr(res, 'hidden_layer_sizes'))

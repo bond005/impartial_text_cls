@@ -106,6 +106,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     sum_of_lengths += lengths_of_texts[-1]
             mean_length = sum_of_lengths / float(len(lengths_of_texts))
             lengths_of_texts.sort()
+            print('')
             print('Maximal length of text (in BPE): {0}'.format(max(lengths_of_texts)))
             print('Mean length of text (in BPE): {0}'.format(mean_length))
             print('Median length of text (in BPE): {0}'.format(lengths_of_texts[len(lengths_of_texts) // 2]))
