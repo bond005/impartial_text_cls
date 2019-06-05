@@ -548,7 +548,7 @@ class TestClassifier(unittest.TestCase):
         ]
         y = [0, 0, 1, {1, '2.3'}, 2, 2, 3, -1, -1, -1]
         with self.assertRaisesRegex(ValueError, true_err_msg):
-            ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train')
+            ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train', True)
 
     def test_check_Xy_negative_09(self):
         true_err_msg = re.escape('Item 3 of `y_train` is wrong, because set of labels cannot contains undefined '
@@ -567,7 +567,7 @@ class TestClassifier(unittest.TestCase):
         ]
         y = [0, 0, 1, {1, -1}, 2, 2, 3, -1, -1, -1]
         with self.assertRaisesRegex(ValueError, true_err_msg):
-            ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train')
+            ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train', True)
 
     def test_serialize_positive01(self):
         self.cls = ImpatialTextClassifier(random_seed=31)

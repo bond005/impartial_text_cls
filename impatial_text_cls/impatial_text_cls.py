@@ -497,7 +497,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             indices_of_labeled_samples = []
             indices_of_unlabeled_samples = []
             for sample_idx in range(n_samples):
-                if y[sample_idx] >= 0:
+                if isinstance(y[sample_idx], set) or (y[sample_idx] >= 0):
                     indices_of_labeled_samples.append(sample_idx)
                 else:
                     indices_of_unlabeled_samples.append(sample_idx)
