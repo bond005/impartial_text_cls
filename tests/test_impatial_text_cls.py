@@ -41,6 +41,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.cls, 'gpu_memory_frac'))
         self.assertTrue(hasattr(self.cls, 'validation_fraction'))
         self.assertTrue(hasattr(self.cls, 'verbose'))
+        self.assertTrue(hasattr(self.cls, 'multioutput'))
         self.assertTrue(hasattr(self.cls, 'num_monte_carlo'))
         self.assertIsInstance(self.cls.hidden_layer_sizes, tuple)
         self.assertIsInstance(self.cls.batch_size, int)
@@ -51,13 +52,14 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(self.cls.gpu_memory_frac, float)
         self.assertIsInstance(self.cls.validation_fraction, float)
         self.assertIsInstance(self.cls.verbose, bool)
+        self.assertIsInstance(self.cls.multioutput, bool)
         self.assertIsInstance(self.cls.num_monte_carlo, int)
 
     def test_check_params_positive(self):
         ImpatialTextClassifier.check_params(
             bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
             hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
-            patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42
+            patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
         )
         self.assertTrue(True)
 
@@ -66,7 +68,7 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42
+                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative002(self):
@@ -76,7 +78,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle=1,
                 hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42
+                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative003(self):
@@ -85,7 +87,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, 50), num_monte_carlo=100, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42
+                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative004(self):
@@ -95,7 +97,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size='32', validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42
+                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative005(self):
@@ -104,7 +106,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=-3, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42
+                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative006(self):
@@ -113,7 +115,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42
+                patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative007(self):
@@ -123,7 +125,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs='10', patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42
+                max_epochs='10', patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative008(self):
@@ -132,7 +134,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=-3, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42
+                max_epochs=-3, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative009(self):
@@ -141,7 +143,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, gpu_memory_frac=1.0, verbose=False, random_seed=42
+                max_epochs=10, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative010(self):
@@ -151,7 +153,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience='3', gpu_memory_frac=1.0, verbose=False, random_seed=42
+                max_epochs=10, patience='3', gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative011(self):
@@ -160,7 +162,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=-3, gpu_memory_frac=1.0, verbose=False, random_seed=42
+                max_epochs=10, patience=-3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative012(self):
@@ -169,7 +171,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, 50), batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42
+                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative013(self):
@@ -179,7 +181,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, 50), num_monte_carlo='100', batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42
+                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative014(self):
@@ -189,7 +191,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, 50), num_monte_carlo=0, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42
+                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative015(self):
@@ -198,7 +200,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42
+                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative016(self):
@@ -208,7 +210,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction='0.1',
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42
+                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative017(self):
@@ -218,7 +220,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=-0.1,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42
+                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative018(self):
@@ -228,7 +230,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=1.1,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42
+                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative019(self):
@@ -237,7 +239,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, verbose=False, random_seed=42
+                max_epochs=10, patience=3, verbose=False, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative020(self):
@@ -247,7 +249,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac='1.0', verbose=False, random_seed=42
+                max_epochs=10, patience=3, gpu_memory_frac='1.0', verbose=False, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative021(self):
@@ -257,7 +259,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=-1.0, verbose=False, random_seed=42
+                max_epochs=10, patience=3, gpu_memory_frac=-1.0, verbose=False, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative022(self):
@@ -267,7 +269,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=1.3, verbose=False, random_seed=42
+                max_epochs=10, patience=3, gpu_memory_frac=1.3, verbose=False, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative023(self):
@@ -276,7 +278,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, random_seed=42
+                max_epochs=10, patience=3, gpu_memory_frac=1.0, random_seed=42, multioutput=False
             )
 
     def test_check_params_negative024(self):
@@ -285,7 +287,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, verbose=False, random_seed=42, gpu_memory_frac=1.0
+                max_epochs=10, patience=3, verbose=False, random_seed=42, gpu_memory_frac=1.0, multioutput=False
             )
 
     def test_check_params_negative025(self):
@@ -295,7 +297,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes='(100, 50)', num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, verbose=False, random_seed=42, gpu_memory_frac=1.0
+                max_epochs=10, patience=3, verbose=False, random_seed=42, gpu_memory_frac=1.0, multioutput=False
             )
 
     def test_check_params_negative026(self):
@@ -305,7 +307,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=np.array([[100, 50], [200, 130]], dtype=np.int32), num_monte_carlo=100,
                 batch_size=32, validation_fraction=0.0, max_epochs=10, patience=3, verbose=False, random_seed=42,
-                gpu_memory_frac=1.0
+                gpu_memory_frac=1.0, multioutput=False
             )
 
     def test_check_params_negative027(self):
@@ -314,7 +316,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=[], num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, verbose=False, random_seed=42, gpu_memory_frac=1.0
+                max_epochs=10, patience=3, verbose=False, random_seed=42, gpu_memory_frac=1.0, multioutput=False
             )
 
     def test_check_params_negative028(self):
@@ -324,7 +326,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, '50'), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, verbose=False, random_seed=42, gpu_memory_frac=1.0
+                max_epochs=10, patience=3, verbose=False, random_seed=42, gpu_memory_frac=1.0, multioutput=False
             )
 
     def test_check_params_negative029(self):
@@ -333,7 +335,16 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 hidden_layer_sizes=(100, -50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, verbose=False, random_seed=42, gpu_memory_frac=1.0
+                max_epochs=10, patience=3, verbose=False, random_seed=42, gpu_memory_frac=1.0, multioutput=False
+            )
+
+    def test_check_params_negative030(self):
+        true_err_msg = re.escape('`multioutput` is not specified!')
+        with self.assertRaisesRegex(ValueError, true_err_msg):
+            ImpatialTextClassifier.check_params(
+                bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
+                hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
+                max_epochs=10, patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False
             )
 
     def test_check_X_positive(self):
@@ -359,7 +370,7 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_X(X, 'X_train')
 
-    def test_check_Xy_positive(self):
+    def test_check_Xy_positive_01(self):
         X = [
             "I'd like to have this track onto my Classical Relaxations playlist.",
             'Add the album to my Flow Español playlist.',
@@ -375,6 +386,23 @@ class TestClassifier(unittest.TestCase):
         y = [0, 0, 1, 1, 2, 2, 3, -1, -1, -1]
         true_classes = [0, 1, 2, 3]
         self.assertEqual(true_classes, ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train'))
+
+    def test_check_Xy_positive_02(self):
+        X = [
+            "I'd like to have this track onto my Classical Relaxations playlist.",
+            'Add the album to my Flow Español playlist.',
+            'Book a reservation for my babies and I',
+            'need a table somewhere in Quarryville 14 hours from now',
+            'what is the weather here',
+            'What kind of weather is forecast in MS now?',
+            'Please play something catchy on Youtube',
+            'The East Slavs emerged as a recognizable group in Europe between the 3rd and 8th centuries AD.',
+            'The Soviet Union played a decisive role in the Allied victory in World War II.',
+            'Most of Northern European Russia and Siberia has a subarctic climate'
+        ]
+        y = [0, 0, 1, 1, 2, {2, 3}, 3, -1, -1, -1]
+        true_classes = [0, 1, 2, 3]
+        self.assertEqual(true_classes, ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train', True))
 
     def test_check_Xy_negative_01(self):
         true_err_msg = re.escape('`X_train` is wrong, because it is not a list-like object!')
@@ -503,6 +531,44 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train')
 
+    def test_check_Xy_negative_08(self):
+        true_err_msg = re.escape('Item 3 of `y_train` is wrong, because `{0}` is inadmissible type for class '
+                                 'label.'.format(type('2.3')))
+        X = [
+            "I'd like to have this track onto my Classical Relaxations playlist.",
+            'Add the album to my Flow Español playlist.',
+            'Book a reservation for my babies and I',
+            'need a table somewhere in Quarryville 14 hours from now',
+            'what is the weather here',
+            'What kind of weather is forecast in MS now?',
+            'Please play something catchy on Youtube',
+            'The East Slavs emerged as a recognizable group in Europe between the 3rd and 8th centuries AD.',
+            'The Soviet Union played a decisive role in the Allied victory in World War II.',
+            'Most of Northern European Russia and Siberia has a subarctic climate'
+        ]
+        y = [0, 0, 1, {1, '2.3'}, 2, 2, 3, -1, -1, -1]
+        with self.assertRaisesRegex(ValueError, true_err_msg):
+            ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train')
+
+    def test_check_Xy_negative_09(self):
+        true_err_msg = re.escape('Item 3 of `y_train` is wrong, because set of labels cannot contains undefined '
+                                 '(negative) class labels.')
+        X = [
+            "I'd like to have this track onto my Classical Relaxations playlist.",
+            'Add the album to my Flow Español playlist.',
+            'Book a reservation for my babies and I',
+            'need a table somewhere in Quarryville 14 hours from now',
+            'what is the weather here',
+            'What kind of weather is forecast in MS now?',
+            'Please play something catchy on Youtube',
+            'The East Slavs emerged as a recognizable group in Europe between the 3rd and 8th centuries AD.',
+            'The Soviet Union played a decisive role in the Allied victory in World War II.',
+            'Most of Northern European Russia and Siberia has a subarctic climate'
+        ]
+        y = [0, 0, 1, {1, -1}, 2, 2, 3, -1, -1, -1]
+        with self.assertRaisesRegex(ValueError, true_err_msg):
+            ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train')
+
     def test_serialize_positive01(self):
         self.cls = ImpatialTextClassifier(random_seed=31)
         old_hidden_layer_sizes = self.cls.hidden_layer_sizes
@@ -515,6 +581,7 @@ class TestClassifier(unittest.TestCase):
         old_gpu_memory_frac = self.cls.gpu_memory_frac
         old_validation_fraction = self.cls.validation_fraction
         old_verbose = self.cls.verbose
+        old_multioutput = self.cls.multioutput
         self.temp_file_name = tempfile.NamedTemporaryFile().name
         with open(self.temp_file_name, mode='wb') as fp:
             pickle.dump(self.cls, fp)
@@ -531,6 +598,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.cls, 'gpu_memory_frac'))
         self.assertTrue(hasattr(self.cls, 'validation_fraction'))
         self.assertTrue(hasattr(self.cls, 'verbose'))
+        self.assertTrue(hasattr(self.cls, 'multioutput'))
         self.assertTrue(hasattr(self.cls, 'hidden_layer_sizes'))
         self.assertTrue(hasattr(self.cls, 'num_monte_carlo'))
         self.assertEqual(self.cls.batch_size, old_batch_size)
@@ -542,6 +610,7 @@ class TestClassifier(unittest.TestCase):
         self.assertAlmostEqual(self.cls.gpu_memory_frac, old_gpu_memory_frac)
         self.assertAlmostEqual(self.cls.validation_fraction, old_validation_fraction)
         self.assertEqual(self.cls.verbose, old_verbose)
+        self.assertEqual(self.cls.multioutput, old_multioutput)
         self.assertEqual(self.cls.random_seed, old_random_seed)
 
     def test_serialize_positive02(self):
@@ -623,6 +692,7 @@ class TestClassifier(unittest.TestCase):
         old_gpu_memory_frac = self.cls.gpu_memory_frac
         old_validation_fraction = self.cls.validation_fraction
         old_verbose = self.cls.verbose
+        old_multioutput = self.cls.multioutput
         self.cls.fit(train_texts, train_labels, validation_data=(valid_texts, valid_labels))
         old_certainty_threshold = self.cls.certainty_threshold_
         old_y = self.cls.predict(valid_texts)
@@ -645,6 +715,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.cls, 'gpu_memory_frac'))
         self.assertTrue(hasattr(self.cls, 'validation_fraction'))
         self.assertTrue(hasattr(self.cls, 'verbose'))
+        self.assertTrue(hasattr(self.cls, 'multioutput'))
         self.assertTrue(hasattr(self.cls, 'hidden_layer_sizes'))
         self.assertTrue(hasattr(self.cls, 'num_monte_carlo'))
         self.assertEqual(self.cls.batch_size, old_batch_size)
@@ -656,6 +727,7 @@ class TestClassifier(unittest.TestCase):
         self.assertAlmostEqual(self.cls.gpu_memory_frac, old_gpu_memory_frac)
         self.assertAlmostEqual(self.cls.validation_fraction, old_validation_fraction)
         self.assertEqual(self.cls.verbose, old_verbose)
+        self.assertEqual(self.cls.multioutput, old_multioutput)
         self.assertEqual(self.cls.random_seed, old_random_seed)
         self.assertTrue(hasattr(self.cls, 'tokenizer_'))
         self.assertTrue(hasattr(self.cls, 'n_classes_'))
@@ -695,6 +767,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.another_cls, 'gpu_memory_frac'))
         self.assertTrue(hasattr(self.another_cls, 'validation_fraction'))
         self.assertTrue(hasattr(self.another_cls, 'verbose'))
+        self.assertTrue(hasattr(self.another_cls, 'multioutput'))
         self.assertEqual(self.cls.batch_size, self.another_cls.batch_size)
         self.assertEqual(self.cls.num_monte_carlo, self.another_cls.num_monte_carlo)
         self.assertAlmostEqual(self.cls.hidden_layer_sizes, self.another_cls.hidden_layer_sizes)
@@ -705,6 +778,7 @@ class TestClassifier(unittest.TestCase):
         self.assertAlmostEqual(self.cls.gpu_memory_frac, self.another_cls.gpu_memory_frac)
         self.assertAlmostEqual(self.cls.validation_fraction, self.another_cls.validation_fraction)
         self.assertEqual(self.cls.verbose, self.another_cls.verbose)
+        self.assertEqual(self.cls.multioutput, self.another_cls.multioutput)
 
     def test_copy_positive02(self):
         train_texts = [
@@ -789,6 +863,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.another_cls, 'gpu_memory_frac'))
         self.assertTrue(hasattr(self.another_cls, 'validation_fraction'))
         self.assertTrue(hasattr(self.another_cls, 'verbose'))
+        self.assertTrue(hasattr(self.another_cls, 'multioutput'))
         self.assertTrue(hasattr(self.another_cls, 'tokenizer_'))
         self.assertTrue(hasattr(self.another_cls, 'n_classes_'))
         self.assertTrue(hasattr(self.another_cls, 'sess_'))
@@ -809,6 +884,7 @@ class TestClassifier(unittest.TestCase):
         self.assertAlmostEqual(self.cls.gpu_memory_frac, self.another_cls.gpu_memory_frac)
         self.assertAlmostEqual(self.cls.validation_fraction, self.another_cls.validation_fraction)
         self.assertEqual(self.cls.verbose, self.another_cls.verbose)
+        self.assertEqual(self.cls.multioutput, self.another_cls.multioutput)
         self.assertAlmostEqual(self.cls.certainty_threshold_, self.another_cls.certainty_threshold_, places=9)
         self.assertEqual(self.cls.n_classes_, self.another_cls.n_classes_)
         y_pred = self.cls.predict(valid_texts)
@@ -898,6 +974,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(res, 'gpu_memory_frac'))
         self.assertTrue(hasattr(res, 'validation_fraction'))
         self.assertTrue(hasattr(res, 'verbose'))
+        self.assertTrue(hasattr(res, 'multioutput'))
         self.assertTrue(hasattr(res, 'num_monte_carlo'))
         self.assertIsInstance(res.hidden_layer_sizes, tuple)
         self.assertIsInstance(res.batch_size, int)
@@ -908,6 +985,7 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.gpu_memory_frac, float)
         self.assertIsInstance(res.validation_fraction, float)
         self.assertIsInstance(res.verbose, bool)
+        self.assertIsInstance(res.multioutput, bool)
         self.assertIsInstance(res.num_monte_carlo, int)
         self.assertTrue(hasattr(res, 'tokenizer_'))
         self.assertTrue(hasattr(res, 'n_classes_'))
@@ -930,11 +1008,11 @@ class TestClassifier(unittest.TestCase):
         self.assertEqual(len(y_pred.shape), 1)
         self.assertEqual(y_pred.shape[0], len(valid_labels))
         f1 = f1_score(y_true=valid_labels, y_pred=y_pred, average='macro')
-        self.assertGreater(f1, 0.0)
+        self.assertGreaterEqual(f1, 0.0)
         self.assertLessEqual(f1, 1.0)
         f1 = res.score(valid_texts, valid_labels)
         self.assertIsInstance(f1, float)
-        self.assertGreater(f1, 0.0)
+        self.assertGreaterEqual(f1, 0.0)
         self.assertLessEqual(f1, 1.0)
         probabilities = res.predict_proba(valid_texts)
         self.assertIsInstance(probabilities, np.ndarray)
@@ -1044,6 +1122,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(res, 'validation_fraction'))
         self.assertTrue(hasattr(res, 'verbose'))
         self.assertTrue(hasattr(res, 'num_monte_carlo'))
+        self.assertTrue(hasattr(res, 'multioutput'))
         self.assertIsInstance(res.hidden_layer_sizes, tuple)
         self.assertIsInstance(res.batch_size, int)
         self.assertIsInstance(res.bert_hub_module_handle, str)
@@ -1053,6 +1132,7 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.gpu_memory_frac, float)
         self.assertIsInstance(res.validation_fraction, float)
         self.assertIsInstance(res.verbose, bool)
+        self.assertIsInstance(res.multioutput, bool)
         self.assertIsInstance(res.num_monte_carlo, int)
         self.assertTrue(hasattr(res, 'tokenizer_'))
         self.assertTrue(hasattr(res, 'n_classes_'))
@@ -1075,11 +1155,11 @@ class TestClassifier(unittest.TestCase):
         self.assertEqual(len(y_pred.shape), 1)
         self.assertEqual(y_pred.shape[0], len(valid_labels))
         f1 = f1_score(y_true=valid_labels, y_pred=y_pred, average='macro')
-        self.assertGreater(f1, 0.0)
+        self.assertGreaterEqual(f1, 0.0)
         self.assertLessEqual(f1, 1.0)
         f1 = res.score(valid_texts, valid_labels)
         self.assertIsInstance(f1, float)
-        self.assertGreater(f1, 0.0)
+        self.assertGreaterEqual(f1, 0.0)
         self.assertLessEqual(f1, 1.0)
         probabilities = res.predict_proba(valid_texts)
         self.assertIsInstance(probabilities, np.ndarray)
@@ -1095,6 +1175,143 @@ class TestClassifier(unittest.TestCase):
                                 msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
                 prob_sum += probabilities[sample_idx][class_idx]
             self.assertAlmostEqual(prob_sum, 1.0, places=3, msg='Sample {0}'.format(sample_idx))
+        log_probabilities = res.predict_log_proba(valid_texts)
+        self.assertIsInstance(log_probabilities, np.ndarray)
+        self.assertEqual(len(log_probabilities.shape), 2)
+        self.assertEqual(log_probabilities.shape[0], len(valid_labels))
+        self.assertEqual(log_probabilities.shape[1], res.n_classes_)
+
+    def test_fit_predict_positive03(self):
+        train_texts = [
+            'add Stani, stani Ibar vodo songs in my playlist música libre',
+            'add this album to my Blues playlist',
+            'Add the tune to the Rage Radio playlist.',
+            'Add WC Handy to my Sax and the City playlist',
+            'Add BSlade to women of k-pop playlist',
+            'Book a reservation for seven people at a bakery in Osage City',
+            'Book spot for three at Maid-Rite Sandwich Shop in Antigua and Barbuda',
+            'I need a table for breakfast in MI at the pizzeria',
+            'Book a restaurant reservation for me and my child for 2 Pm in Faysville',
+            'I want to book a highly rated churrascaria ten months from now.',
+            'How\'s the weather in Munchique National Natural Park',
+            'Tell me the weather forecast for France',
+            'Will there be wind in Hornitos DC?',
+            'Is it warm here now?',
+            'what is the forecast for Roulo for foggy conditions on February the eighteenth, 2018',
+            'I\'d like to hear music that\'s popular from Trick-trick on the Slacker service',
+            'Play Making Out by Alexander Rosenbaum off Google Music.',
+            'I want to hear Pamela Jintana Racine from 1986 on Lastfm',
+            'is there something new you can play by Lola Monroe',
+            'I want to hear something from Post-punk Revival',
+            'Rate All That Remains a five Give this album 4 points',
+            'Give The Best Mysteries of Isaac Asimov four stars out of 6.',
+            'Rate this current novel 1 out of 6 points.',
+            'Give this textbook 5 points',
+            'Give this series 0 out of 6 stars',
+            'Please help me find the Bloom: Remix Album song.',
+            'Find me the soundtrack called Enter the Chicken',
+            'Can you please search Ellington at Newport?',
+            'Please find me the Youth Against Fascism television show.',
+            'Find me the book called Suffer',
+            'Find movie times for Landmark Theatres.',
+            'What are the movie times for Amco Entertainment',
+            'what films are showing at Bow Tie Cinemas',
+            'Show me the movies close by',
+            'I want to see The Da Vinci Code',
+            'Paleo-Indians migrated from Siberia to the North American mainland at least 12,000 years ago.',
+            'Hello, world!',
+            'Originating in U.S. defense networks, the Internet spread to international academic networks',
+            'The WHO is a member of the United Nations Development Group.',
+            'In 443, Geneva was taken by Burgundy.',
+            'How are you?',
+            'Don\'t mention it!',
+            'I communicate a lot with advertising and media agencies.',
+            'Hey, good morning, peasant!',
+            'Neural networks can actually escalate or amplify the intensity of the initial signal.',
+            'I was an artist.',
+            'He\'s a con artist…among other things.',
+            'Application area: growth factors study, cell biology.',
+            'Have you taken physical chemistry?',
+            'London is the capital of Great Britain'
+        ]
+        train_labels = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 6, 6,
+                        6, 6, 6, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]
+        valid_texts = [
+            "I'd like to have this track onto my Classical Relaxations playlist.",
+            'Add the album to my Flow Español playlist.',
+            'Book a reservation for my babies and I',
+            'need a table somewhere in Quarryville 14 hours from now',
+            'what is the weather here',
+            'What kind of weather is forecast in MS now?',
+            'Please play something catchy on Youtube',
+            'The East Slavs emerged as a recognizable group in Europe between the 3rd and 8th centuries AD.',
+            'The Soviet Union played a decisive role in the Allied victory in World War II.',
+            'Most of Northern European Russia and Siberia has a subarctic climate'
+        ]
+        valid_labels = [0, 0, 1, 1, 2, 2, {3, 4}, -1, -1, -1]
+        self.cls = ImpatialTextClassifier(batch_size=4, verbose=True, multioutput=True)
+        res = self.cls.fit(train_texts, train_labels, validation_data=(valid_texts, valid_labels))
+        self.assertIsInstance(res, ImpatialTextClassifier)
+        self.assertTrue(hasattr(res, 'hidden_layer_sizes'))
+        self.assertTrue(hasattr(res, 'batch_size'))
+        self.assertTrue(hasattr(res, 'bert_hub_module_handle'))
+        self.assertTrue(hasattr(res, 'max_epochs'))
+        self.assertTrue(hasattr(res, 'patience'))
+        self.assertTrue(hasattr(res, 'random_seed'))
+        self.assertTrue(hasattr(res, 'gpu_memory_frac'))
+        self.assertTrue(hasattr(res, 'validation_fraction'))
+        self.assertTrue(hasattr(res, 'verbose'))
+        self.assertTrue(hasattr(res, 'multioutput'))
+        self.assertTrue(hasattr(res, 'num_monte_carlo'))
+        self.assertIsInstance(res.hidden_layer_sizes, tuple)
+        self.assertIsInstance(res.batch_size, int)
+        self.assertIsInstance(res.bert_hub_module_handle, str)
+        self.assertIsInstance(res.max_epochs, int)
+        self.assertIsInstance(res.patience, int)
+        self.assertIsNotNone(res.random_seed)
+        self.assertIsInstance(res.gpu_memory_frac, float)
+        self.assertIsInstance(res.validation_fraction, float)
+        self.assertIsInstance(res.verbose, bool)
+        self.assertIsInstance(res.multioutput, bool)
+        self.assertIsInstance(res.num_monte_carlo, int)
+        self.assertTrue(hasattr(res, 'tokenizer_'))
+        self.assertTrue(hasattr(res, 'n_classes_'))
+        self.assertTrue(hasattr(res, 'sess_'))
+        self.assertTrue(hasattr(res, 'certainty_threshold_'))
+        self.assertTrue(hasattr(res, 'logits_'))
+        self.assertTrue(hasattr(res, 'labels_distribution_'))
+        self.assertTrue(hasattr(res, 'input_ids_'))
+        self.assertTrue(hasattr(res, 'input_mask_'))
+        self.assertTrue(hasattr(res, 'segment_ids_'))
+        self.assertTrue(hasattr(res, 'y_ph_'))
+        self.assertIsInstance(res.tokenizer_, FullTokenizer)
+        self.assertIsInstance(res.n_classes_, int)
+        self.assertIsInstance(res.certainty_threshold_, float)
+        self.assertGreaterEqual(res.certainty_threshold_, 0.0)
+        self.assertLessEqual(res.certainty_threshold_, 1.0)
+        self.assertEqual(res.n_classes_, 7)
+        y_pred = res.predict(valid_texts)
+        self.assertIsInstance(y_pred, np.ndarray)
+        self.assertEqual(len(y_pred.shape), 1)
+        self.assertEqual(y_pred.shape[0], len(valid_labels))
+        f1 = f1_score(y_true=valid_labels, y_pred=y_pred, average='macro')
+        self.assertGreaterEqual(f1, 0.0)
+        self.assertLessEqual(f1, 1.0)
+        f1 = res.score(valid_texts, valid_labels)
+        self.assertIsInstance(f1, float)
+        self.assertGreaterEqual(f1, 0.0)
+        self.assertLessEqual(f1, 1.0)
+        probabilities = res.predict_proba(valid_texts)
+        self.assertIsInstance(probabilities, np.ndarray)
+        self.assertEqual(len(probabilities.shape), 2)
+        self.assertEqual(probabilities.shape[0], len(valid_labels))
+        self.assertEqual(probabilities.shape[1], res.n_classes_)
+        for sample_idx in range(len(valid_labels)):
+            for class_idx in range(res.n_classes_):
+                self.assertGreater(probabilities[sample_idx][class_idx], 0.0,
+                                   msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
+                self.assertLess(probabilities[sample_idx][class_idx], 1.0,
+                                msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
         log_probabilities = res.predict_log_proba(valid_texts)
         self.assertIsInstance(log_probabilities, np.ndarray)
         self.assertEqual(len(log_probabilities.shape), 2)

@@ -26,7 +26,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
     def __init__(self, hidden_layer_sizes: tuple=(100,),
                  bert_hub_module_handle: Union[str, None]='https://tfhub.dev/google/bert_uncased_L-12_H-768_A-12/1',
                  batch_size: int=32, validation_fraction: float=0.1, max_epochs: int=10, patience: int=3,
-                 num_monte_carlo: int=50, gpu_memory_frac: float=1.0, verbose: bool=False,
+                 num_monte_carlo: int=50, gpu_memory_frac: float=1.0, verbose: bool=False, multioutput: bool=False,
                  random_seed: Union[int, None]=None):
         self.batch_size = batch_size
         self.hidden_layer_sizes = hidden_layer_sizes
@@ -38,6 +38,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         self.gpu_memory_frac = gpu_memory_frac
         self.validation_fraction = validation_fraction
         self.verbose = verbose
+        self.multioutput = multioutput
 
     def __del__(self):
         if hasattr(self, 'tokenizer_'):
@@ -46,7 +47,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
 
     def fit(self, X: Union[list, tuple, np.array], y: Union[list, tuple, np.array],
             validation_data: Union[None, Tuple[Union[list, tuple, np.array], Union[list, tuple, np.array]]]=None):
-        classes_in_dataset = self.check_Xy(X, 'X', y, 'y')
+        classes_in_dataset = self.check_Xy(X, 'X', y, 'y', self.multioutput)
         if (classes_in_dataset[0] != 0) or (classes_in_dataset[-1] != (len(classes_in_dataset) - 1)):
             raise ValueError('`y` is wrong! Labels of classes are not ordered. '
                              'Expected a `{0}`, but got a `{1}`.'.format(
@@ -55,11 +56,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         if hasattr(self, 'tokenizer_'):
             del self.tokenizer_
         self.finalize_model()
-        if self.random_seed is None:
-            self.random_seed = int(round(time.time()))
-        random.seed(self.random_seed)
-        np.random.seed(self.random_seed)
-        tf.random.set_random_seed(self.random_seed)
+        self.update_random_seed()
         if validation_data is None:
             if self.validation_fraction > 0.0:
                 sss = StratifiedShuffleSplit(n_splits=1, test_size=self.validation_fraction,
@@ -81,7 +78,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 raise ValueError('')
             if len(validation_data) != 2:
                 raise ValueError('')
-            classes_for_validation = self.check_Xy(validation_data[0], 'X_val', validation_data[1], 'y_val')
+            classes_for_validation = self.check_Xy(validation_data[0], 'X_val', validation_data[1], 'y_val',
+                                                   self.multioutput)
             if not (set(classes_for_validation) <= set(range(self.n_classes_))):
                 unknown_classes = sorted(list(set(classes_for_validation) - set(range(self.n_classes_))))
                 if len(unknown_classes) == 1:
@@ -97,7 +95,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         if self.verbose:
             lengths_of_texts = []
             sum_of_lengths = 0
-            for sample_idx in range(len(y_train_tokenized)):
+            for sample_idx in range(y_train_tokenized.shape[0]):
                 lengths_of_texts.append(sum(X_train_tokenized[1][sample_idx]))
                 sum_of_lengths += lengths_of_texts[-1]
             if X_unlabeled_tokenized is not None:
@@ -392,7 +390,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             num_monte_carlo=self.num_monte_carlo, hidden_layer_sizes=self.hidden_layer_sizes
         )
         self.is_fitted()
-        classes_list = self.check_Xy(X, 'X', y, 'y')
+        classes_list = self.check_Xy(X, 'X', y, 'y', self.multioutput)
         if not (set(classes_list) <= set(range(self.n_classes_))):
             unknown_classes = sorted(list(set(classes_list) - set(range(self.n_classes_))))
             if len(unknown_classes) == 1:
@@ -454,12 +452,20 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 np.random.shuffle(indices)
                 return [X_ext[idx][indices] for idx in range(len(X_ext))]
             return X_ext
-        y_ext = np.concatenate(
-            (
-                y,
-                np.full(shape=(n_extend,), fill_value=y[-1], dtype=y.dtype)
+        if self.multioutput:
+            y_ext = np.concatenate(
+                (
+                    y,
+                    np.full(shape=(n_extend, self.n_classes_), fill_value=y[-1], dtype=y.dtype)
+                )
             )
-        )
+        else:
+            y_ext = np.concatenate(
+                (
+                    y,
+                    np.full(shape=(n_extend,), fill_value=y[-1], dtype=y.dtype)
+                )
+            )
         if shuffle:
             indices = np.arange(0, n_samples + n_extend, 1, dtype=np.int32)
             return [X_ext[idx][indices] for idx in range(len(X_ext))], y_ext[indices]
@@ -497,9 +503,19 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     indices_of_unlabeled_samples.append(sample_idx)
             if len(indices_of_labeled_samples) == 0:
                 raise ValueError('There are no labeled data samples!')
-            y_tokenized = np.empty((len(indices_of_labeled_samples),), dtype=np.int32)
-            for idx, sample_idx in enumerate(indices_of_labeled_samples):
-                y_tokenized[idx] = y[sample_idx]
+            if self.multioutput:
+                y_tokenized = np.zeros((len(indices_of_labeled_samples), self.n_classes_), dtype=np.int32)
+                for idx, sample_idx in enumerate(indices_of_labeled_samples):
+                    if isinstance(y[sample_idx], set):
+                        for class_idx in y[sample_idx]:
+                            y_tokenized[idx, class_idx] = 1
+                    else:
+                        class_idx = y[sample_idx]
+                        y_tokenized[idx] = class_idx
+            else:
+                y_tokenized = np.empty((len(indices_of_labeled_samples),), dtype=np.int32)
+                for idx, sample_idx in enumerate(indices_of_labeled_samples):
+                    y_tokenized[idx] = y[sample_idx]
             if len(indices_of_unlabeled_samples) == 0:
                 X_tokenized_unlabeled = None
             else:
@@ -515,7 +531,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     X_tokenized[data_column_idx] = X_tokenized[data_column_idx][indices_of_labeled_samples]
         if y is None:
             return X_tokenized
-        return X_tokenized, np.array(y_tokenized), X_tokenized_unlabeled
+        return X_tokenized, y_tokenized, X_tokenized_unlabeled
 
     def get_params(self, deep=True) -> dict:
         return {'bert_hub_module_handle': self.bert_hub_module_handle, 'batch_size': self.batch_size,
@@ -538,7 +554,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                                           name='input_mask')
         self.segment_ids_ = tf.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32,
                                            name='segment_ids')
-        self.y_ph_ = tf.placeholder(shape=(self.batch_size,), dtype=tf.int32, name='y_ph')
+        if self.multioutput:
+            self.y_ph_ = tf.placeholder(shape=(self.batch_size, self.n_classes_), dtype=tf.int32, name='y_ph')
+        else:
+            self.y_ph_ = tf.placeholder(shape=(self.batch_size,), dtype=tf.int32, name='y_ph')
         bert_inputs = dict(
             input_ids=self.input_ids_,
             input_mask=self.input_mask_,
@@ -559,11 +578,17 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         layers.append(tfp.layers.DenseFlipout(self.n_classes_, seed=self.random_seed, name='OutputLayer'))
         model = tf.keras.Sequential(layers)
         self.logits_ = model(pooled_output)
-        self.labels_distribution_ = tfp.distributions.Categorical(logits=self.logits_)
+        if self.multioutput:
+            self.labels_distribution_ = tfp.distributions.Bernoulli(logits=self.logits_)
+        else:
+            self.labels_distribution_ = tfp.distributions.Categorical(logits=self.logits_)
         neg_log_likelihood = -tf.reduce_mean(input_tensor=self.labels_distribution_.log_prob(self.y_ph_))
         kl = sum(model.losses)
         elbo_loss = neg_log_likelihood + kl
-        predictions = tf.argmax(input=self.logits_, axis=1)
+        if self.multioutput:
+            predictions = tf.cast(self.logits_ >= 0.5, dtype=tf.int32, name='predictions')
+        else:
+            predictions = tf.argmax(input=self.logits_, axis=1, name='predictions')
         accuracy, accuracy_update_op = tf.metrics.accuracy(labels=self.y_ph_, predictions=predictions)
         with tf.name_scope('train'):
             optimizer = tf.train.AdamOptimizer()
@@ -845,6 +870,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 (not isinstance(kwargs['verbose'], bool)) and (not isinstance(kwargs['verbose'], np.bool)):
             raise ValueError('`verbose` is wrong! Expected `{0}`, got `{1}`.'.format(
                 type(True), type(kwargs['verbose'])))
+        if 'multioutput' not in kwargs:
+            raise ValueError('`multioutput` is not specified!')
+        if (not isinstance(kwargs['multioutput'], int)) and (not isinstance(kwargs['multioutput'], np.int32)) and \
+                (not isinstance(kwargs['multioutput'], np.uint32)) and \
+                (not isinstance(kwargs['multioutput'], bool)) and (not isinstance(kwargs['multioutput'], np.bool)):
+            raise ValueError('`multioutput` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(True), type(kwargs['multioutput'])))
         if 'hidden_layer_sizes' not in kwargs:
             raise ValueError('`hidden_layer_sizes` is not specified!')
         if (not isinstance(kwargs['hidden_layer_sizes'], list)) and \
@@ -887,7 +919,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
 
     @staticmethod
     def check_Xy(X: Union[list, tuple, np.array], X_name: str,
-                 y: Union[list, tuple, np.array], y_name: str) -> List[int]:
+                 y: Union[list, tuple, np.array], y_name: str, multioutput: bool=False) -> List[int]:
         ImpatialTextClassifier.check_X(X, X_name)
         if (not hasattr(y, '__len__')) or (not hasattr(y, '__getitem__')):
             raise ValueError('`{0}` is wrong, because it is not a list-like object!'.format(y_name))
@@ -902,17 +934,32 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         for idx in range(n):
             if y[idx] is None:
                 raise ValueError('Item {0} of `{1}` is wrong, because it is `None`.'.format(idx, y_name))
-            try:
-                class_idx = int(y[idx])
-                if class_idx != y[idx]:
+            if isinstance(y[idx], set) and multioutput:
+                for class_idx_ in y[idx]:
+                    try:
+                        class_idx = int(class_idx_)
+                        if class_idx != class_idx_:
+                            class_idx = None
+                    except:
+                        class_idx = None
+                    if class_idx is None:
+                        raise ValueError('Item {0} of `{1}` is wrong, because `{2}` is inadmissible type for class '
+                                         'label.'.format(idx, y_name, type(y[idx])))
+                    if class_idx < 0:
+                        raise ValueError('Item {0} of `{1}` is wrong, because set of labels cannot contains undefined '
+                                         '(negative) class labels.'.format(idx, y_name))
+            else:
+                try:
+                    class_idx = int(y[idx])
+                    if class_idx != y[idx]:
+                        class_idx = None
+                except:
                     class_idx = None
-            except:
-                class_idx = None
-            if class_idx is None:
-                raise ValueError('Item {0} of `{1}` is wrong, because `{2}` is inadmissible type for class '
-                                 'label.'.format(idx, y_name, type(y[idx])))
-            if class_idx >= 0:
-                classes_list.add(class_idx)
+                if class_idx is None:
+                    raise ValueError('Item {0} of `{1}` is wrong, because `{2}` is inadmissible type for class '
+                                     'label.'.format(idx, y_name, type(y[idx])))
+                if class_idx >= 0:
+                    classes_list.add(class_idx)
         if len(classes_list) < 2:
             raise ValueError('`{0}` is wrong! There are too few classes in the `{0}`.'.format(y_name))
         return sorted(list(classes_list))
