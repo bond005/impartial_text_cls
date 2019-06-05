@@ -537,7 +537,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         return {'bert_hub_module_handle': self.bert_hub_module_handle, 'batch_size': self.batch_size,
                 'max_epochs': self.max_epochs, 'patience': self.patience, 'hidden_layer_sizes': self.hidden_layer_sizes,
                 'validation_fraction': self.validation_fraction, 'gpu_memory_frac': self.gpu_memory_frac,
-                'verbose': self.verbose, 'random_seed': self.random_seed, 'num_monte_carlo': self.num_monte_carlo}
+                'verbose': self.verbose, 'random_seed': self.random_seed, 'num_monte_carlo': self.num_monte_carlo,
+                'multioutput': self.multioutput}
 
     def set_params(self, **params):
         for parameter, value in params.items():
@@ -645,7 +646,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         result = cls.__new__(cls)
         result.set_params(
             bert_hub_module_handle=self.bert_hub_module_handle, hidden_layer_sizes=copy.copy(self.hidden_layer_sizes),
-            num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size,
+            num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size, multioutput=self.multioutput,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
             gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed
         )
@@ -672,7 +673,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         result = cls.__new__(cls)
         result.set_params(
             bert_hub_module_handle=self.bert_hub_module_handle, hidden_layer_sizes=copy.copy(self.hidden_layer_sizes),
-            num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size,
+            num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size, multioutput=self.multioutput,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
             gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed
         )
