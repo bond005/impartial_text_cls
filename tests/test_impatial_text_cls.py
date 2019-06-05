@@ -625,6 +625,7 @@ class TestClassifier(unittest.TestCase):
         old_verbose = self.cls.verbose
         self.cls.fit(train_texts, train_labels, validation_data=(valid_texts, valid_labels))
         old_certainty_threshold = self.cls.certainty_threshold_
+        self.cls.update_random_seed()
         old_y = self.cls.predict(valid_texts)
         self.assertIsInstance(old_y, np.ndarray)
         self.assertEqual(len(old_y.shape), 1)
@@ -674,6 +675,7 @@ class TestClassifier(unittest.TestCase):
         self.assertLessEqual(self.cls.certainty_threshold_, 1.0)
         self.assertAlmostEqual(self.cls.certainty_threshold_, old_certainty_threshold, places=6)
         self.assertEqual(self.cls.n_classes_, 7)
+        self.cls.update_random_seed()
         new_y = self.cls.predict(valid_texts)
         self.assertIsInstance(new_y, np.ndarray)
         self.assertEqual(len(new_y.shape), 1)
@@ -811,6 +813,8 @@ class TestClassifier(unittest.TestCase):
         self.assertEqual(self.cls.verbose, self.another_cls.verbose)
         self.assertAlmostEqual(self.cls.certainty_threshold_, self.another_cls.certainty_threshold_, places=9)
         self.assertEqual(self.cls.n_classes_, self.another_cls.n_classes_)
+        self.cls.update_random_seed()
+        self.another_cls.update_random_seed()
         self.assertEqual(self.cls.predict(valid_texts).tolist(), self.another_cls.predict(valid_texts).tolist())
 
     def test_fit_predict_positive01(self):

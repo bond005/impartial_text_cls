@@ -405,6 +405,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             quality = f1_score(y_true=y, y_pred=y_pred, average='macro')
         return quality
 
+    def update_random_seed(self):
+        if self.random_seed is None:
+            self.random_seed = int(round(time.time()))
+        random.seed(self.random_seed)
+        np.random.seed(self.random_seed)
+        tf.random.set_random_seed(self.random_seed)
+
     def is_fitted(self):
         check_is_fitted(self, ['n_classes_', 'logits_', 'tokenizer_', 'input_ids_', 'input_mask_', 'segment_ids_',
                                'labels_distribution_', 'y_ph_', 'sess_', 'certainty_threshold_'])
@@ -725,10 +732,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             self.n_classes_ = new_params['n_classes_']
             self.certainty_threshold_ = new_params['certainty_threshold_']
             self.tokenizer_ = copy.deepcopy(new_params['tokenizer_'])
-            if self.random_seed is None:
-                self.random_seed = int(round(time.time()))
-            random.seed(self.random_seed)
-            np.random.seed(self.random_seed)
+            self.update_random_seed()
             try:
                 for idx in range(len(model_files)):
                     with open(tmp_file_names[idx], 'wb') as fp:
