@@ -339,7 +339,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             bert_hub_module_handle=self.bert_hub_module_handle, batch_size=self.batch_size,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
             gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
-            num_monte_carlo=self.num_monte_carlo, hidden_layer_sizes=self.hidden_layer_sizes
+            num_monte_carlo=self.num_monte_carlo, hidden_layer_sizes=self.hidden_layer_sizes,
+            multioutput=self.multioutput
         )
         self.check_X(X, 'X')
         self.is_fitted()
@@ -387,7 +388,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             bert_hub_module_handle=self.bert_hub_module_handle, batch_size=self.batch_size,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
             gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
-            num_monte_carlo=self.num_monte_carlo, hidden_layer_sizes=self.hidden_layer_sizes
+            num_monte_carlo=self.num_monte_carlo, hidden_layer_sizes=self.hidden_layer_sizes,
+            multioutput=self.multioutput
         )
         self.is_fitted()
         classes_list = self.check_Xy(X, 'X', y, 'y', self.multioutput)
@@ -945,7 +947,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         class_idx = None
                     if class_idx is None:
                         raise ValueError('Item {0} of `{1}` is wrong, because `{2}` is inadmissible type for class '
-                                         'label.'.format(idx, y_name, type(y[idx])))
+                                         'label.'.format(idx, y_name, type(class_idx_)))
                     if class_idx < 0:
                         raise ValueError('Item {0} of `{1}` is wrong, because set of labels cannot contains undefined '
                                          '(negative) class labels.'.format(idx, y_name))
