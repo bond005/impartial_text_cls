@@ -183,10 +183,16 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                                             for _ in range(self.num_monte_carlo)])
                         del feed_dict_for_batch
                         mean_probs = np.mean(probs, axis=0)
-                        if y_pred is None:
-                            y_pred = mean_probs.argmax(axis=-1)
+                        if self.multioutput:
+                            if y_pred is None:
+                                y_pred = mean_probs.copy()
+                            else:
+                                y_pred = np.vstack((y_pred, mean_probs))
                         else:
-                            y_pred = np.concatenate((y_pred, mean_probs.argmax(axis=-1)))
+                            if y_pred is None:
+                                y_pred = mean_probs.argmax(axis=-1)
+                            else:
+                                y_pred = np.concatenate((y_pred, mean_probs.argmax(axis=-1)))
                         del probs, mean_probs
                     acc_test /= float(X_val_tokenized[0].shape[0])
                     if self.verbose:
