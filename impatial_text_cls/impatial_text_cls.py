@@ -140,7 +140,6 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             bounds_of_batches_for_training.append((batch_start, batch_end))
         if X_val_tokenized is None:
             bounds_of_batches_for_validation = None
-            classes_dict_for_validation = None
         else:
             n_batches = int(np.ceil(X_val_tokenized[0].shape[0] / float(self.batch_size)))
             bounds_of_batches_for_validation = []
@@ -148,15 +147,6 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 batch_start = iteration * self.batch_size
                 batch_end = min(batch_start + self.batch_size, X_val_tokenized[0].shape[0])
                 bounds_of_batches_for_validation.append((batch_start, batch_end))
-            if len(y_val_tokenized.shape) == 1:
-                classes_dict_for_validation = sorted(list(set(y_val_tokenized.tolist())))
-            else:
-                classes_dict_for_validation = set()
-                for sample_idx in range(y_val_tokenized.shape[0]):
-                    for class_idx in range(y_val_tokenized.shape[1]):
-                        if y_val_tokenized[sample_idx][class_idx] > 0:
-                            classes_dict_for_validation.add(class_idx)
-                classes_dict_for_validation = sorted(list(classes_dict_for_validation))
         init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
         init.run(session=self.sess_)
         tmp_model_name = self.get_temp_model_name()
@@ -203,15 +193,17 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         print('Epoch {0}'.format(epoch))
                         print('  Train log-likelihood: {0: 10.8f}'.format(acc_train))
                         print('  Val. log-likelihood:  {0: 10.8f}'.format(acc_test))
-                    with warnings.catch_warnings():
-                        warnings.simplefilter("ignore")
-                        precision_by_classes, recall_by_classes, f1_by_classes, _ = precision_recall_fscore_support(
-                            y_val_tokenized, y_pred[0:len(y_val_tokenized)], average=None,
-                            labels=classes_dict_for_validation
-                        )
-                    f1_test = np.mean(f1_by_classes)
-                    precision_test = np.mean(precision_by_classes)
-                    recall_test = np.mean(recall_by_classes)
+                    quality_by_classes = self.calculate_quality(y_val_tokenized, y_pred[0:len(y_val_tokenized)])
+                    f1_test = 0.0
+                    precision_test = 0.0
+                    recall_test = 0.0
+                    for class_idx in range(self.n_classes_):
+                        precision_test += quality_by_classes[class_idx][0]
+                        recall_test += quality_by_classes[class_idx][1]
+                        f1_test += quality_by_classes[class_idx][2]
+                    precision_test /= float(self.n_classes_)
+                    recall_test /= float(self.n_classes_)
+                    f1_test /= float(self.n_classes_)
                     if best_acc is None:
                         best_acc = f1_test
                         self.save_model(tmp_model_name)
@@ -224,19 +216,20 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         n_epochs_without_improving += 1
                     if self.verbose:
                         print('  Val. quality for all entities:')
-                        print('      F1={0:>6.4f}, P={1:>6.4f}, R={2:>6.4f}'.format(
+                        print('    F1={0:>6.4f}, P={1:>6.4f}, R={2:>6.4f}'.format(
                             f1_test, precision_test, recall_test))
                         max_text_width = 0
-                        for class_idx in classes_dict_for_validation:
+                        for class_idx in range(self.n_classes_):
                             text_width = len(str(class_idx))
                             if text_width > max_text_width:
                                 max_text_width = text_width
-                        for idx, class_idx in enumerate(classes_dict_for_validation):
-                            print('    Val. quality for {0:>{1}}:'.format(
+                        for class_idx in range(self.n_classes_):
+                            print('      Val. quality for {0:>{1}}:'.format(
                                 class_idx, max_text_width))
-                            print('      F1={0:>6.4f}, P={1:>6.4f}, R={2:>6.4f})'.format(
-                                f1_by_classes[idx], precision_by_classes[idx], recall_by_classes[idx]))
-                    del y_pred, f1_by_classes, precision_by_classes, recall_by_classes
+                            print('        F1={0:>6.4f}, P={1:>6.4f}, R={2:>6.4f})'.format(
+                                quality_by_classes[class_idx][2], quality_by_classes[class_idx][0],
+                                quality_by_classes[class_idx][1]))
+                    del y_pred, quality_by_classes
                 else:
                     if best_acc is None:
                         best_acc = acc_train
