@@ -3,12 +3,12 @@ import os
 import random
 import tempfile
 import time
-from typing import List, Tuple, Union
+from typing import Dict, List, Tuple, Union
 import warnings
 
 import numpy as np
 from sklearn.base import BaseEstimator, ClassifierMixin
-from sklearn.metrics import precision_recall_fscore_support, f1_score
+from sklearn.metrics import precision_score, recall_score, f1_score
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.utils.validation import check_is_fitted
 import tensorflow as tf
@@ -148,7 +148,15 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 batch_start = iteration * self.batch_size
                 batch_end = min(batch_start + self.batch_size, X_val_tokenized[0].shape[0])
                 bounds_of_batches_for_validation.append((batch_start, batch_end))
-            classes_dict_for_validation = sorted(list(set(y_val_tokenized.tolist())))
+            if len(y_val_tokenized.shape) == 1:
+                classes_dict_for_validation = sorted(list(set(y_val_tokenized.tolist())))
+            else:
+                classes_dict_for_validation = set()
+                for sample_idx in range(y_val_tokenized.shape[0]):
+                    for class_idx in range(y_val_tokenized.shape[1]):
+                        if y_val_tokenized[sample_idx][class_idx] > 0:
+                            classes_dict_for_validation.add(class_idx)
+                classes_dict_for_validation = sorted(list(classes_dict_for_validation))
         init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
         init.run(session=self.sess_)
         tmp_model_name = self.get_temp_model_name()
@@ -253,85 +261,139 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         finally:
             for cur_name in self.find_all_model_files(tmp_model_name):
                 os.remove(cur_name)
-        if X_val_tokenized is None:
-            bounds_of_batches = bounds_of_batches_for_training
-            probabilities_for_labeled_samples = np.zeros((X_train_tokenized[0].shape[0],), dtype=np.float32)
-            for cur_batch in bounds_of_batches:
-                X_batch = [X_train_tokenized[channel_idx][cur_batch[0]:cur_batch[1]]
-                           for channel_idx in range(len(X_train_tokenized))]
-                feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
-                                    for _ in range(self.num_monte_carlo)])
-                del feed_dict_for_batch
-                mean_probs = np.mean(probs, axis=0)
-                probabilities_for_labeled_samples[cur_batch[0]:cur_batch[1]] = mean_probs.max(axis=-1)
-                del probs, mean_probs
-        else:
-            probabilities_for_labeled_samples = np.zeros((X_val_tokenized[0].shape[0],), dtype=np.float32)
-            bounds_of_batches = bounds_of_batches_for_validation
-            for cur_batch in bounds_of_batches:
-                X_batch = [X_val_tokenized[channel_idx][cur_batch[0]:cur_batch[1]]
-                           for channel_idx in range(len(X_val_tokenized))]
-                feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
-                                    for _ in range(self.num_monte_carlo)])
-                del feed_dict_for_batch
-                mean_probs = np.mean(probs, axis=0)
-                probabilities_for_labeled_samples[cur_batch[0]:cur_batch[1]] = mean_probs.max(axis=-1)
-                del probs, mean_probs
-        if X_unlabeled_tokenized is None:
-            probabilities_for_another_samples = None
-        else:
-            probabilities_for_another_samples = np.zeros((X_unlabeled_tokenized[0].shape[0]), dtype=np.float32)
-            bounds_of_batches = []
-            n_batches = int(np.ceil(X_unlabeled_tokenized[0].shape[0] / float(self.batch_size)))
-            for iteration in range(n_batches):
-                batch_start = iteration * self.batch_size
-                batch_end = min(batch_start + self.batch_size, X_unlabeled_tokenized[0].shape[0])
-                bounds_of_batches.append((batch_start, batch_end))
-            for cur_batch in bounds_of_batches:
-                X_batch = [X_unlabeled_tokenized[channel_idx][cur_batch[0]:cur_batch[1]]
-                           for channel_idx in range(len(X_unlabeled_tokenized))]
-                feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
-                                    for _ in range(self.num_monte_carlo)])
-                mean_probs = np.mean(probs, axis=0)
-                probabilities_for_another_samples[cur_batch[0]:cur_batch[1]] = mean_probs.max(axis=-1)
-                del probs, mean_probs
-        if probabilities_for_another_samples is None:
-            self.certainty_threshold_ = probabilities_for_labeled_samples.min()
-            if self.verbose:
-                print('Certainty threshold has been detected as minimum of maximal recognition probabilities for '
-                      'labeled samples.')
-                print('This threshold is {0:.3f}.'.format(self.certainty_threshold_))
-        else:
-            y_true = np.concatenate(
-                (
-                    np.full((len(probabilities_for_labeled_samples)), 1, dtype=np.int32),
-                    np.full((len(probabilities_for_another_samples)), 0, dtype=np.int32),
-                )
-            )
-            probabilities = np.concatenate((probabilities_for_labeled_samples, probabilities_for_another_samples))
-            best_threshold = 1e-3
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                best_f1 = f1_score(y_true, probabilities >= best_threshold)
-            threshold = best_threshold + 1e-3
-            while threshold < 1.0:
+        if self.multioutput:
+            if y_val_tokenized is None:
+                bounds_of_batches = bounds_of_batches_for_training
+                probabilities = np.zeros((X_train_tokenized[0].shape[0], self.n_classes_), dtype=np.float32)
+                for batch_start, batch_end in bounds_of_batches:
+                    X_batch = [X_train_tokenized[channel_idx][batch_start:batch_end]
+                               for channel_idx in range(len(X_train_tokenized))]
+                    feed_dict_for_batch = self.fill_feed_dict(X_batch)
+                    probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
+                                        for _ in range(self.num_monte_carlo)])
+                    del feed_dict_for_batch
+                    mean_probs = np.mean(probs, axis=0)
+                    probabilities[batch_start:batch_end] = mean_probs[0:(batch_end - batch_start)]
+                    del probs, mean_probs
+                y_true = np.copy(y_train_tokenized)
+            else:
+                bounds_of_batches = bounds_of_batches_for_validation
+                probabilities = np.zeros((X_val_tokenized[0].shape[0], self.n_classes_), dtype=np.float32)
+                for batch_start, batch_end in bounds_of_batches:
+                    X_batch = [X_val_tokenized[channel_idx][batch_start:batch_end]
+                               for channel_idx in range(len(X_val_tokenized))]
+                    feed_dict_for_batch = self.fill_feed_dict(X_batch)
+                    probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
+                                        for _ in range(self.num_monte_carlo)])
+                    del feed_dict_for_batch
+                    mean_probs = np.mean(probs, axis=0)
+                    probabilities[batch_start:batch_end] = mean_probs[0:(batch_end - batch_start)]
+                    del probs, mean_probs
+                y_true = np.copy(y_val_tokenized)
+            if X_unlabeled_tokenized is not None:
+                probabilities = np.vstack((probabilities, np.zeros((X_unlabeled_tokenized.shape[0], self.n_classes_))))
+                y_true = np.vstack((y_true, np.zeros((X_unlabeled_tokenized.shape[0], self.n_classes_))))
+            self.certainty_threshold_ = np.full((self.n_classes_,), 1e-3)
+            for class_idx in range(self.n_classes_):
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
-                    f1 = f1_score(y_true, probabilities >= threshold)
-                if f1 > best_f1:
-                    best_f1 = f1
-                    best_threshold = threshold
-                threshold += 1e-3
-            self.certainty_threshold_ = best_threshold
-            del y_true, probabilities
-            if self.verbose:
-                print('Certainty threshold has been detected as a maximization result of F1-score for the friend-or-foe'
-                      ' identification.')
-                print('Best F1-score is {0:.6f}.'.format(best_f1))
-                print('Corresponding threshold is {0:.3f}.'.format(self.certainty_threshold_))
+                    best_f1 = f1_score(y_true[:, class_idx],
+                                       probabilities[:, class_idx] >= self.certainty_threshold_[class_idx])
+                threshold = self.certainty_threshold_[class_idx] + 1e-3
+                while threshold < 1.0:
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        f1 = f1_score(y_true[:, class_idx], probabilities[:, class_idx] >= threshold)
+                    if f1 > best_f1:
+                        best_f1 = f1
+                        self.certainty_threshold_[class_idx] = threshold
+                    threshold += 1e-3
+                print('Certainty threshold for class {0} is {1:.3f}.'.format(
+                    class_idx, self.certainty_threshold_[class_idx]))
+        else:
+            if X_val_tokenized is None:
+                bounds_of_batches = bounds_of_batches_for_training
+                probabilities_for_labeled_samples = np.zeros((X_train_tokenized[0].shape[0],), dtype=np.float32)
+                for batch_start, batch_end in bounds_of_batches:
+                    X_batch = [X_train_tokenized[channel_idx][batch_start:batch_end]
+                               for channel_idx in range(len(X_train_tokenized))]
+                    feed_dict_for_batch = self.fill_feed_dict(X_batch)
+                    probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
+                                        for _ in range(self.num_monte_carlo)])
+                    del feed_dict_for_batch
+                    mean_probs = np.mean(probs, axis=0)
+                    probabilities_for_labeled_samples[batch_start:batch_end] = mean_probs.max(
+                        axis=-1)[0:(batch_end - batch_start)]
+                    del probs, mean_probs
+            else:
+                probabilities_for_labeled_samples = np.zeros((X_val_tokenized[0].shape[0],), dtype=np.float32)
+                bounds_of_batches = bounds_of_batches_for_validation
+                for batch_start, batch_end in bounds_of_batches:
+                    X_batch = [X_val_tokenized[channel_idx][batch_start:batch_end]
+                               for channel_idx in range(len(X_val_tokenized))]
+                    feed_dict_for_batch = self.fill_feed_dict(X_batch)
+                    probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
+                                        for _ in range(self.num_monte_carlo)])
+                    del feed_dict_for_batch
+                    mean_probs = np.mean(probs, axis=0)
+                    probabilities_for_labeled_samples[batch_start:batch_end] = mean_probs.max(
+                        axis=-1)[0:(batch_end - batch_start)]
+                    del probs, mean_probs
+            if X_unlabeled_tokenized is None:
+                probabilities_for_another_samples = None
+            else:
+                probabilities_for_another_samples = np.zeros((X_unlabeled_tokenized[0].shape[0]), dtype=np.float32)
+                bounds_of_batches = []
+                n_batches = int(np.ceil(X_unlabeled_tokenized[0].shape[0] / float(self.batch_size)))
+                for iteration in range(n_batches):
+                    batch_start = iteration * self.batch_size
+                    batch_end = min(batch_start + self.batch_size, X_unlabeled_tokenized[0].shape[0])
+                    bounds_of_batches.append((batch_start, batch_end))
+                for batch_start, batch_end in bounds_of_batches:
+                    X_batch = [X_unlabeled_tokenized[channel_idx][batch_start:batch_end]
+                               for channel_idx in range(len(X_unlabeled_tokenized))]
+                    feed_dict_for_batch = self.fill_feed_dict(X_batch)
+                    probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
+                                        for _ in range(self.num_monte_carlo)])
+                    mean_probs = np.mean(probs, axis=0)
+                    probabilities_for_another_samples[batch_start:batch_end] = mean_probs.max(
+                        axis=-1)[0:(batch_end - batch_start)]
+                    del probs, mean_probs
+            if probabilities_for_another_samples is None:
+                self.certainty_threshold_ = probabilities_for_labeled_samples.min()
+                if self.verbose:
+                    print('Certainty threshold has been detected as minimum of maximal recognition probabilities for '
+                          'labeled samples.')
+                    print('This threshold is {0:.3f}.'.format(self.certainty_threshold_))
+            else:
+                y_true = np.concatenate(
+                    (
+                        np.full((len(probabilities_for_labeled_samples)), 1, dtype=np.int32),
+                        np.full((len(probabilities_for_another_samples)), 0, dtype=np.int32),
+                    )
+                )
+                probabilities = np.concatenate((probabilities_for_labeled_samples, probabilities_for_another_samples))
+                best_threshold = 1e-3
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    best_f1 = f1_score(y_true, probabilities >= best_threshold)
+                threshold = best_threshold + 1e-3
+                while threshold < 1.0:
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        f1 = f1_score(y_true, probabilities >= threshold)
+                    if f1 > best_f1:
+                        best_f1 = f1
+                        best_threshold = threshold
+                    threshold += 1e-3
+                self.certainty_threshold_ = best_threshold
+                del y_true, probabilities
+                if self.verbose:
+                    print(
+                        'Certainty threshold has been detected as a maximization result of F1-score for the '
+                        'friend-or-foe identification.')
+                    print('Best F1-score is {0:.6f}.'.format(best_f1))
+                    print('Corresponding threshold is {0:.3f}.'.format(self.certainty_threshold_))
         return self
 
     def predict_proba(self, X: Union[list, tuple, np.array]) -> np.ndarray:
@@ -373,11 +435,27 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
 
     def predict(self, X: Union[list, tuple, np.array]) -> np.ndarray:
         probabilities = self.predict_proba(X)
-        recognized_classes = probabilities.argmax(axis=-1)
-        for idx in range(len(recognized_classes)):
-            if probabilities[idx][recognized_classes[idx]] < self.certainty_threshold_:
-                recognized_classes[idx] = -1
-        del probabilities
+        if self.multioutput:
+            recognized_classes = list()
+            for sample_idx in range(probabilities.shape[0]):
+                set_of_classes = set()
+                for class_idx in range(probabilities.shape[1]):
+                    if probabilities[sample_idx][class_idx] >= self.certainty_threshold_[class_idx]:
+                        set_of_classes.add(class_idx)
+                if len(set_of_classes) == 0:
+                    recognized_classes.append(-1)
+                elif len(set_of_classes) == 1:
+                    recognized_classes.append(set_of_classes.pop())
+                else:
+                    recognized_classes.append(copy.copy(set_of_classes))
+                del set_of_classes
+            recognized_classes = np.array(recognized_classes, dtype=object)
+        else:
+            recognized_classes = probabilities.argmax(axis=-1)
+            for idx in range(len(recognized_classes)):
+                if probabilities[idx][recognized_classes[idx]] < self.certainty_threshold_:
+                    recognized_classes[idx] = -1
+            del probabilities
         return recognized_classes
 
     def fit_predict(self, X: Union[list, tuple, np.array], y: Union[list, tuple, np.array], **kwargs):
@@ -400,9 +478,19 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             else:
                 raise ValueError('`y` is wrong. Classes {0} are unknown.'.format(unknown_classes))
         y_pred = self.predict(X)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            quality = f1_score(y_true=y, y_pred=y_pred, average='macro')
+        if self.multioutput:
+            quality = 0.0
+            for class_idx in range(self.n_classes_):
+                y_true_ = list(map(lambda cur: class_idx in cur if isinstance(cur, set) else class_idx == cur, y))
+                y_pred_ = list(map(lambda cur: class_idx in cur if isinstance(cur, set) else class_idx == cur, y_pred))
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    quality = f1_score(y_true=np.array(y_true_, dtype=np.int32),
+                                       y_pred=np.array(y_pred_, dtype=np.int32))
+        else:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                quality = f1_score(y_true=y, y_pred=y_pred, average='macro')
         return quality
 
     def update_random_seed(self):
@@ -534,6 +622,24 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         if y is None:
             return X_tokenized
         return X_tokenized, y_tokenized, X_tokenized_unlabeled
+
+    def calculate_quality(self, y_true: np.ndarray, y_pred: np.ndarray) -> Dict[int, Tuple[float, float, float]]:
+        res = dict()
+        for class_idx in range(self.n_classes_):
+            if self.multioutput:
+                y_true_ = np.asarray(y_true[:, class_idx] > 0, dtype=np.int32)
+                y_pred_ = np.asarray(y_pred[:, class_idx] >= 0.5, dtype=np.int32)
+            else:
+                y_true_ = np.asarray(y_true == class_idx, dtype=np.int32)
+                y_pred_ = np.asarray(y_pred == class_idx, dtype=np.int32)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                res[class_idx] = (
+                    precision_score(y_true=y_true_, y_pred=y_pred_),
+                    recall_score(y_true=y_true_, y_pred=y_pred_),
+                    f1_score(y_true=y_true_, y_pred=y_pred_)
+                )
+        return res
 
     def get_params(self, deep=True) -> dict:
         return {'bert_hub_module_handle': self.bert_hub_module_handle, 'batch_size': self.batch_size,
