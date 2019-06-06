@@ -764,7 +764,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         except:
             is_fitted = False
         if is_fitted:
-            result.certainty_threshold_ = self.certainty_threshold_
+            result.certainty_threshold_ = copy.copy(self.certainty_threshold_)
             result.n_classes_ = self.n_classes_
             result.logits_ = self.logits_
             result.tokenizer_ = self.tokenizer_
@@ -791,7 +791,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         except:
             is_fitted = False
         if is_fitted:
-            result.certainty_threshold_ = self.certainty_threshold_
+            result.certainty_threshold_ = copy.copy(self.certainty_threshold_)
             result.n_classes_ = self.n_classes_
             result.logits_ = self.logits_
             result.tokenizer_ = self.tokenizer_
@@ -817,7 +817,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             is_fitted = False
         params = self.get_params(True)
         if is_fitted:
-            params['certainty_threshold_'] = self.certainty_threshold_
+            params['certainty_threshold_'] = copy.copy(self.certainty_threshold_)
             params['n_classes_'] = self.n_classes_
             params['tokenizer_'] = copy.deepcopy(self.tokenizer_)
             model_file_name = self.get_temp_model_name()
@@ -864,7 +864,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     raise ValueError('File `{0}` exists, and so it cannot be used for data transmission!'.format(cur))
             self.set_params(**new_params)
             self.n_classes_ = new_params['n_classes_']
-            self.certainty_threshold_ = new_params['certainty_threshold_']
+            self.certainty_threshold_ = copy.copy(new_params['certainty_threshold_'])
             self.tokenizer_ = copy.deepcopy(new_params['tokenizer_'])
             self.update_random_seed()
             try:
