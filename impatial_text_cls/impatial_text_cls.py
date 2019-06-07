@@ -260,13 +260,22 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         finally:
             for cur_name in self.find_all_model_files(tmp_model_name):
                 os.remove(cur_name)
+        self.calculate_certainty_treshold(X_train_tokenized, y_train_tokenized, X_val_tokenized, y_val_tokenized,
+                                          X_unlabeled_tokenized)
+        return self
+
+    def calculate_certainty_treshold(self, X_train: List[np.ndarray], y_train: np.ndarray,
+                                     X_val: Union[List[np.ndarray], None], y_val: Union[np.ndarray, None],
+                                     X_unlabeled: Union[List[np.ndarray], None]):
         if self.multioutput:
-            if y_val_tokenized is None:
-                bounds_of_batches = bounds_of_batches_for_training
-                probabilities = np.zeros((X_train_tokenized[0].shape[0], self.n_classes_), dtype=np.float32)
-                for batch_start, batch_end in bounds_of_batches:
-                    X_batch = [X_train_tokenized[channel_idx][batch_start:batch_end]
-                               for channel_idx in range(len(X_train_tokenized))]
+            if y_val is None:
+                n_batches = int(np.ceil(X_train[0].shape[0] / float(self.batch_size)))
+                probabilities = np.zeros((X_train[0].shape[0], self.n_classes_), dtype=np.float32)
+                for iteration in range(n_batches):
+                    batch_start = iteration * self.batch_size
+                    batch_end = min(batch_start + self.batch_size, X_train[0].shape[0])
+                    X_batch = [X_train[channel_idx][batch_start:batch_end]
+                               for channel_idx in range(len(X_train))]
                     feed_dict_for_batch = self.fill_feed_dict(X_batch)
                     probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
                                         for _ in range(self.num_monte_carlo)])
@@ -274,13 +283,15 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     mean_probs = np.mean(probs, axis=0)
                     probabilities[batch_start:batch_end] = mean_probs[0:(batch_end - batch_start)]
                     del probs, mean_probs
-                y_true = np.copy(y_train_tokenized)
+                y_true = np.copy(y_train)
             else:
-                bounds_of_batches = bounds_of_batches_for_validation
-                probabilities = np.zeros((X_val_tokenized[0].shape[0], self.n_classes_), dtype=np.float32)
-                for batch_start, batch_end in bounds_of_batches:
-                    X_batch = [X_val_tokenized[channel_idx][batch_start:batch_end]
-                               for channel_idx in range(len(X_val_tokenized))]
+                probabilities = np.zeros((X_val[0].shape[0], self.n_classes_), dtype=np.float32)
+                n_batches = int(np.ceil(X_val[0].shape[0] / float(self.batch_size)))
+                for iteration in range(n_batches):
+                    batch_start = iteration * self.batch_size
+                    batch_end = min(batch_start + self.batch_size, X_val[0].shape[0])
+                    X_batch = [X_val[channel_idx][batch_start:batch_end]
+                               for channel_idx in range(len(X_val))]
                     feed_dict_for_batch = self.fill_feed_dict(X_batch)
                     probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
                                         for _ in range(self.num_monte_carlo)])
@@ -288,10 +299,32 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     mean_probs = np.mean(probs, axis=0)
                     probabilities[batch_start:batch_end] = mean_probs[0:(batch_end - batch_start)]
                     del probs, mean_probs
-                y_true = np.copy(y_val_tokenized)
-            if X_unlabeled_tokenized is not None:
-                probabilities = np.vstack((probabilities, np.zeros((X_unlabeled_tokenized.shape[0], self.n_classes_))))
-                y_true = np.vstack((y_true, np.zeros((X_unlabeled_tokenized.shape[0], self.n_classes_))))
+                y_true = np.copy(y_val)
+            if X_unlabeled is not None:
+                n_batches = int(np.ceil(X_unlabeled[0].shape[0] / float(self.batch_size)))
+                probabilities_for_unlabeled = np.empty((X_unlabeled[0].shape[0], self.n_classes_))
+                for iteration in range(n_batches):
+                    batch_start = iteration * self.batch_size
+                    batch_end = min(batch_start + self.batch_size, X_unlabeled[0].shape[0])
+                    X_batch = [X_unlabeled[channel_idx][batch_start:batch_end]
+                               for channel_idx in range(len(X_unlabeled))]
+                    feed_dict_for_batch = self.fill_feed_dict(X_batch)
+                    probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
+                                        for _ in range(self.num_monte_carlo)])
+                    mean_probs = np.mean(probs, axis=0)
+                    probabilities_for_unlabeled[batch_start:batch_end] = mean_probs[0:(batch_end - batch_start)]
+                probabilities = np.vstack(
+                    (
+                        probabilities,
+                        probabilities_for_unlabeled
+                    )
+                )
+                y_true = np.vstack(
+                    (
+                        y_true,
+                        np.zeros((X_unlabeled[0].shape[0], self.n_classes_))
+                    )
+                )
             self.certainty_threshold_ = np.full((self.n_classes_,), 1e-3)
             for class_idx in range(self.n_classes_):
                 with warnings.catch_warnings():
@@ -310,47 +343,48 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 print('Certainty threshold for class {0} is {1:.3f}.'.format(
                     class_idx, self.certainty_threshold_[class_idx]))
         else:
-            if X_val_tokenized is None:
-                bounds_of_batches = bounds_of_batches_for_training
-                probabilities_for_labeled_samples = np.zeros((X_train_tokenized[0].shape[0],), dtype=np.float32)
-                for batch_start, batch_end in bounds_of_batches:
-                    X_batch = [X_train_tokenized[channel_idx][batch_start:batch_end]
-                               for channel_idx in range(len(X_train_tokenized))]
-                    feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                    probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
-                                        for _ in range(self.num_monte_carlo)])
-                    del feed_dict_for_batch
-                    mean_probs = np.mean(probs, axis=0)
-                    probabilities_for_labeled_samples[batch_start:batch_end] = mean_probs.max(
-                        axis=-1)[0:(batch_end - batch_start)]
-                    del probs, mean_probs
-            else:
-                probabilities_for_labeled_samples = np.zeros((X_val_tokenized[0].shape[0],), dtype=np.float32)
-                bounds_of_batches = bounds_of_batches_for_validation
-                for batch_start, batch_end in bounds_of_batches:
-                    X_batch = [X_val_tokenized[channel_idx][batch_start:batch_end]
-                               for channel_idx in range(len(X_val_tokenized))]
-                    feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                    probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
-                                        for _ in range(self.num_monte_carlo)])
-                    del feed_dict_for_batch
-                    mean_probs = np.mean(probs, axis=0)
-                    probabilities_for_labeled_samples[batch_start:batch_end] = mean_probs.max(
-                        axis=-1)[0:(batch_end - batch_start)]
-                    del probs, mean_probs
-            if X_unlabeled_tokenized is None:
-                probabilities_for_another_samples = None
-            else:
-                probabilities_for_another_samples = np.zeros((X_unlabeled_tokenized[0].shape[0]), dtype=np.float32)
-                bounds_of_batches = []
-                n_batches = int(np.ceil(X_unlabeled_tokenized[0].shape[0] / float(self.batch_size)))
+            if X_val is None:
+                n_batches = int(np.ceil(X_train[0].shape[0] / float(self.batch_size)))
+                probabilities_for_labeled_samples = np.zeros((X_train[0].shape[0],), dtype=np.float32)
                 for iteration in range(n_batches):
                     batch_start = iteration * self.batch_size
-                    batch_end = min(batch_start + self.batch_size, X_unlabeled_tokenized[0].shape[0])
-                    bounds_of_batches.append((batch_start, batch_end))
-                for batch_start, batch_end in bounds_of_batches:
-                    X_batch = [X_unlabeled_tokenized[channel_idx][batch_start:batch_end]
-                               for channel_idx in range(len(X_unlabeled_tokenized))]
+                    batch_end = min(batch_start + self.batch_size, X_train[0].shape[0])
+                    X_batch = [X_train[channel_idx][batch_start:batch_end]
+                               for channel_idx in range(len(X_train))]
+                    feed_dict_for_batch = self.fill_feed_dict(X_batch)
+                    probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
+                                        for _ in range(self.num_monte_carlo)])
+                    del feed_dict_for_batch
+                    mean_probs = np.mean(probs, axis=0)
+                    probabilities_for_labeled_samples[batch_start:batch_end] = mean_probs.max(
+                        axis=-1)[0:(batch_end - batch_start)]
+                    del probs, mean_probs
+            else:
+                probabilities_for_labeled_samples = np.zeros((X_val[0].shape[0],), dtype=np.float32)
+                n_batches = int(np.ceil(X_val[0].shape[0] / float(self.batch_size)))
+                for iteration in range(n_batches):
+                    batch_start = iteration * self.batch_size
+                    batch_end = min(batch_start + self.batch_size, X_val[0].shape[0])
+                    X_batch = [X_val[channel_idx][batch_start:batch_end]
+                               for channel_idx in range(len(X_val))]
+                    feed_dict_for_batch = self.fill_feed_dict(X_batch)
+                    probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
+                                        for _ in range(self.num_monte_carlo)])
+                    del feed_dict_for_batch
+                    mean_probs = np.mean(probs, axis=0)
+                    probabilities_for_labeled_samples[batch_start:batch_end] = mean_probs.max(
+                        axis=-1)[0:(batch_end - batch_start)]
+                    del probs, mean_probs
+            if X_unlabeled is None:
+                probabilities_for_another_samples = None
+            else:
+                probabilities_for_another_samples = np.zeros((X_unlabeled[0].shape[0]), dtype=np.float32)
+                n_batches = int(np.ceil(X_unlabeled[0].shape[0] / float(self.batch_size)))
+                for iteration in range(n_batches):
+                    batch_start = iteration * self.batch_size
+                    batch_end = min(batch_start + self.batch_size, X_unlabeled[0].shape[0])
+                    X_batch = [X_unlabeled[channel_idx][batch_start:batch_end]
+                               for channel_idx in range(len(X_unlabeled))]
                     feed_dict_for_batch = self.fill_feed_dict(X_batch)
                     probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
                                         for _ in range(self.num_monte_carlo)])
@@ -393,7 +427,6 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         'friend-or-foe identification.')
                     print('Best F1-score is {0:.6f}.'.format(best_f1))
                     print('Corresponding threshold is {0:.3f}.'.format(self.certainty_threshold_))
-        return self
 
     def predict_proba(self, X: Union[list, tuple, np.array]) -> np.ndarray:
         self.check_params(
