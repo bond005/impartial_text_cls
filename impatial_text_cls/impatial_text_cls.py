@@ -8,7 +8,7 @@ import warnings
 
 import numpy as np
 from sklearn.base import BaseEstimator, ClassifierMixin
-from sklearn.metrics import precision_score, recall_score, f1_score
+from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.utils.validation import check_is_fitted
 import tensorflow as tf
@@ -200,41 +200,57 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         print('  Train log-likelihood: {0: 10.8f}'.format(acc_train))
                         print('  Val. log-likelihood:  {0: 10.8f}'.format(acc_test))
                     quality_by_classes = self.calculate_quality(y_val_tokenized, y_pred[0:len(y_val_tokenized)])
-                    f1_test = 0.0
-                    precision_test = 0.0
-                    recall_test = 0.0
-                    for class_idx in range(self.n_classes_):
-                        precision_test += quality_by_classes[class_idx][0]
-                        recall_test += quality_by_classes[class_idx][1]
-                        f1_test += quality_by_classes[class_idx][2]
-                    precision_test /= float(self.n_classes_)
-                    recall_test /= float(self.n_classes_)
-                    f1_test /= float(self.n_classes_)
+                    quality_test = 0.0
+                    if self.multioutput:
+                        for class_idx in range(self.n_classes_):
+                            quality_test += quality_by_classes[class_idx]
+                        quality_test /= float(self.n_classes_)
+                        if self.verbose:
+                            print('  Val. quality for all entities:')
+                            print('    ROC-AUC={0:>6.4f}'.format(quality_test))
+                            max_text_width = 0
+                            for class_idx in range(self.n_classes_):
+                                text_width = len(str(class_idx))
+                                if text_width > max_text_width:
+                                    max_text_width = text_width
+                            for class_idx in range(self.n_classes_):
+                                print('      Val. quality for {0:>{1}}:'.format(class_idx, max_text_width))
+                                print('        ROC-AUC={0:>6.4f}'.format(quality_by_classes[class_idx]))
+                    else:
+                        precision_test = 0.0
+                        recall_test = 0.0
+                        for class_idx in range(self.n_classes_):
+                            precision_test += quality_by_classes[class_idx][0]
+                            recall_test += quality_by_classes[class_idx][1]
+                            quality_test += quality_by_classes[class_idx][2]
+                        precision_test /= float(self.n_classes_)
+                        recall_test /= float(self.n_classes_)
+                        quality_test /= float(self.n_classes_)
+                        if self.verbose:
+                            print('  Val. quality for all entities:')
+                            print('    F1={0:>6.4f}, P={1:>6.4f}, R={2:>6.4f}'.format(
+                                quality_test, precision_test, recall_test))
+                            max_text_width = 0
+                            for class_idx in range(self.n_classes_):
+                                text_width = len(str(class_idx))
+                                if text_width > max_text_width:
+                                    max_text_width = text_width
+                            for class_idx in range(self.n_classes_):
+                                print('      Val. quality for {0:>{1}}:'.format(class_idx, max_text_width))
+                                print('        F1={0:>6.4f}, P={1:>6.4f}, R={2:>6.4f}'.format(
+                                    quality_by_classes[class_idx][2], quality_by_classes[class_idx][0],
+                                    quality_by_classes[class_idx][1])
+                                )
                     if best_acc is None:
-                        best_acc = f1_test
+                        best_acc = quality_test
                         self.save_model(tmp_model_name)
                         n_epochs_without_improving = 0
-                    elif f1_test > best_acc:
-                        best_acc = f1_test
+                    elif quality_test > best_acc:
+                        best_acc = quality_test
                         self.save_model(tmp_model_name)
                         n_epochs_without_improving = 0
                     else:
                         n_epochs_without_improving += 1
-                    if self.verbose:
-                        print('  Val. quality for all entities:')
-                        print('    F1={0:>6.4f}, P={1:>6.4f}, R={2:>6.4f}'.format(
-                            f1_test, precision_test, recall_test))
-                        max_text_width = 0
-                        for class_idx in range(self.n_classes_):
-                            text_width = len(str(class_idx))
-                            if text_width > max_text_width:
-                                max_text_width = text_width
-                        for class_idx in range(self.n_classes_):
-                            print('      Val. quality for {0:>{1}}:'.format(
-                                class_idx, max_text_width))
-                            print('        F1={0:>6.4f}, P={1:>6.4f}, R={2:>6.4f})'.format(
-                                quality_by_classes[class_idx][2], quality_by_classes[class_idx][0],
-                                quality_by_classes[class_idx][1]))
                     del y_pred, quality_by_classes
                 else:
                     if best_acc is None:
@@ -655,22 +671,26 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             return X_tokenized
         return X_tokenized, y_tokenized, X_tokenized_unlabeled
 
-    def calculate_quality(self, y_true: np.ndarray, y_pred: np.ndarray) -> Dict[int, Tuple[float, float, float]]:
+    def calculate_quality(self, y_true: np.ndarray, y_pred: np.ndarray) -> Dict[int, Union[float,
+                                                                                           Tuple[float, float, float]]]:
         res = dict()
         for class_idx in range(self.n_classes_):
             if self.multioutput:
                 y_true_ = np.asarray(y_true[:, class_idx] > 0, dtype=np.int32)
-                y_pred_ = np.asarray(y_pred[:, class_idx] >= 0.5, dtype=np.int32)
+                y_pred_ = y_pred[:, class_idx]
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    res[class_idx] = roc_auc_score(y_true_, y_pred_)
             else:
                 y_true_ = np.asarray(y_true == class_idx, dtype=np.int32)
                 y_pred_ = np.asarray(y_pred == class_idx, dtype=np.int32)
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                res[class_idx] = (
-                    precision_score(y_true=y_true_, y_pred=y_pred_),
-                    recall_score(y_true=y_true_, y_pred=y_pred_),
-                    f1_score(y_true=y_true_, y_pred=y_pred_)
-                )
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    res[class_idx] = (
+                        precision_score(y_true=y_true_, y_pred=y_pred_),
+                        recall_score(y_true=y_true_, y_pred=y_pred_),
+                        f1_score(y_true=y_true_, y_pred=y_pred_)
+                    )
         return res
 
     def get_params(self, deep=True) -> dict:
