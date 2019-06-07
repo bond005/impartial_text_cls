@@ -649,7 +649,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                             y_tokenized[idx, class_idx] = 1
                     else:
                         class_idx = y[sample_idx]
-                        y_tokenized[idx] = class_idx
+                        y_tokenized[idx, class_idx] = 1
             else:
                 y_tokenized = np.empty((len(indices_of_labeled_samples),), dtype=np.int32)
                 for idx, sample_idx in enumerate(indices_of_labeled_samples):
