@@ -202,40 +202,40 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     quality_by_classes = self.calculate_quality(y_val_tokenized, y_pred[0:len(y_val_tokenized)])
                     quality_test = 0.0
                     if self.multioutput:
-                        for class_idx in range(self.n_classes_):
+                        for class_idx in quality_by_classes.keys():
                             quality_test += quality_by_classes[class_idx]
-                        quality_test /= float(self.n_classes_)
+                        quality_test /= float(len(quality_by_classes))
                         if self.verbose:
                             print('  Val. quality for all entities:')
                             print('    ROC-AUC={0:>6.4f}'.format(quality_test))
                             max_text_width = 0
-                            for class_idx in range(self.n_classes_):
+                            for class_idx in quality_by_classes.keys():
                                 text_width = len(str(class_idx))
                                 if text_width > max_text_width:
                                     max_text_width = text_width
-                            for class_idx in range(self.n_classes_):
+                            for class_idx in sorted(list(quality_by_classes.keys())):
                                 print('      Val. quality for {0:>{1}}:'.format(class_idx, max_text_width))
                                 print('        ROC-AUC={0:>6.4f}'.format(quality_by_classes[class_idx]))
                     else:
                         precision_test = 0.0
                         recall_test = 0.0
-                        for class_idx in range(self.n_classes_):
+                        for class_idx in quality_by_classes.keys():
                             precision_test += quality_by_classes[class_idx][0]
                             recall_test += quality_by_classes[class_idx][1]
                             quality_test += quality_by_classes[class_idx][2]
-                        precision_test /= float(self.n_classes_)
-                        recall_test /= float(self.n_classes_)
-                        quality_test /= float(self.n_classes_)
+                        precision_test /= float(len(quality_by_classes))
+                        recall_test /= float(len(quality_by_classes))
+                        quality_test /= float(len(quality_by_classes))
                         if self.verbose:
                             print('  Val. quality for all entities:')
                             print('    F1={0:>6.4f}, P={1:>6.4f}, R={2:>6.4f}'.format(
                                 quality_test, precision_test, recall_test))
                             max_text_width = 0
-                            for class_idx in range(self.n_classes_):
+                            for class_idx in quality_by_classes.keys():
                                 text_width = len(str(class_idx))
                                 if text_width > max_text_width:
                                     max_text_width = text_width
-                            for class_idx in range(self.n_classes_):
+                            for class_idx in sorted(list(quality_by_classes.keys())):
                                 print('      Val. quality for {0:>{1}}:'.format(class_idx, max_text_width))
                                 print('        F1={0:>6.4f}, P={1:>6.4f}, R={2:>6.4f}'.format(
                                     quality_by_classes[class_idx][2], quality_by_classes[class_idx][0],
@@ -343,19 +343,22 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 )
             self.certainty_threshold_ = np.full((self.n_classes_,), 1e-3)
             for class_idx in range(self.n_classes_):
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    best_f1 = f1_score(y_true[:, class_idx],
-                                       probabilities[:, class_idx] >= self.certainty_threshold_[class_idx])
-                threshold = self.certainty_threshold_[class_idx] + 1e-3
-                while threshold < 1.0:
+                if any(map(lambda it: it > 0, y_true[:, class_idx])):
                     with warnings.catch_warnings():
                         warnings.simplefilter("ignore")
-                        f1 = f1_score(y_true[:, class_idx], probabilities[:, class_idx] >= threshold)
-                    if f1 > best_f1:
-                        best_f1 = f1
-                        self.certainty_threshold_[class_idx] = threshold
-                    threshold += 1e-3
+                        best_f1 = f1_score(y_true[:, class_idx],
+                                           probabilities[:, class_idx] >= self.certainty_threshold_[class_idx])
+                    threshold = self.certainty_threshold_[class_idx] + 1e-3
+                    while threshold < 1.0:
+                        with warnings.catch_warnings():
+                            warnings.simplefilter("ignore")
+                            f1 = f1_score(y_true[:, class_idx], probabilities[:, class_idx] >= threshold)
+                        if f1 > best_f1:
+                            best_f1 = f1
+                            self.certainty_threshold_[class_idx] = threshold
+                        threshold += 1e-3
+                else:
+                    self.certainty_threshold_[class_idx] = 0.5
                 print('Certainty threshold for class {0} is {1:.3f}.'.format(
                     class_idx, self.certainty_threshold_[class_idx]))
         else:
@@ -677,20 +680,22 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         for class_idx in range(self.n_classes_):
             if self.multioutput:
                 y_true_ = np.asarray(y_true[:, class_idx] > 0, dtype=np.int32)
-                y_pred_ = y_pred[:, class_idx]
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    res[class_idx] = roc_auc_score(y_true_, y_pred_)
+                if any(map(lambda it: it > 0, y_true_)):
+                    y_pred_ = y_pred[:, class_idx]
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        res[class_idx] = roc_auc_score(y_true_, y_pred_)
             else:
                 y_true_ = np.asarray(y_true == class_idx, dtype=np.int32)
-                y_pred_ = np.asarray(y_pred == class_idx, dtype=np.int32)
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    res[class_idx] = (
-                        precision_score(y_true=y_true_, y_pred=y_pred_),
-                        recall_score(y_true=y_true_, y_pred=y_pred_),
-                        f1_score(y_true=y_true_, y_pred=y_pred_)
-                    )
+                if any(map(lambda it: it > 0, y_true_)):
+                    y_pred_ = np.asarray(y_pred == class_idx, dtype=np.int32)
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        res[class_idx] = (
+                            precision_score(y_true=y_true_, y_pred=y_pred_),
+                            recall_score(y_true=y_true_, y_pred=y_pred_),
+                            f1_score(y_true=y_true_, y_pred=y_pred_)
+                        )
         return res
 
     def get_params(self, deep=True) -> dict:
