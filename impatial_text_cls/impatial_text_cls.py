@@ -9,7 +9,6 @@ import warnings
 import numpy as np
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
-from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.utils.validation import check_is_fitted
 import tensorflow as tf
 import tensorflow_hub as tfhub
@@ -59,10 +58,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         self.update_random_seed()
         if validation_data is None:
             if self.validation_fraction > 0.0:
-                sss = StratifiedShuffleSplit(n_splits=1, test_size=self.validation_fraction,
-                                             random_state=self.random_seed)
-                train_index, test_index = next(sss.split(X, y))
-                del sss
+                train_index, test_index = self.train_test_split(y, self.validation_fraction)
                 X_train_ = [X[idx] for idx in train_index]
                 y_train_ = [y[idx] for idx in train_index]
                 X_val_ = [X[idx] for idx in test_index]
@@ -1128,3 +1124,77 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         if len(classes_list) < 2:
             raise ValueError('`{0}` is wrong! There are too few classes in the `{0}`.'.format(y_name))
         return sorted(list(classes_list))
+
+    @staticmethod
+    def train_test_split(y: Union[list, tuple, np.array], test_part: float) -> Tuple[np.ndarray, np.ndarray]:
+        n = len(y)
+        n_test = int(round(n * test_part))
+        if n_test < 1:
+            raise ValueError('{0} is too small for `test_part`!'.format(test_part))
+        if n_test >= n:
+            raise ValueError('{0} is too large for `test_part`!'.format(test_part))
+        indices = np.arange(0, n, 1, dtype=np.int32)
+        np.random.shuffle(indices)
+        classes_for_training = set()
+        classes_for_testing = set()
+        for idx in indices[:n_test]:
+            if isinstance(y[idx], set):
+                classes_for_testing |= y[idx]
+            else:
+                classes_for_testing.add(y[idx])
+        for idx in indices[n_test:]:
+            if isinstance(y[idx], set):
+                classes_for_training |= y[idx]
+            else:
+                classes_for_training.add(y[idx])
+        for restart in range(10):
+            if classes_for_training == classes_for_testing:
+                break
+            np.random.shuffle(indices)
+            classes_for_training = set()
+            classes_for_testing = set()
+            for idx in indices[:n_test]:
+                if isinstance(y[idx], set):
+                    classes_for_testing |= y[idx]
+                else:
+                    classes_for_testing.add(y[idx])
+            for idx in indices[n_test:]:
+                if isinstance(y[idx], set):
+                    classes_for_training |= y[idx]
+                else:
+                    classes_for_training.add(y[idx])
+        if classes_for_training != classes_for_testing:
+            warnings.warn('Source data cannot be splitted by train and test parts!')
+        if not (classes_for_testing <= classes_for_training):
+            np.random.shuffle(indices)
+            classes_for_training = set()
+            classes_for_testing = set()
+            for idx in indices[:n_test]:
+                if isinstance(y[idx], set):
+                    classes_for_testing |= y[idx]
+                else:
+                    classes_for_testing.add(y[idx])
+            for idx in indices[n_test:]:
+                if isinstance(y[idx], set):
+                    classes_for_training |= y[idx]
+                else:
+                    classes_for_training.add(y[idx])
+            for restart in range(10):
+                if classes_for_testing <= classes_for_training:
+                    break
+                np.random.shuffle(indices)
+                classes_for_training = set()
+                classes_for_testing = set()
+                for idx in indices[:n_test]:
+                    if isinstance(y[idx], set):
+                        classes_for_testing |= y[idx]
+                    else:
+                        classes_for_testing.add(y[idx])
+                for idx in indices[n_test:]:
+                    if isinstance(y[idx], set):
+                        classes_for_training |= y[idx]
+                    else:
+                        classes_for_training.add(y[idx])
+            if not (classes_for_testing <= classes_for_training):
+                raise ValueError('Source data cannot be splitted by train and test parts!')
+        return y[n_test:], y[:n_test]

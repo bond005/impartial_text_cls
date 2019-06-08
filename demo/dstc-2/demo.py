@@ -55,7 +55,7 @@ def main():
     test_texts, test_labels, test_classes = read_dstc2_data(test_file_name)
     assert test_classes == train_classes, 'Classes in the test set do not correspond to classes in the train set!'
     y_pred = nn.predict(test_texts)
-    n_correct = 0
+    n_errors = 0
     n_total = 0
     for sample_idx in range(len(test_labels)):
         if isinstance(test_labels[sample_idx], set):
@@ -66,9 +66,11 @@ def main():
             pred_classes = y_pred[sample_idx]
         else:
             pred_classes = {y_pred[sample_idx]}
-        n_correct += len(true_classes & pred_classes)
+        n_errors += len((true_classes | pred_classes) - (true_classes & pred_classes))
         n_total += len(true_classes)
-    accuracy = float(n_correct) / float(n_total)
+    accuracy = 1.0 - float(n_errors) / float(n_total)
+    print('')
+    print('Test accuracy is {0:.2%}.'.format(accuracy))
 
 
 if __name__ == '__main__':
