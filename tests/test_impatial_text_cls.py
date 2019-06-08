@@ -1702,6 +1702,29 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaises(NotFittedError):
             _ = self.cls.predict(valid_texts)
 
+    def test_train_test_split(self):
+        y = np.array([0, 1, 2, {0, 2}, 2, {1, 2}, 1, 1, 0, 1, 0, 0, 2, {1, 2}, 2, 2, 0, 1, {1, 2}, 0], dtype=object)
+        train_index, test_index = ImpatialTextClassifier.train_test_split(y, 0.5)
+        self.assertIsInstance(train_index, np.ndarray)
+        self.assertIsInstance(test_index, np.ndarray)
+        self.assertEqual(train_index.shape, (10,))
+        self.assertEqual(test_index.shape, (10,))
+        self.assertEqual(train_index.dtype, np.int32)
+        self.assertEqual(test_index.dtype, np.int32)
+        classes_for_training = set()
+        for idx in train_index:
+            if isinstance(y[idx], set):
+                classes_for_training |= y[idx]
+            else:
+                classes_for_training.add(y[idx])
+        classes_for_testing = set()
+        for idx in test_index:
+            if isinstance(y[idx], set):
+                classes_for_testing |= y[idx]
+            else:
+                classes_for_testing.add(y[idx])
+        self.assertEqual(classes_for_training, classes_for_testing)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

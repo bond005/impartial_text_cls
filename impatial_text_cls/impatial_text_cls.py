@@ -1197,4 +1197,4 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         classes_for_training.add(y[idx])
             if not (classes_for_testing <= classes_for_training):
                 raise ValueError('Source data cannot be splitted by train and test parts!')
-        return y[n_test:], y[:n_test]
+        return indices[n_test:], indices[:n_test]
