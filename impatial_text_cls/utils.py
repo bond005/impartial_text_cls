@@ -65,10 +65,25 @@ def read_dstc2_data(archive_name: str) -> Tuple[np.ndarray, np.ndarray, List[str
                             archive_name, member, act_idx, idx)
                         if not isinstance(semantics[act_idx], dict):
                             raise ValueError(err_msg)
-                        if 'act' not in semantics[act_idx]:
+                        if ('act' not in semantics[act_idx]) or ('slots' not in semantics[act_idx]):
                             raise ValueError(err_msg)
-                        intents.add(semantics[act_idx]['act'])
-                        classes.add(semantics[act_idx]['act'])
+                        if not isinstance(semantics[act_idx]['slots'], list):
+                            raise ValueError(err_msg)
+                        new_intent = semantics[act_idx]['act']
+                        if len(semantics[act_idx]['slots']) > 0:
+                            if len(semantics[act_idx]['slots']) != 1:
+                                raise ValueError(err_msg)
+                            slots = semantics[act_idx]['slots'][0]
+                            if not isinstance(slots, list):
+                                raise ValueError(err_msg)
+                            if len(slots) != 2:
+                                raise ValueError(err_msg)
+                            if slots[0] == 'slot':
+                                new_intent += ('_' + slots[1])
+                            else:
+                                new_intent += ('_' + slots[0])
+                        intents.add(new_intent)
+                        classes.add(new_intent)
                     texts.append(text)
                     labels.append(intents)
     classes = sorted(list(classes))

@@ -44,6 +44,7 @@ def main():
     else:
         train_texts, train_labels, train_classes = read_dstc2_data(train_file_name)
         print('Classes list: {0}'.format(train_classes))
+        print('Number of samples for training is {0}.'.format(len(train_texts)))
         nn = ImpatialTextClassifier(hidden_layer_sizes=layers, batch_size=args.batch_size,
                                     num_monte_carlo=args.num_monte_carlo, gpu_memory_frac=args.gpu_memory_frac,
                                     verbose=True, multioutput=True, random_seed=42, validation_fraction=0.15,
@@ -54,6 +55,8 @@ def main():
             pickle.dump((nn, train_classes), fp)
     test_texts, test_labels, test_classes = read_dstc2_data(test_file_name)
     assert test_classes == train_classes, 'Classes in the test set do not correspond to classes in the train set!'
+    print('')
+    print('Number of samples for final testing is {0}.'.format(len(test_texts)))
     y_pred = nn.predict(test_texts)
     n_errors = 0
     n_total = 0
@@ -69,7 +72,6 @@ def main():
         n_errors += len((true_classes | pred_classes) - (true_classes & pred_classes))
         n_total += len(true_classes)
     accuracy = 1.0 - float(n_errors) / float(n_total)
-    print('')
     print('Test accuracy is {0:.2%}.'.format(accuracy))
 
 

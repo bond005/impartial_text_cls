@@ -43,30 +43,31 @@ class TestUtils(unittest.TestCase):
         )
         true_labels = np.array(
             [
-                3,
+                {5, 3},
                 0,
-                4,
-                {5, 1},
+                {7, 8},
+                {9, 1},
+                5,
                 3,
-                3,
-                3,
-                4,
-                {5, 1},
+                6,
+                7,
+                {9, 1},
                 2,
                 3,
                 -1,
-                3,
-                3,
                 4,
-                {5, 1},
-                3,
-                3,
                 4,
-                {5, 1}
+                8,
+                {9, 1},
+                {4, 5},
+                6,
+                7,
+                {9, 1}
             ],
             dtype=object
         )
-        true_classes_list = ['affirm', 'bye', 'hello', 'inform', 'request', 'thankyou']
+        true_classes_list = ['affirm', 'bye', 'hello', 'inform_area', 'inform_food', 'inform_pricerange', 'inform_this',
+                             'request_addr', 'request_phone', 'thankyou']
         self.assertIsInstance(loaded_classes_list, list)
         self.assertEqual(true_classes_list, loaded_classes_list)
         self.assertIsInstance(loaded_texts, np.ndarray)
