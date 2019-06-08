@@ -23,7 +23,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
     MAX_SEQ_LENGTH = 512
 
-    def __init__(self, hidden_layer_sizes: tuple=(100,),
+    def __init__(self, hidden_layer_sizes: Union[tuple, List[int]]=(100,),
                  bert_hub_module_handle: Union[str, None]='https://tfhub.dev/google/bert_uncased_L-12_H-768_A-12/1',
                  batch_size: int=32, validation_fraction: float=0.1, max_epochs: int=10, patience: int=3,
                  num_monte_carlo: int=50, gpu_memory_frac: float=1.0, verbose: bool=False, multioutput: bool=False,
@@ -206,16 +206,15 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                             quality_test += quality_by_classes[class_idx]
                         quality_test /= float(len(quality_by_classes))
                         if self.verbose:
-                            print('  Val. quality for all entities:')
-                            print('    ROC-AUC={0:>6.4f}'.format(quality_test))
+                            print('  Val. ROC-AUC for all entities: {0:>6.4f}'.format(quality_test))
                             max_text_width = 0
                             for class_idx in quality_by_classes.keys():
                                 text_width = len(str(class_idx))
                                 if text_width > max_text_width:
                                     max_text_width = text_width
                             for class_idx in sorted(list(quality_by_classes.keys())):
-                                print('      Val. quality for {0:>{1}}:'.format(class_idx, max_text_width))
-                                print('        ROC-AUC={0:>6.4f}'.format(quality_by_classes[class_idx]))
+                                print('    ROC-AUC for {0:>{1}}: {2:>6.4f}'.format(class_idx, max_text_width,
+                                                                                   quality_by_classes[class_idx]))
                     else:
                         precision_test = 0.0
                         recall_test = 0.0
