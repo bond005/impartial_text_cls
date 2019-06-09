@@ -150,7 +150,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         tmp_model_name = self.get_temp_model_name()
         if self.verbose:
             if X_val_tokenized is None:
-                print('Epoch   Log-likelihood   Duration (secs)')
+                print('Epoch   ELBO loss   Duration (secs)')
         n_epochs_without_improving = 0
         try:
             best_acc = None
@@ -199,8 +199,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     if self.verbose:
                         print('Epoch {0}'.format(epoch))
                         print('  Duration is {0:.3f} seconds'.format(time.time() - start_time))
-                        print('  Train log-likelihood: {0: 10.8f}'.format(train_loss))
-                        print('  Val. log-likelihood:  {0: 10.8f}'.format(test_loss))
+                        print('  Train ELBO loss: {0:>9.6f}'.format(train_loss))
+                        print('  Val. ELBO loss:  {0:>9.6f}'.format(test_loss))
                     quality_by_classes = self.calculate_quality(y_val_tokenized, y_pred[0:len(y_val_tokenized)])
                     quality_test = 0.0
                     if self.multioutput:
@@ -266,7 +266,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     else:
                         n_epochs_without_improving += 1
                     if self.verbose:
-                        print('{0:>5}   {1:>14.8f}   {2:>15.3f}'.format(epoch, train_loss, time.time() - start_time))
+                        print('{0:>5}   {1:>9.6f}   {2:>15.3f}'.format(epoch, train_loss, time.time() - start_time))
                 if n_epochs_without_improving >= self.patience:
                     if self.verbose:
                         print('Epoch %05d: early stopping' % (epoch + 1))
