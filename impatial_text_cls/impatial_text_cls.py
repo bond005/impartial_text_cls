@@ -129,7 +129,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 X_unlabeled_tokenized = self.extend_Xy(X_unlabeled_tokenized, shuffle=False)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            train_op, loss_ = self.build_model()
+            train_op, loss_ = self.build_model(X_train_tokenized[0].shape[0])
         n_batches = int(np.ceil(X_train_tokenized[0].shape[0] / float(self.batch_size)))
         bounds_of_batches_for_training = []
         for iteration in range(n_batches):
