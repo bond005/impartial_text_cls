@@ -127,7 +127,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             y_val_tokenized = None
             if X_unlabeled_tokenized is not None:
                 X_unlabeled_tokenized = self.extend_Xy(X_unlabeled_tokenized, shuffle=False)
-        train_op, accuracy, accuracy_update_op = self.build_model()
+        train_op, loss_ = self.build_model()
         n_batches = int(np.ceil(X_train_tokenized[0].shape[0] / float(self.batch_size)))
         bounds_of_batches_for_training = []
         for iteration in range(n_batches):
@@ -148,13 +148,15 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         tmp_model_name = self.get_temp_model_name()
         if self.verbose:
             if X_val_tokenized is None:
-                print('Epoch   Log-likelihood')
+                print('Epoch   Log-likelihood   Duration (secs)')
         n_epochs_without_improving = 0
         try:
             best_acc = None
+            start_time = time.time()
             for epoch in range(self.max_epochs):
                 random.shuffle(bounds_of_batches_for_training)
                 feed_dict_for_batch = None
+                train_loss = 0.0
                 for cur_batch in bounds_of_batches_for_training:
                     X_batch = [X_train_tokenized[channel_idx][cur_batch[0]:cur_batch[1]]
                                for channel_idx in range(len(X_train_tokenized))]
@@ -162,18 +164,19 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     if feed_dict_for_batch is not None:
                         del feed_dict_for_batch
                     feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
-                    _ = self.sess_.run([train_op, accuracy_update_op], feed_dict=feed_dict_for_batch)
-                acc_train = self.sess_.run(accuracy, feed_dict=feed_dict_for_batch)
+                    train_loss_ = self.sess_.run([train_op, loss_], feed_dict=feed_dict_for_batch)
+                    train_loss += train_loss_ * self.batch_size
+                train_loss /= float(X_train_tokenized[0].shape[0])
                 if bounds_of_batches_for_validation is not None:
-                    acc_test = 0.0
+                    test_loss = 0.0
                     y_pred = None
                     for cur_batch in bounds_of_batches_for_validation:
                         X_batch = [X_val_tokenized[channel_idx][cur_batch[0]:cur_batch[1]]
                                    for channel_idx in range(len(X_val_tokenized))]
                         y_batch = y_val_tokenized[cur_batch[0]:cur_batch[1]]
                         feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
-                        acc_test_ = self.sess_.run(accuracy, feed_dict=feed_dict_for_batch)
-                        acc_test += self.batch_size * acc_test_
+                        test_loss_ = self.sess_.run(loss_, feed_dict=feed_dict_for_batch)
+                        test_loss += test_loss_ * self.batch_size
                         probs = np.asarray([self.sess_.run(self.labels_distribution_.probs,
                                                            feed_dict=feed_dict_for_batch)
                                             for _ in range(self.num_monte_carlo)])
@@ -190,11 +193,12 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                             else:
                                 y_pred = np.concatenate((y_pred, mean_probs.argmax(axis=-1)))
                         del probs, mean_probs
-                    acc_test /= float(X_val_tokenized[0].shape[0])
+                    test_loss /= float(X_val_tokenized[0].shape[0])
                     if self.verbose:
                         print('Epoch {0}'.format(epoch))
-                        print('  Train log-likelihood: {0: 10.8f}'.format(acc_train))
-                        print('  Val. log-likelihood:  {0: 10.8f}'.format(acc_test))
+                        print('  Duration is {0:.3f} seconds'.format(time.time() - start_time))
+                        print('  Train log-likelihood: {0: 10.8f}'.format(train_loss))
+                        print('  Val. log-likelihood:  {0: 10.8f}'.format(test_loss))
                     quality_by_classes = self.calculate_quality(y_val_tokenized, y_pred[0:len(y_val_tokenized)])
                     quality_test = 0.0
                     if self.multioutput:
@@ -248,25 +252,26 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         n_epochs_without_improving += 1
                     del y_pred, quality_by_classes
                 else:
+                    cur_acc = -train_loss
                     if best_acc is None:
-                        best_acc = acc_train
+                        best_acc = cur_acc
                         self.save_model(tmp_model_name)
                         n_epochs_without_improving = 0
-                    elif acc_train > best_acc:
-                        best_acc = acc_train
+                    elif cur_acc > best_acc:
+                        best_acc = cur_acc
                         self.save_model(tmp_model_name)
                         n_epochs_without_improving = 0
                     else:
                         n_epochs_without_improving += 1
                     if self.verbose:
-                        print('{0:>5}   {1:>14.8f}'.format(epoch, acc_train))
+                        print('{0:>5}   {1:>14.8f}   {2:>15.3f}'.format(epoch, train_loss, time.time() - start_time))
                 if n_epochs_without_improving >= self.patience:
                     if self.verbose:
                         print('Epoch %05d: early stopping' % (epoch + 1))
                     break
             if best_acc is not None:
                 self.finalize_model()
-                _, _, _ = self.build_model()
+                _, _ = self.build_model()
                 self.load_model(tmp_model_name)
         finally:
             for cur_name in self.find_all_model_files(tmp_model_name):
@@ -746,15 +751,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         neg_log_likelihood = -tf.reduce_mean(input_tensor=self.labels_distribution_.log_prob(self.y_ph_))
         kl = sum(model.losses)
         elbo_loss = neg_log_likelihood + kl
-        if self.multioutput:
-            predictions = tf.cast(self.logits_ >= 0.5, dtype=tf.int32, name='predictions')
-        else:
-            predictions = tf.argmax(input=self.logits_, axis=1, name='predictions')
-        accuracy, accuracy_update_op = tf.metrics.accuracy(labels=self.y_ph_, predictions=predictions)
         with tf.name_scope('train'):
             optimizer = tf.train.AdamOptimizer()
             train_op = optimizer.minimize(elbo_loss)
-        return train_op, accuracy, accuracy_update_op
+        return train_op, elbo_loss
 
     def finalize_model(self):
         if hasattr(self, 'input_ids_'):

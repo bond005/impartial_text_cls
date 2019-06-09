@@ -1,6 +1,6 @@
 import json
 import tarfile
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 import numpy as np
 
@@ -21,10 +21,14 @@ def str_to_layers(descr: str) -> List[int]:
     return sizes
 
 
-def read_dstc2_data(archive_name: str) -> Tuple[np.ndarray, np.ndarray, List[str]]:
+def read_dstc2_data(archive_name: str, classes_list: Union[None, List[str]]=None) -> \
+        Tuple[np.ndarray, np.ndarray, List[str]]:
     texts = []
     labels = []
-    classes = set()
+    if classes_list is None:
+        classes = set()
+    else:
+        classes = set(classes_list)
     with tarfile.open(archive_name, "r:gz") as tar_fp:
         for member in filter(lambda it2: it2.lower().endswith('label.json'),
                              sorted(list(map(lambda it1: it1.name, tar_fp.getmembers())))):
@@ -82,11 +86,18 @@ def read_dstc2_data(archive_name: str) -> Tuple[np.ndarray, np.ndarray, List[str
                                 new_intent += ('_' + slots[1])
                             else:
                                 new_intent += ('_' + slots[0])
-                        intents.add(new_intent)
-                        classes.add(new_intent)
+                        if classes_list is None:
+                            intents.add(new_intent)
+                            classes.add(new_intent)
+                        else:
+                            if new_intent in classes:
+                                intents.add(new_intent)
                     texts.append(text)
                     labels.append(intents)
-    classes = sorted(list(classes))
+    if classes_list is None:
+        classes = sorted(list(classes))
+    else:
+        classes = classes_list
     IDs = []
     for cur_label in labels:
         if len(cur_label) > 1:

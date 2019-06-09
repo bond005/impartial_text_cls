@@ -13,7 +13,7 @@ except:
 
 
 class TestUtils(unittest.TestCase):
-    def test_read_dstc2_data(self):
+    def test_read_dstc2_data_positive01(self):
         file_name = os.path.join(os.path.dirname(__file__), 'test_dataset.tar.gz')
         loaded_texts, loaded_labels, loaded_classes_list = read_dstc2_data(file_name)
         true_texts = np.array(
@@ -68,6 +68,70 @@ class TestUtils(unittest.TestCase):
         )
         true_classes_list = ['affirm', 'bye', 'hello', 'inform_area', 'inform_food', 'inform_pricerange', 'inform_this',
                              'request_addr', 'request_phone', 'thankyou']
+        self.assertIsInstance(loaded_classes_list, list)
+        self.assertEqual(true_classes_list, loaded_classes_list)
+        self.assertIsInstance(loaded_texts, np.ndarray)
+        self.assertIsInstance(loaded_labels, np.ndarray)
+        self.assertEqual(true_texts.shape, loaded_texts.shape)
+        self.assertEqual(true_labels.shape, loaded_labels.shape)
+        self.assertEqual(true_texts.tolist(), loaded_texts.tolist())
+        self.assertEqual(true_labels.tolist(), loaded_labels.tolist())
+
+    def test_read_dstc2_data_positive02(self):
+        file_name = os.path.join(os.path.dirname(__file__), 'test_dataset.tar.gz')
+        true_classes_list = ['affirm', 'hello', 'inform_area', 'inform_food', 'inform_pricerange',  'request_addr',
+                             'request_phone', 'thankyou']
+        loaded_texts, loaded_labels, loaded_classes_list = read_dstc2_data(file_name, true_classes_list)
+        true_texts = np.array(
+            [
+                'moderately priced north part of town',
+                'yes',
+                'what is the address and phone number',
+                'thank you good bye',
+                'expensive',
+                'south',
+                'dont care',
+                'what is the address',
+                'thank you good bye',
+                'hello welcome',
+                'south',
+                'would you like something',
+                'steak house',
+                'indian',
+                'and whats the phone number',
+                'thank you good bye',
+                'i need a cheap restaurant serving italian food',
+                'i dont care',
+                'could i get the address',
+                'thank you bye'
+            ],
+            dtype=object
+        )
+        true_labels = np.array(
+            [
+                {4, 2},
+                0,
+                {5, 6},
+                7,
+                4,
+                2,
+                -1,
+                5,
+                7,
+                1,
+                2,
+                -1,
+                3,
+                3,
+                6,
+                7,
+                {3, 4},
+                -1,
+                5,
+                7
+            ],
+            dtype=object
+        )
         self.assertIsInstance(loaded_classes_list, list)
         self.assertEqual(true_classes_list, loaded_classes_list)
         self.assertIsInstance(loaded_texts, np.ndarray)

@@ -53,8 +53,9 @@ def main():
         print('')
         with open(model_name, 'wb') as fp:
             pickle.dump((nn, train_classes), fp)
-    test_texts, test_labels, test_classes = read_dstc2_data(test_file_name)
-    assert test_classes == train_classes, 'Classes in the test set do not correspond to classes in the train set!'
+    test_texts, test_labels, test_classes = read_dstc2_data(test_file_name, train_classes)
+    assert test_classes == train_classes, 'Classes in the test set do not correspond to classes in the train set! ' \
+                                          '{0}'.format(test_classes)
     print('')
     print('Number of samples for final testing is {0}.'.format(len(test_texts)))
     y_pred = nn.predict(test_texts)
