@@ -127,7 +127,9 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             y_val_tokenized = None
             if X_unlabeled_tokenized is not None:
                 X_unlabeled_tokenized = self.extend_Xy(X_unlabeled_tokenized, shuffle=False)
-        train_op, loss_ = self.build_model()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            train_op, loss_ = self.build_model()
         n_batches = int(np.ceil(X_train_tokenized[0].shape[0] / float(self.batch_size)))
         bounds_of_batches_for_training = []
         for iteration in range(n_batches):
@@ -271,7 +273,9 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     break
             if best_acc is not None:
                 self.finalize_model()
-                _, _ = self.build_model()
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    _, _ = self.build_model()
                 self.load_model(tmp_model_name)
         finally:
             for cur_name in self.find_all_model_files(tmp_model_name):
@@ -923,7 +927,9 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 for idx in range(len(model_files)):
                     with open(tmp_file_names[idx], 'wb') as fp:
                         fp.write(new_params['model.' + model_files[idx]])
-                self.build_model()
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    _, _ = self.build_model()
                 self.load_model(os.path.join(tmp_dir_name, new_params['model_name_']))
             finally:
                 for cur in tmp_file_names:
