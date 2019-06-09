@@ -23,7 +23,7 @@ def main():
                         help='Path to the archive with DSTC-2 data for final testing.')
     parser.add_argument('--layers', dest='sizes_of_layers', type=str, required=False, default='300-100',
                         help='Sizes of the Bayesian neural network layers.')
-    parser.add_argument('--num_monte_carlo', dest='num_monte_carlo', type=int, required=False, default=50,
+    parser.add_argument('--num_monte_carlo', dest='num_monte_carlo', type=int, required=False, default=10,
                         help='Number of generated Monte Carlo samples for each data sample.')
     parser.add_argument('--batch_size', dest='batch_size', type=int, required=False, default=16,
                         help='Size of mini-batch.')
