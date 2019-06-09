@@ -681,7 +681,7 @@ class TestClassifier(unittest.TestCase):
             'Most of Northern European Russia and Siberia has a subarctic climate'
         ]
         valid_labels = [0, 0, 1, 1, 2, 2, 4, -1, -1, -1]
-        self.cls = ImpatialTextClassifier(random_seed=31, batch_size=4)
+        self.cls = ImpatialTextClassifier(random_seed=31, batch_size=4, validation_fraction=0.0, verbose=True)
         old_hidden_layer_sizes = self.cls.hidden_layer_sizes
         old_num_monte_carlo = self.cls.num_monte_carlo
         old_batch_size = self.cls.batch_size
@@ -693,7 +693,7 @@ class TestClassifier(unittest.TestCase):
         old_validation_fraction = self.cls.validation_fraction
         old_verbose = self.cls.verbose
         old_multioutput = self.cls.multioutput
-        self.cls.fit(train_texts, train_labels, validation_data=(valid_texts, valid_labels))
+        self.cls.fit(train_texts, train_labels)
         old_certainty_threshold = self.cls.certainty_threshold_
         old_y = self.cls.predict(valid_texts)
         self.assertIsInstance(old_y, np.ndarray)
