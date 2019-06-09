@@ -129,7 +129,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 X_unlabeled_tokenized = self.extend_Xy(X_unlabeled_tokenized, shuffle=False)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            train_op, loss_ = self.build_model(X_train_tokenized[0].shape[0])
+            train_op, loss_ = self.build_model()
         n_batches = int(np.ceil(X_train_tokenized[0].shape[0] / float(self.batch_size)))
         bounds_of_batches_for_training = []
         for iteration in range(n_batches):
@@ -714,7 +714,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             self.__setattr__(parameter, value)
         return self
 
-    def build_model(self, n_train_samples: Union[int, None]=None):
+    def build_model(self):
         config = tf.ConfigProto()
         config.gpu_options.per_process_gpu_memory_fraction = self.gpu_memory_frac
         self.sess_ = tf.Session(config=config)
@@ -753,15 +753,12 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         else:
             self.labels_distribution_ = tfp.distributions.Categorical(logits=self.logits_)
         neg_log_likelihood = -tf.reduce_mean(input_tensor=self.labels_distribution_.log_prob(self.y_ph_))
-        if n_train_samples is None:
-            kl = sum(model.losses)
-        else:
-            kl = sum(model.losses) / float(n_train_samples)
+        kl = sum(model.losses) / float(self.batch_size)
         elbo_loss = neg_log_likelihood + kl
         with tf.name_scope('train'):
             optimizer = tf.train.AdamOptimizer()
             train_op = optimizer.minimize(elbo_loss)
-        return train_op, neg_log_likelihood
+        return train_op, elbo_loss
 
     def finalize_model(self):
         if hasattr(self, 'input_ids_'):
