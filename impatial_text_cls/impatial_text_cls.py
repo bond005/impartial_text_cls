@@ -129,7 +129,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 X_unlabeled_tokenized = self.extend_Xy(X_unlabeled_tokenized, shuffle=False)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            train_op, loss_ = self.build_model()
+            train_op, loss_, val_loss_ = self.build_model(
+                X_train_tokenized[0].shape[0],
+                None if X_val_tokenized is None else X_val_tokenized[0].shape[0]
+            )
         n_batches = int(np.ceil(X_train_tokenized[0].shape[0] / float(self.batch_size)))
         bounds_of_batches_for_training = []
         for iteration in range(n_batches):
@@ -177,7 +180,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                                    for channel_idx in range(len(X_val_tokenized))]
                         y_batch = y_val_tokenized[cur_batch[0]:cur_batch[1]]
                         feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
-                        test_loss_ = self.sess_.run(loss_, feed_dict=feed_dict_for_batch)
+                        test_loss_ = self.sess_.run(val_loss_, feed_dict=feed_dict_for_batch)
                         test_loss += test_loss_ * self.batch_size
                         probs = np.asarray([self.sess_.run(self.labels_distribution_.probs,
                                                            feed_dict=feed_dict_for_batch)
@@ -275,7 +278,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 self.finalize_model()
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
-                    _, _ = self.build_model()
+                    _, _, _ = self.build_model()
                 self.load_model(tmp_model_name)
         finally:
             for cur_name in self.find_all_model_files(tmp_model_name):
@@ -714,7 +717,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             self.__setattr__(parameter, value)
         return self
 
-    def build_model(self):
+    def build_model(self, n_train_samples: Union[int, None]=None, n_test_samples: Union[int, None]=None):
         config = tf.ConfigProto()
         config.gpu_options.per_process_gpu_memory_fraction = self.gpu_memory_frac
         self.sess_ = tf.Session(config=config)
@@ -752,13 +755,20 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             self.labels_distribution_ = tfp.distributions.Bernoulli(logits=self.logits_)
         else:
             self.labels_distribution_ = tfp.distributions.Categorical(logits=self.logits_)
-        neg_log_likelihood = -tf.reduce_sum(input_tensor=self.labels_distribution_.log_prob(self.y_ph_))
+        neg_log_likelihood = -tf.reduce_mean(input_tensor=self.labels_distribution_.log_prob(self.y_ph_))
         kl = sum(model.losses)
-        elbo_loss = (neg_log_likelihood + kl) / float(self.batch_size)
+        if n_train_samples is not None:
+            elbo_loss = neg_log_likelihood + kl / float(n_train_samples)
+        else:
+            elbo_loss = neg_log_likelihood + kl
+        if n_test_samples is not None:
+            test_elbo_loss = neg_log_likelihood + kl / float(n_test_samples)
+        else:
+            test_elbo_loss = neg_log_likelihood + kl
         with tf.name_scope('train'):
             optimizer = tf.train.AdamOptimizer()
             train_op = optimizer.minimize(elbo_loss)
-        return train_op, elbo_loss
+        return train_op, elbo_loss, test_elbo_loss
 
     def finalize_model(self):
         if hasattr(self, 'input_ids_'):
@@ -929,7 +939,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         fp.write(new_params['model.' + model_files[idx]])
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
-                    _, _ = self.build_model()
+                    _, _, _ = self.build_model()
                 self.load_model(os.path.join(tmp_dir_name, new_params['model_name_']))
             finally:
                 for cur in tmp_file_names:
