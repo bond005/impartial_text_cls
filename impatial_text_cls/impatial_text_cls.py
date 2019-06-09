@@ -752,9 +752,9 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             self.labels_distribution_ = tfp.distributions.Bernoulli(logits=self.logits_)
         else:
             self.labels_distribution_ = tfp.distributions.Categorical(logits=self.logits_)
-        neg_log_likelihood = -tf.reduce_mean(input_tensor=self.labels_distribution_.log_prob(self.y_ph_))
-        kl = sum(model.losses) / float(self.batch_size)
-        elbo_loss = neg_log_likelihood + kl
+        neg_log_likelihood = -tf.reduce_sum(input_tensor=self.labels_distribution_.log_prob(self.y_ph_))
+        kl = sum(model.losses)
+        elbo_loss = (neg_log_likelihood + kl) / float(self.batch_size)
         with tf.name_scope('train'):
             optimizer = tf.train.AdamOptimizer()
             train_op = optimizer.minimize(elbo_loss)
