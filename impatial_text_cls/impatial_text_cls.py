@@ -154,8 +154,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         n_epochs_without_improving = 0
         try:
             best_acc = None
-            start_time = time.time()
             for epoch in range(self.max_epochs):
+                start_time = time.time()
                 random.shuffle(bounds_of_batches_for_training)
                 feed_dict_for_batch = None
                 train_loss = 0.0
