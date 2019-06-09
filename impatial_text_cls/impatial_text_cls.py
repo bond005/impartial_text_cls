@@ -164,7 +164,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     if feed_dict_for_batch is not None:
                         del feed_dict_for_batch
                     feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
-                    train_loss_ = self.sess_.run([train_op, loss_], feed_dict=feed_dict_for_batch)
+                    _, train_loss_ = self.sess_.run([train_op, loss_], feed_dict=feed_dict_for_batch)
                     train_loss += train_loss_ * self.batch_size
                 train_loss /= float(X_train_tokenized[0].shape[0])
                 if bounds_of_batches_for_validation is not None:
