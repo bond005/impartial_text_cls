@@ -127,12 +127,6 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             y_val_tokenized = None
             if X_unlabeled_tokenized is not None:
                 X_unlabeled_tokenized = self.extend_Xy(X_unlabeled_tokenized, shuffle=False)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            train_op, loss_, val_loss_ = self.build_model(
-                X_train_tokenized[0].shape[0],
-                None if X_val_tokenized is None else X_val_tokenized[0].shape[0]
-            )
         n_batches = int(np.ceil(X_train_tokenized[0].shape[0] / float(self.batch_size)))
         bounds_of_batches_for_training = []
         for iteration in range(n_batches):
@@ -148,6 +142,12 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 batch_start = iteration * self.batch_size
                 batch_end = min(batch_start + self.batch_size, X_val_tokenized[0].shape[0])
                 bounds_of_batches_for_validation.append((batch_start, batch_end))
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            train_op, loss_, val_loss_ = self.build_model(
+                len(bounds_of_batches_for_training),
+                None if bounds_of_batches_for_validation is None else len(bounds_of_batches_for_validation)
+            )
         init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
         init.run(session=self.sess_)
         tmp_model_name = self.get_temp_model_name()
@@ -717,7 +717,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             self.__setattr__(parameter, value)
         return self
 
-    def build_model(self, n_train_samples: Union[int, None]=None, n_test_samples: Union[int, None]=None):
+    def build_model(self, n_train_batches: Union[int, None]=None, n_test_batches: Union[int, None]=None):
         config = tf.ConfigProto()
         config.gpu_options.per_process_gpu_memory_fraction = self.gpu_memory_frac
         self.sess_ = tf.Session(config=config)
@@ -755,16 +755,18 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             self.labels_distribution_ = tfp.distributions.Bernoulli(logits=self.logits_)
         else:
             self.labels_distribution_ = tfp.distributions.Categorical(logits=self.logits_)
-        neg_log_likelihood = -tf.reduce_mean(input_tensor=self.labels_distribution_.log_prob(self.y_ph_))
+        neg_log_likelihood = -tf.reduce_sum(input_tensor=self.labels_distribution_.log_prob(self.y_ph_))
         kl = sum(model.losses)
-        if n_train_samples is not None:
-            elbo_loss = neg_log_likelihood + kl / float(n_train_samples)
+        if n_train_batches is not None:
+            elbo_loss = neg_log_likelihood + kl / float(n_train_batches)
         else:
             elbo_loss = neg_log_likelihood + kl
-        if n_test_samples is not None:
-            test_elbo_loss = neg_log_likelihood + kl / float(n_test_samples)
+        elbo_loss /= float(self.batch_size)
+        if n_test_batches is not None:
+            test_elbo_loss = neg_log_likelihood + kl / float(n_test_batches)
         else:
             test_elbo_loss = neg_log_likelihood + kl
+        test_elbo_loss /= float(self.batch_size)
         with tf.name_scope('train'):
             optimizer = tf.train.AdamOptimizer()
             train_op = optimizer.minimize(elbo_loss)
