@@ -154,8 +154,6 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         n_epochs_without_improving = 0
         try:
             best_acc = None
-            max_number_of_batches = len(bounds_of_batches_for_training) * self.max_epochs
-            cur_batch_idx = 1
             for epoch in range(self.max_epochs):
                 start_time = time.time()
                 random.shuffle(bounds_of_batches_for_training)
@@ -169,11 +167,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         del feed_dict_for_batch
                     feed_dict_for_batch = self.fill_feed_dict(
                         X_batch, y_batch, pi_variable=pi_,
-                        pi_value=self.calculate_pi_value(cur_batch_idx, max_number_of_batches)
+                        pi_value=self.calculate_pi_value(epoch + 1, self.max_epochs)
                     )
                     _, train_loss_ = self.sess_.run([train_op, elbo_loss_], feed_dict=feed_dict_for_batch)
                     train_loss += train_loss_ * self.batch_size
-                    cur_batch_idx += 1
                 train_loss /= float(X_train_tokenized[0].shape[0])
                 if bounds_of_batches_for_validation is not None:
                     test_loss = 0.0
@@ -206,7 +203,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         print('Epoch {0}'.format(epoch))
                         print('  Duration is {0:.3f} seconds'.format(time.time() - start_time))
                         print('  Train ELBO loss: {0:>12.6f}'.format(train_loss))
-                        print('  Val. ELBO loss:  {0:>12.6f}'.format(test_loss))
+                        print('  Val. loss:       {0:>12.6f}'.format(test_loss))
                     quality_by_classes = self.calculate_quality(y_val_tokenized, y_pred[0:len(y_val_tokenized)])
                     quality_test = 0.0
                     if self.multioutput:
