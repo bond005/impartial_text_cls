@@ -154,6 +154,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         n_epochs_without_improving = 0
         try:
             best_acc = None
+            batch_counter = 1
             for epoch in range(self.max_epochs):
                 start_time = time.time()
                 random.shuffle(bounds_of_batches_for_training)
@@ -167,10 +168,11 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         del feed_dict_for_batch
                     feed_dict_for_batch = self.fill_feed_dict(
                         X_batch, y_batch, pi_variable=pi_,
-                        pi_value=self.calculate_pi_value(epoch + 1, self.max_epochs)
+                        pi_value=self.calculate_pi_value(batch_counter, len(bounds_of_batches_for_training) * 2)
                     )
                     _, train_loss_ = self.sess_.run([train_op, elbo_loss_], feed_dict=feed_dict_for_batch)
                     train_loss += train_loss_ * self.batch_size
+                    batch_counter += 1
                 train_loss /= float(X_train_tokenized[0].shape[0])
                 if bounds_of_batches_for_validation is not None:
                     test_loss = 0.0
@@ -1214,5 +1216,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
 
     @staticmethod
     def calculate_pi_value(batch_idx: int, n_batches: int) -> float:
-        res = float(n_batches - batch_idx) - float(n_batches)
+        if batch_idx > n_batches:
+            res = -float(n_batches)
+        else:
+            res = float(n_batches - batch_idx) - float(n_batches)
         return np.power(2.0, res)
