@@ -32,7 +32,7 @@ def main():
     parser = ArgumentParser()
     parser.add_argument('-m', '--model', dest='model_name', type=str, required=True,
                         help='The binary file with the text classifier.')
-    parser.add_argument('--layers', dest='sizes_of_layers', type=str, required=False, default='300-100',
+    parser.add_argument('--layers', dest='sizes_of_layers', type=str, required=False, default='1000-1000',
                         help='Sizes of the Bayesian neural network layers.')
     parser.add_argument('--num_monte_carlo', dest='num_monte_carlo', type=int, required=False, default=10,
                         help='Number of generated Monte Carlo samples for each data sample.')
@@ -47,9 +47,7 @@ def main():
 
     if os.path.isfile(model_name):
         with open(model_name, 'rb') as fp:
-            nn, train_classes = pickle.load(fp)
-        print('Classes list: {0}'.format(train_classes))
-        print('')
+            nn = pickle.load(fp)
     else:
         train_texts, train_labels = load_data('train')
         print('Number of samples for training is {0}.'.format(len(train_texts)))
