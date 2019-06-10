@@ -144,10 +144,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 bounds_of_batches_for_validation.append((batch_start, batch_end))
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            train_op, loss_, val_loss_ = self.build_model(
-                len(bounds_of_batches_for_training),
-                None if bounds_of_batches_for_validation is None else len(bounds_of_batches_for_validation)
-            )
+            train_op, elbo_loss_, val_loss_, pi_ = self.build_model()
         init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
         init.run(session=self.sess_)
         tmp_model_name = self.get_temp_model_name()
@@ -157,6 +154,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         n_epochs_without_improving = 0
         try:
             best_acc = None
+            max_number_of_batches = len(bounds_of_batches_for_training) * self.max_epochs
+            cur_batch_idx = 1
             for epoch in range(self.max_epochs):
                 start_time = time.time()
                 random.shuffle(bounds_of_batches_for_training)
@@ -168,9 +167,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     y_batch = y_train_tokenized[cur_batch[0]:cur_batch[1]]
                     if feed_dict_for_batch is not None:
                         del feed_dict_for_batch
-                    feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
-                    _, train_loss_ = self.sess_.run([train_op, loss_], feed_dict=feed_dict_for_batch)
+                    feed_dict_for_batch = self.fill_feed_dict(
+                        X_batch, y_batch, pi_variable=pi_,
+                        pi_value=self.calculate_pi_value(cur_batch_idx, max_number_of_batches)
+                    )
+                    _, train_loss_ = self.sess_.run([train_op, elbo_loss_], feed_dict=feed_dict_for_batch)
                     train_loss += train_loss_ * self.batch_size
+                    cur_batch_idx += 1
                 train_loss /= float(X_train_tokenized[0].shape[0])
                 if bounds_of_batches_for_validation is not None:
                     test_loss = 0.0
@@ -278,7 +281,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 self.finalize_model()
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
-                    _, _, _ = self.build_model()
+                    _, _, _, _ = self.build_model()
                 self.load_model(tmp_model_name)
         finally:
             for cur_name in self.find_all_model_files(tmp_model_name):
@@ -562,7 +565,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         check_is_fitted(self, ['n_classes_', 'logits_', 'tokenizer_', 'input_ids_', 'input_mask_', 'segment_ids_',
                                'labels_distribution_', 'y_ph_', 'sess_', 'certainty_threshold_'])
 
-    def fill_feed_dict(self, X: List[np.array], y: np.array = None) -> dict:
+    def fill_feed_dict(self, X: List[np.array], y: np.array = None,
+                       pi_variable: tf.Variable=None, pi_value: float=None) -> dict:
         assert len(X) == 3
         assert len(X[0]) == self.batch_size
         feed_dict = {
@@ -570,6 +574,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         }
         if y is not None:
             feed_dict[self.y_ph_] = y
+        if (pi_variable is not None) and (pi_value is not None):
+            feed_dict[pi_variable] = pi_value
         return feed_dict
 
     def extend_Xy(self, X: List[np.ndarray], y: np.ndarray=None, shuffle: bool=False) -> \
@@ -717,7 +723,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             self.__setattr__(parameter, value)
         return self
 
-    def build_model(self, n_train_batches: Union[int, None]=None, n_test_batches: Union[int, None]=None):
+    def build_model(self):
         config = tf.ConfigProto()
         config.gpu_options.per_process_gpu_memory_fraction = self.gpu_memory_frac
         self.sess_ = tf.Session(config=config)
@@ -756,21 +762,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         else:
             self.labels_distribution_ = tfp.distributions.Categorical(logits=self.logits_)
         neg_log_likelihood = -tf.reduce_sum(input_tensor=self.labels_distribution_.log_prob(self.y_ph_))
-        kl = sum(model.losses)
-        if n_train_batches is not None:
-            elbo_loss = neg_log_likelihood + kl / float(n_train_batches)
-        else:
-            elbo_loss = neg_log_likelihood + kl
-        elbo_loss /= float(self.batch_size)
-        if n_test_batches is not None:
-            test_elbo_loss = neg_log_likelihood + kl / float(n_test_batches)
-        else:
-            test_elbo_loss = neg_log_likelihood + kl
-        test_elbo_loss /= float(self.batch_size)
+        pi = tf.Variable(0.0, trainable=False, name='Pi_for_ELBO_loss', dtype=tf.float32)
+        kl = sum(model.losses * pi)
+        elbo_loss = neg_log_likelihood + kl
         with tf.name_scope('train'):
             optimizer = tf.train.AdamOptimizer()
             train_op = optimizer.minimize(elbo_loss)
-        return train_op, elbo_loss, test_elbo_loss
+        return train_op, elbo_loss, neg_log_likelihood, pi
 
     def finalize_model(self):
         if hasattr(self, 'input_ids_'):
@@ -941,7 +939,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         fp.write(new_params['model.' + model_files[idx]])
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
-                    _, _, _ = self.build_model()
+                    _, _, _, _ = self.build_model()
                 self.load_model(os.path.join(tmp_dir_name, new_params['model_name_']))
             finally:
                 for cur in tmp_file_names:
@@ -1216,3 +1214,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             if not (classes_for_testing <= classes_for_training):
                 raise ValueError('Source data cannot be splitted by train and test parts!')
         return indices[n_test:], indices[:n_test]
+
+    @staticmethod
+    def calculate_pi_value(batch_idx: int, n_batches: int) -> float:
+        res = float(n_batches - batch_idx) - float(n_batches)
+        return np.power(2.0, res)
