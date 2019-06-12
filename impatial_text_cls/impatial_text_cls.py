@@ -172,7 +172,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         del feed_dict_for_batch
                     feed_dict_for_batch = self.fill_feed_dict(
                         X_batch, y_batch, pi_variable=pi_,
-                        pi_value=self.calculate_pi_value(batch_counter, len(bounds_of_batches_for_training) * 2)
+                        pi_value=self.calculate_pi_value(
+                            batch_counter,
+                            len(bounds_of_batches_for_training) * max(2, self.patience - 1)
+                        )
                     )
                     _, train_loss_ = self.sess_.run([train_op, elbo_loss_], feed_dict=feed_dict_for_batch)
                     train_loss += train_loss_ * self.batch_size
