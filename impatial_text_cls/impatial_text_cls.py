@@ -22,13 +22,17 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
     MAX_SEQ_LENGTH = 512
 
-    def __init__(self, hidden_layer_sizes: Union[tuple, List[int]]=(100,),
+    def __init__(self,
                  bert_hub_module_handle: Union[str, None]='https://tfhub.dev/google/bert_uncased_L-12_H-768_A-12/1',
-                 batch_size: int=32, validation_fraction: float=0.1, max_epochs: int=10, patience: int=3,
-                 num_monte_carlo: int=50, gpu_memory_frac: float=1.0, verbose: bool=False, multioutput: bool=False,
-                 random_seed: Union[int, None]=None):
+                 filters_for_conv2: int=100, filters_for_conv3: int=100, filters_for_conv4: int=100,
+                 filters_for_conv5: int=100, batch_size: int=32, validation_fraction: float=0.1, max_epochs: int=10,
+                 patience: int=3, num_monte_carlo: int=50, gpu_memory_frac: float=1.0, verbose: bool=False,
+                 multioutput: bool=False, random_seed: Union[int, None]=None):
         self.batch_size = batch_size
-        self.hidden_layer_sizes = hidden_layer_sizes
+        self.filters_for_conv2 = filters_for_conv2
+        self.filters_for_conv3 = filters_for_conv3
+        self.filters_for_conv4 = filters_for_conv4
+        self.filters_for_conv5 = filters_for_conv5
         self.bert_hub_module_handle = bert_hub_module_handle
         self.max_epochs = max_epochs
         self.num_monte_carlo = num_monte_carlo
@@ -461,8 +465,9 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             bert_hub_module_handle=self.bert_hub_module_handle, batch_size=self.batch_size,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
             gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
-            num_monte_carlo=self.num_monte_carlo, hidden_layer_sizes=self.hidden_layer_sizes,
-            multioutput=self.multioutput
+            num_monte_carlo=self.num_monte_carlo, filters_for_conv2=self.filters_for_conv2,
+            filters_for_conv3=self.filters_for_conv3, filters_for_conv4=self.filters_for_conv4,
+            filters_for_conv5=self.filters_for_conv5, multioutput=self.multioutput
         )
         self.check_X(X, 'X')
         self.is_fitted()
@@ -526,8 +531,9 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             bert_hub_module_handle=self.bert_hub_module_handle, batch_size=self.batch_size,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
             gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
-            num_monte_carlo=self.num_monte_carlo, hidden_layer_sizes=self.hidden_layer_sizes,
-            multioutput=self.multioutput
+            num_monte_carlo=self.num_monte_carlo, filters_for_conv2=self.filters_for_conv2,
+            filters_for_conv3=self.filters_for_conv3, filters_for_conv4=self.filters_for_conv4,
+            filters_for_conv5=self.filters_for_conv5, multioutput=self.multioutput
         )
         self.is_fitted()
         classes_list = self.check_Xy(X, 'X', y, 'y', self.multioutput)
@@ -712,10 +718,11 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
 
     def get_params(self, deep=True) -> dict:
         return {'bert_hub_module_handle': self.bert_hub_module_handle, 'batch_size': self.batch_size,
-                'max_epochs': self.max_epochs, 'patience': self.patience, 'hidden_layer_sizes': self.hidden_layer_sizes,
-                'validation_fraction': self.validation_fraction, 'gpu_memory_frac': self.gpu_memory_frac,
-                'verbose': self.verbose, 'random_seed': self.random_seed, 'num_monte_carlo': self.num_monte_carlo,
-                'multioutput': self.multioutput}
+                'max_epochs': self.max_epochs, 'patience': self.patience, 'filters_for_conv2': self.filters_for_conv2,
+                'filters_for_conv3': self.filters_for_conv3, 'filters_for_conv4': self.filters_for_conv4,
+                'filters_for_conv5': self.filters_for_conv5, 'validation_fraction': self.validation_fraction,
+                'gpu_memory_frac': self.gpu_memory_frac, 'verbose': self.verbose, 'random_seed': self.random_seed,
+                'num_monte_carlo': self.num_monte_carlo, 'multioutput': self.multioutput}
 
     def set_params(self, **params):
         for parameter, value in params.items():
@@ -744,18 +751,32 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         with tf.name_scope('BERT_base'):
             bert_module = tfhub.Module(self.bert_hub_module_handle, trainable=True)
             bert_outputs = bert_module(bert_inputs, signature='tokens', as_dict=True)
-            pooled_output = tf.stop_gradient(bert_outputs['pooled_output'])
+            sequence_output = tf.stop_gradient(bert_outputs['sequence_output'])
         if self.verbose:
             print('The BERT model has been loaded from the TF-Hub.')
-        layers = []
-        for hidden_layer_idx in range(len(self.hidden_layer_sizes)):
-            layers.append(
-                tfp.layers.DenseFlipout(self.hidden_layer_sizes[hidden_layer_idx], seed=self.random_seed,
-                                        activation=tf.nn.relu, name='HiddenLayer{0}'.format(hidden_layer_idx + 1))
-            )
-        layers.append(tfp.layers.DenseFlipout(self.n_classes_, seed=self.random_seed, name='OutputLayer'))
-        model = tf.keras.Sequential(layers)
-        self.logits_ = model(pooled_output)
+        feature_vector_size = sequence_output.shape[-1].value
+        input_layer = tf.keras.Input((self.MAX_SEQ_LENGTH, feature_vector_size), name='InputForConv')
+        conv_layer_1 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv2, kernel_size=2, name='Conv2',
+                                                       padding='valid', activation=tf.nn.tanh,
+                                                       seed=self.random_seed)(input_layer)
+        conv_layer_1 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling2')(conv_layer_1)
+        conv_layer_2 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv2, kernel_size=3, name='Conv3',
+                                                       padding='valid', activation=tf.nn.tanh,
+                                                       seed=self.random_seed)(input_layer)
+        conv_layer_2 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling3')(conv_layer_2)
+        conv_layer_3 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv2, kernel_size=4, name='Conv4',
+                                                       padding='valid', activation=tf.nn.tanh,
+                                                       seed=self.random_seed)(input_layer)
+        conv_layer_3 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling4')(conv_layer_3)
+        conv_layer_4 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv2, kernel_size=5, name='Conv5',
+                                                       padding='valid', activation=tf.nn.tanh,
+                                                       seed=self.random_seed)(input_layer)
+        conv_layer_4 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling5')(conv_layer_4)
+        concat_layer = tf.keras.layers.Concatenate(name='Concat')([conv_layer_1, conv_layer_2, conv_layer_3,
+                                                                   conv_layer_4])
+        output_layer = tfp.layers.DenseFlipout(self.n_classes_, seed=self.random_seed, name='OutputLayer')(concat_layer)
+        model = tf.keras.Model(input_layer, output_layer)
+        self.logits_ = model(sequence_output)
         if self.multioutput:
             self.labels_distribution_ = tfp.distributions.Bernoulli(logits=self.logits_)
         else:
@@ -818,10 +839,12 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         cls = self.__class__
         result = cls.__new__(cls)
         result.set_params(
-            bert_hub_module_handle=self.bert_hub_module_handle, hidden_layer_sizes=copy.copy(self.hidden_layer_sizes),
-            num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size, multioutput=self.multioutput,
-            validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
-            gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed
+            bert_hub_module_handle=self.bert_hub_module_handle, filters_for_conv2=self.filters_for_conv2,
+            filters_for_conv3=self.filters_for_conv3, filters_for_conv4=self.filters_for_conv4,
+            filters_for_conv5=self.filters_for_conv5, num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size,
+            multioutput=self.multioutput, validation_fraction=self.validation_fraction, max_epochs=self.max_epochs,
+            patience=self.patience, gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose,
+            random_seed=self.random_seed
         )
         try:
             self.is_fitted()
@@ -845,10 +868,12 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         cls = self.__class__
         result = cls.__new__(cls)
         result.set_params(
-            bert_hub_module_handle=self.bert_hub_module_handle, hidden_layer_sizes=copy.copy(self.hidden_layer_sizes),
-            num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size, multioutput=self.multioutput,
-            validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
-            gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed
+            bert_hub_module_handle=self.bert_hub_module_handle, filters_for_conv2=self.filters_for_conv2,
+            filters_for_conv3=self.filters_for_conv3, filters_for_conv4=self.filters_for_conv4,
+            filters_for_conv5=self.filters_for_conv5, num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size,
+            multioutput=self.multioutput, validation_fraction=self.validation_fraction, max_epochs=self.max_epochs,
+            patience=self.patience, gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose,
+            random_seed=self.random_seed
         )
         try:
             self.is_fitted()
@@ -1053,31 +1078,46 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 (not isinstance(kwargs['multioutput'], bool)) and (not isinstance(kwargs['multioutput'], np.bool)):
             raise ValueError('`multioutput` is wrong! Expected `{0}`, got `{1}`.'.format(
                 type(True), type(kwargs['multioutput'])))
-        if 'hidden_layer_sizes' not in kwargs:
-            raise ValueError('`hidden_layer_sizes` is not specified!')
-        if (not isinstance(kwargs['hidden_layer_sizes'], list)) and \
-                (not isinstance(kwargs['hidden_layer_sizes'], tuple)) and \
-                (not isinstance(kwargs['hidden_layer_sizes'], np.ndarray)):
-            raise ValueError('`hidden_layer_sizes` is wrong! Expected `{0}`, got `{1}`.'.format(
-                type((1, 2, 3)), type(kwargs['hidden_layer_sizes'])))
-        if isinstance(kwargs['hidden_layer_sizes'], np.ndarray):
-            if len(kwargs['hidden_layer_sizes'].shape) != 1:
-                raise ValueError('`hidden_layer_sizes` is wrong! Expected 1d array, but got {0}d one.'.format(
-                    len(kwargs['hidden_layer_sizes'].shape)))
-        if len(kwargs['hidden_layer_sizes']) < 1:
-            raise ValueError('`hidden_layer_sizes` is wrong! It is empty.')
-        for layer_idx, layer_size in enumerate(kwargs['hidden_layer_sizes']):
-            if (not isinstance(layer_size, int)) and (not isinstance(layer_size, np.int32)) and \
-                    (not isinstance(layer_size, np.int64)) and (not isinstance(layer_size, np.int)) and \
-                    (not isinstance(layer_size, np.int16)) and (not isinstance(layer_size, np.int8)) and \
-                    (not isinstance(layer_size, np.uint32)) and (not isinstance(layer_size, np.uint64)) and \
-                    (not isinstance(layer_size, np.uint16)) and (not isinstance(layer_size, np.uint8)) and \
-                    (not isinstance(layer_size, np.uint)):
-                raise ValueError('Item {0} of `hidden_layer_sizes` is wrong! Expected `{1}`, got `{2}`.'.format(
-                    layer_idx, type(1), type(layer_size)))
-            if layer_size <= 0:
-                raise ValueError('Item {0} of `hidden_layer_sizes` is wrong! Expected a positive value, '
-                                 'got {1}.'.format(layer_idx, layer_size))
+        if 'filters_for_conv2' not in kwargs:
+            raise ValueError('`filters_for_conv2` is not specified!')
+        if (not isinstance(kwargs['filters_for_conv2'], int)) and \
+                (not isinstance(kwargs['filters_for_conv2'], np.int32)) and \
+                (not isinstance(kwargs['filters_for_conv2'], np.uint32)):
+            raise ValueError('`filters_for_conv2` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(3), type(kwargs['filters_for_conv2'])))
+        if kwargs['filters_for_conv2'] < 1:
+            raise ValueError('`filters_for_conv2` is wrong! Expected a positive integer value, '
+                             'but {0} is not positive.'.format(kwargs['filters_for_conv2']))
+        if 'filters_for_conv3' not in kwargs:
+            raise ValueError('`filters_for_conv3` is not specified!')
+        if (not isinstance(kwargs['filters_for_conv3'], int)) and \
+                (not isinstance(kwargs['filters_for_conv3'], np.int32)) and \
+                (not isinstance(kwargs['filters_for_conv3'], np.uint32)):
+            raise ValueError('`filters_for_conv3` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(3), type(kwargs['filters_for_conv3'])))
+        if kwargs['filters_for_conv3'] < 1:
+            raise ValueError('`filters_for_conv3` is wrong! Expected a positive integer value, '
+                             'but {0} is not positive.'.format(kwargs['filters_for_conv3']))
+        if 'filters_for_conv4' not in kwargs:
+            raise ValueError('`filters_for_conv4` is not specified!')
+        if (not isinstance(kwargs['filters_for_conv4'], int)) and \
+                (not isinstance(kwargs['filters_for_conv4'], np.int32)) and \
+                (not isinstance(kwargs['filters_for_conv4'], np.uint32)):
+            raise ValueError('`filters_for_conv4` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(3), type(kwargs['filters_for_conv4'])))
+        if kwargs['filters_for_conv4'] < 1:
+            raise ValueError('`filters_for_conv4` is wrong! Expected a positive integer value, '
+                             'but {0} is not positive.'.format(kwargs['filters_for_conv4']))
+        if 'filters_for_conv5' not in kwargs:
+            raise ValueError('`filters_for_conv5` is not specified!')
+        if (not isinstance(kwargs['filters_for_conv5'], int)) and \
+                (not isinstance(kwargs['filters_for_conv5'], np.int32)) and \
+                (not isinstance(kwargs['filters_for_conv5'], np.uint32)):
+            raise ValueError('`filters_for_conv5` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(3), type(kwargs['filters_for_conv5'])))
+        if kwargs['filters_for_conv5'] < 1:
+            raise ValueError('`filters_for_conv5` is wrong! Expected a positive integer value, '
+                             'but {0} is not positive.'.format(kwargs['filters_for_conv5']))
 
     @staticmethod
     def check_X(X: Union[list, tuple, np.array], X_name: str):
