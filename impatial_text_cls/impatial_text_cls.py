@@ -755,31 +755,33 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             bert_module = tfhub.Module(self.bert_hub_module_handle, trainable=True)
             bert_outputs = bert_module(bert_inputs, signature='tokens', as_dict=True)
             sequence_output = tf.stop_gradient(bert_outputs['sequence_output'])
+            pooled_output = tf.stop_gradient(bert_outputs['pooled_output'])
         if self.verbose:
             print('The BERT model has been loaded from the TF-Hub.')
         feature_vector_size = sequence_output.shape[-1].value
-        input_layer = tf.keras.Input((self.MAX_SEQ_LENGTH, feature_vector_size), name='InputForConv')
+        input_sequence_layer = tf.keras.Input((self.MAX_SEQ_LENGTH, feature_vector_size), name='InputForConv')
+        input_pooled_layer = tf.keras.Input((self.MAX_SEQ_LENGTH, feature_vector_size), name='PooledInput')
         conv_layer_1 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv2, kernel_size=2, name='Conv2',
                                                        padding='valid', activation=tf.nn.tanh,
-                                                       seed=self.random_seed)(input_layer)
+                                                       seed=self.random_seed)(input_sequence_layer)
         conv_layer_1 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling2')(conv_layer_1)
         conv_layer_2 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv2, kernel_size=3, name='Conv3',
                                                        padding='valid', activation=tf.nn.tanh,
-                                                       seed=self.random_seed)(input_layer)
+                                                       seed=self.random_seed)(input_sequence_layer)
         conv_layer_2 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling3')(conv_layer_2)
         conv_layer_3 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv2, kernel_size=4, name='Conv4',
                                                        padding='valid', activation=tf.nn.tanh,
-                                                       seed=self.random_seed)(input_layer)
+                                                       seed=self.random_seed)(input_sequence_layer)
         conv_layer_3 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling4')(conv_layer_3)
         conv_layer_4 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv2, kernel_size=5, name='Conv5',
                                                        padding='valid', activation=tf.nn.tanh,
-                                                       seed=self.random_seed)(input_layer)
+                                                       seed=self.random_seed)(input_sequence_layer)
         conv_layer_4 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling5')(conv_layer_4)
         concat_layer = tf.keras.layers.Concatenate(name='Concat')([conv_layer_1, conv_layer_2, conv_layer_3,
-                                                                   conv_layer_4])
+                                                                   conv_layer_4, input_pooled_layer])
         output_layer = tfp.layers.DenseFlipout(self.n_classes_, seed=self.random_seed, name='OutputLayer')(concat_layer)
-        model = tf.keras.Model(input_layer, output_layer)
-        self.logits_ = model(sequence_output)
+        model = tf.keras.Model([input_sequence_layer, input_pooled_layer], output_layer)
+        self.logits_ = model([sequence_output, pooled_output])
         if self.multioutput:
             self.labels_distribution_ = tfp.distributions.Bernoulli(logits=self.logits_)
         else:
@@ -814,11 +816,15 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         tf.reset_default_graph()
 
     def save_model(self, file_name: str):
-        saver = tf.train.Saver(allow_empty=True)
+        saver = tf.train.Saver({'logits_': self.logits_, 'input_ids_': self.input_ids_, 'input_mask_': self.input_mask_,
+                                'segment_ids_': self.segment_ids_, 'labels_distribution_': self.labels_distribution_,
+                                'y_ph_': self.y_ph_})
         saver.save(self.sess_, file_name)
 
     def load_model(self, file_name: str):
-        saver = tf.train.Saver(allow_empty=True)
+        saver = tf.train.Saver({'logits_': self.logits_, 'input_ids_': self.input_ids_, 'input_mask_': self.input_mask_,
+                                'segment_ids_': self.segment_ids_, 'labels_distribution_': self.labels_distribution_,
+                                'y_ph_': self.y_ph_})
         saver.restore(self.sess_, file_name)
 
     def initialize_bert_tokenizer(self) -> FullTokenizer:
