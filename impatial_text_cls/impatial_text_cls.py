@@ -760,7 +760,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             print('The BERT model has been loaded from the TF-Hub.')
         feature_vector_size = sequence_output.shape[-1].value
         input_sequence_layer = tf.keras.Input((self.MAX_SEQ_LENGTH, feature_vector_size), name='InputForConv')
-        input_pooled_layer = tf.keras.Input((self.MAX_SEQ_LENGTH, feature_vector_size), name='PooledInput')
+        input_pooled_layer = tf.keras.Input((feature_vector_size,), name='PooledInput')
         conv_layer_1 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv2, kernel_size=2, name='Conv2',
                                                        padding='valid', activation=tf.nn.tanh,
                                                        seed=self.random_seed)(input_sequence_layer)
