@@ -816,14 +816,12 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         tf.reset_default_graph()
 
     def save_model(self, file_name: str):
-        saver = tf.train.Saver({'logits_': self.logits_, 'input_ids_': self.input_ids_, 'input_mask_': self.input_mask_,
-                                'segment_ids_': self.segment_ids_, 'labels_distribution_': self.labels_distribution_,
+        saver = tf.train.Saver({'logits_': self.logits_, 'labels_distribution_': self.labels_distribution_,
                                 'y_ph_': self.y_ph_})
         saver.save(self.sess_, file_name)
 
     def load_model(self, file_name: str):
-        saver = tf.train.Saver({'logits_': self.logits_, 'input_ids_': self.input_ids_, 'input_mask_': self.input_mask_,
-                                'segment_ids_': self.segment_ids_, 'labels_distribution_': self.labels_distribution_,
+        saver = tf.train.Saver({'logits_': self.logits_, 'labels_distribution_': self.labels_distribution_,
                                 'y_ph_': self.y_ph_})
         saver.restore(self.sess_, file_name)
 
