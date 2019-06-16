@@ -284,7 +284,6 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         print('Epoch %05d: early stopping' % (epoch + 1))
                     break
             if best_acc is not None:
-                tf.reset_default_graph()
                 self.load_model(tmp_model_name)
         finally:
             for cur_name in self.find_all_model_files(tmp_model_name):
