@@ -191,7 +191,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
                         test_loss_ = self.sess_.run(val_loss_, feed_dict=feed_dict_for_batch)
                         test_loss += test_loss_ * self.batch_size
-                        probs = np.asarray([self.sess_.run(self.labels_distribution_.probs,
+                        probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0',
                                                            feed_dict=feed_dict_for_batch)
                                             for _ in range(self.num_monte_carlo)])
                         del feed_dict_for_batch
@@ -284,10 +284,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         print('Epoch %05d: early stopping' % (epoch + 1))
                     break
             if best_acc is not None:
-                self.finalize_model()
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    _, _, _, _ = self.build_model()
+                tf.reset_default_graph()
                 self.load_model(tmp_model_name)
         finally:
             for cur_name in self.find_all_model_files(tmp_model_name):
@@ -309,7 +306,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     X_batch = [X_train[channel_idx][batch_start:batch_end]
                                for channel_idx in range(len(X_train))]
                     feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                    probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
+                    probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0', feed_dict=feed_dict_for_batch)
                                         for _ in range(self.num_monte_carlo)])
                     del feed_dict_for_batch
                     mean_probs = np.mean(probs, axis=0)
@@ -325,7 +322,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     X_batch = [X_val[channel_idx][batch_start:batch_end]
                                for channel_idx in range(len(X_val))]
                     feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                    probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
+                    probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0', feed_dict=feed_dict_for_batch)
                                         for _ in range(self.num_monte_carlo)])
                     del feed_dict_for_batch
                     mean_probs = np.mean(probs, axis=0)
@@ -341,7 +338,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     X_batch = [X_unlabeled[channel_idx][batch_start:batch_end]
                                for channel_idx in range(len(X_unlabeled))]
                     feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                    probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
+                    probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0', feed_dict=feed_dict_for_batch)
                                         for _ in range(self.num_monte_carlo)])
                     mean_probs = np.mean(probs, axis=0)
                     probabilities_for_unlabeled[batch_start:batch_end] = mean_probs[0:(batch_end - batch_start)]
@@ -387,7 +384,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     X_batch = [X_train[channel_idx][batch_start:batch_end]
                                for channel_idx in range(len(X_train))]
                     feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                    probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
+                    probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0', feed_dict=feed_dict_for_batch)
                                         for _ in range(self.num_monte_carlo)])
                     del feed_dict_for_batch
                     mean_probs = np.mean(probs, axis=0)
@@ -403,7 +400,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     X_batch = [X_val[channel_idx][batch_start:batch_end]
                                for channel_idx in range(len(X_val))]
                     feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                    probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
+                    probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0', feed_dict=feed_dict_for_batch)
                                         for _ in range(self.num_monte_carlo)])
                     del feed_dict_for_batch
                     mean_probs = np.mean(probs, axis=0)
@@ -421,7 +418,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     X_batch = [X_unlabeled[channel_idx][batch_start:batch_end]
                                for channel_idx in range(len(X_unlabeled))]
                     feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                    probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
+                    probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0', feed_dict=feed_dict_for_batch)
                                         for _ in range(self.num_monte_carlo)])
                     mean_probs = np.mean(probs, axis=0)
                     probabilities_for_another_samples[batch_start:batch_end] = mean_probs.max(
@@ -491,7 +488,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     for channel_idx in range(len(X_tokenized))
                 ]
             )
-            probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict)
+            probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0', feed_dict=feed_dict)
                                 for _ in range(self.num_monte_carlo)])
             probabilities[cur_batch[0]:cur_batch[1]] = np.mean(probs, axis=0)
             del probs
@@ -570,18 +567,17 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         tf.random.set_random_seed(self.random_seed)
 
     def is_fitted(self):
-        check_is_fitted(self, ['n_classes_', 'logits_', 'tokenizer_', 'input_ids_', 'input_mask_', 'segment_ids_',
-                               'labels_distribution_', 'y_ph_', 'sess_', 'certainty_threshold_'])
+        check_is_fitted(self, ['n_classes_', 'tokenizer_', 'sess_', 'certainty_threshold_'])
 
     def fill_feed_dict(self, X: List[np.array], y: np.array = None,
                        pi_variable: tf.Variable=None, pi_value: float=None) -> dict:
         assert len(X) == 3
         assert len(X[0]) == self.batch_size
         feed_dict = {
-            ph: x for ph, x in zip([self.input_ids_, self.input_mask_, self.segment_ids_], X)
+            ph: x for ph, x in zip(['input_ids:0', 'input_mask:0', 'segment_ids:0'], X)
         }
         if y is not None:
-            feed_dict[self.y_ph_] = y
+            feed_dict['y_ph:0'] = y
         if (pi_variable is not None) and (pi_value is not None):
             feed_dict[pi_variable] = pi_value
         return feed_dict
@@ -736,26 +732,22 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         config = tf.ConfigProto()
         config.gpu_options.per_process_gpu_memory_fraction = self.gpu_memory_frac
         self.sess_ = tf.Session(config=config)
-        self.input_ids_ = tf.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32,
-                                         name='input_ids')
-        self.input_mask_ = tf.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32,
-                                          name='input_mask')
-        self.segment_ids_ = tf.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32,
-                                           name='segment_ids')
+        input_ids = tf.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32, name='input_ids')
+        input_mask = tf.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32, name='input_mask')
+        segment_ids = tf.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32, name='segment_ids')
         if self.multioutput:
-            self.y_ph_ = tf.placeholder(shape=(self.batch_size, self.n_classes_), dtype=tf.int32, name='y_ph')
+            y_ph = tf.placeholder(shape=(self.batch_size, self.n_classes_), dtype=tf.int32, name='y_ph')
         else:
-            self.y_ph_ = tf.placeholder(shape=(self.batch_size,), dtype=tf.int32, name='y_ph')
+            y_ph = tf.placeholder(shape=(self.batch_size,), dtype=tf.int32, name='y_ph')
         bert_inputs = dict(
-            input_ids=self.input_ids_,
-            input_mask=self.input_mask_,
-            segment_ids=self.segment_ids_
+            input_ids=input_ids,
+            input_mask=input_mask,
+            segment_ids=segment_ids
         )
-        with tf.name_scope('BERT_base'):
-            bert_module = tfhub.Module(self.bert_hub_module_handle, trainable=True)
-            bert_outputs = bert_module(bert_inputs, signature='tokens', as_dict=True)
-            sequence_output = tf.stop_gradient(bert_outputs['sequence_output'])
-            pooled_output = tf.stop_gradient(bert_outputs['pooled_output'])
+        bert_module = tfhub.Module(self.bert_hub_module_handle, trainable=True, name='BERT_module')
+        bert_outputs = bert_module(bert_inputs, signature='tokens', as_dict=True)
+        sequence_output = tf.stop_gradient(bert_outputs['sequence_output'], name='BERT_SequenceOutput')
+        pooled_output = tf.stop_gradient(bert_outputs['pooled_output'], name='BERT_PooledOutput')
         if self.verbose:
             print('The BERT model has been loaded from the TF-Hub.')
         feature_vector_size = sequence_output.shape[-1].value
@@ -780,13 +772,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         concat_layer = tf.keras.layers.Concatenate(name='Concat')([conv_layer_1, conv_layer_2, conv_layer_3,
                                                                    conv_layer_4, input_pooled_layer])
         output_layer = tfp.layers.DenseFlipout(self.n_classes_, seed=self.random_seed, name='OutputLayer')(concat_layer)
-        model = tf.keras.Model([input_sequence_layer, input_pooled_layer], output_layer)
-        self.logits_ = model([sequence_output, pooled_output])
+        model = tf.keras.Model([input_sequence_layer, input_pooled_layer], output_layer, name='BayesianNetworkModel')
+        logits = model([sequence_output, pooled_output])
         if self.multioutput:
-            self.labels_distribution_ = tfp.distributions.Bernoulli(logits=self.logits_)
+            labels_distribution = tfp.distributions.Bernoulli(logits=logits, name='LabelsDistribution')
         else:
-            self.labels_distribution_ = tfp.distributions.Categorical(logits=self.logits_)
-        neg_log_likelihood = -tf.reduce_sum(input_tensor=self.labels_distribution_.log_prob(self.y_ph_))
+            labels_distribution = tfp.distributions.Categorical(logits=logits, name='LabelsDistribution')
+        neg_log_likelihood = -tf.reduce_sum(input_tensor=labels_distribution.log_prob(y_ph))
         pi = tf.Variable(0.0, trainable=False, name='Pi_for_ELBO_loss', dtype=tf.float32)
         kl = sum(model.losses)
         elbo_loss = neg_log_likelihood + pi * kl
@@ -796,18 +788,6 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         return train_op, elbo_loss, neg_log_likelihood, pi
 
     def finalize_model(self):
-        if hasattr(self, 'input_ids_'):
-            del self.input_ids_
-        if hasattr(self, 'input_mask_'):
-            del self.input_mask_
-        if hasattr(self, 'segment_ids_'):
-            del self.segment_ids_
-        if hasattr(self, 'y_ph_'):
-            del self.y_ph_
-        if hasattr(self, 'logits_'):
-            del self.logits_
-        if hasattr(self, 'labels_distribution_'):
-            del self.labels_distribution_
         if hasattr(self, 'sess_'):
             for k in list(self.sess_.graph.get_all_collection_keys()):
                 self.sess_.graph.clear_collection(k)
@@ -816,14 +796,17 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         tf.reset_default_graph()
 
     def save_model(self, file_name: str):
-        saver = tf.train.Saver({'logits_': self.logits_, 'labels_distribution_': self.labels_distribution_,
-                                'y_ph_': self.y_ph_})
+        saver = tf.train.Saver()
         saver.save(self.sess_, file_name)
 
     def load_model(self, file_name: str):
-        saver = tf.train.Saver({'logits_': self.logits_, 'labels_distribution_': self.labels_distribution_,
-                                'y_ph_': self.y_ph_})
+        if not hasattr(self, 'sess_'):
+            config = tf.ConfigProto()
+            config.gpu_options.per_process_gpu_memory_fraction = self.gpu_memory_frac
+            self.sess_ = tf.Session(config=config)
+        saver = tf.train.import_meta_graph(file_name + '.meta', clear_devices=True)
         saver.restore(self.sess_, file_name)
+        graph = tf.get_default_graph()
 
     def initialize_bert_tokenizer(self) -> FullTokenizer:
         config = tf.ConfigProto()
@@ -861,14 +844,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         if is_fitted:
             result.certainty_threshold_ = copy.copy(self.certainty_threshold_)
             result.n_classes_ = self.n_classes_
-            result.logits_ = self.logits_
             result.tokenizer_ = self.tokenizer_
-            result.input_ids_ = self.input_ids_
-            result.input_mask_ = self.input_mask_
-            result.segment_ids_ = self.segment_ids_
-            result.y_ph_ = self.y_ph_
             result.sess_ = self.sess_
-            result.labels_distribution_ = self.labels_distribution_
         return result
 
     def __deepcopy__(self, memodict={}):
@@ -890,14 +867,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         if is_fitted:
             result.certainty_threshold_ = copy.copy(self.certainty_threshold_)
             result.n_classes_ = self.n_classes_
-            result.logits_ = self.logits_
             result.tokenizer_ = self.tokenizer_
-            result.input_ids_ = self.input_ids_
-            result.input_mask_ = self.input_mask_
-            result.segment_ids_ = self.segment_ids_
-            result.y_ph_ = self.y_ph_
             result.sess_ = self.sess_
-            result.labels_distribution_ = self.labels_distribution_
         return result
 
     def __getstate__(self):
@@ -968,9 +939,6 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 for idx in range(len(model_files)):
                     with open(tmp_file_names[idx], 'wb') as fp:
                         fp.write(new_params['model.' + model_files[idx]])
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    _, _, _, _ = self.build_model()
                 self.load_model(os.path.join(tmp_dir_name, new_params['model_name_']))
             finally:
                 for cur in tmp_file_names:
