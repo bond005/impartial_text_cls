@@ -284,6 +284,12 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         print('Epoch %05d: early stopping' % (epoch + 1))
                     break
             if best_acc is not None:
+                if hasattr(self, 'sess_'):
+                    for k in list(self.sess_.graph.get_all_collection_keys()):
+                        self.sess_.graph.clear_collection(k)
+                    self.sess_.close()
+                    del self.sess_
+                tf.reset_default_graph()
                 self.load_model(tmp_model_name)
         finally:
             for cur_name in self.find_all_model_files(tmp_model_name):
@@ -805,7 +811,6 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             self.sess_ = tf.Session(config=config)
         saver = tf.train.import_meta_graph(file_name + '.meta', clear_devices=True)
         saver.restore(self.sess_, file_name)
-        graph = tf.get_default_graph()
 
     def initialize_bert_tokenizer(self) -> FullTokenizer:
         config = tf.ConfigProto()
