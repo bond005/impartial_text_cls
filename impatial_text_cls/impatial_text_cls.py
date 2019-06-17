@@ -171,7 +171,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         del feed_dict_for_batch
                     feed_dict_for_batch = self.fill_feed_dict(
                         X_batch, y_batch, pi_variable=pi_,
-                        pi_value=self.calculate_pi_value(epoch + 1, max(2, self.patience - 1))
+                        pi_value=self.calculate_pi_value(epoch + 1, max(2, self.patience - 1), 1e-1, 1e-4)
                     )
                     _, train_loss_ = self.sess_.run([train_op, elbo_loss_], feed_dict=feed_dict_for_batch)
                     train_loss += train_loss_ * self.batch_size
@@ -1229,9 +1229,11 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         return indices[n_test:], indices[:n_test]
 
     @staticmethod
-    def calculate_pi_value(epoch_idx: int, n_epochs: int) -> float:
+    def calculate_pi_value(epoch_idx: int, n_epochs: int, init_value: float, fin_value: float) -> float:
         if epoch_idx > n_epochs:
             res = -float(n_epochs)
         else:
             res = -float(epoch_idx)
-        return np.power(2.0, res)
+        res = np.power(2.0, res)
+        return (res - np.power(2.0, -1.0)) / (np.power(2.0, float(-n_epochs)) - np.power(2.0, -1.0)) * \
+               (fin_value - init_value) + init_value
