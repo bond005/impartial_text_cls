@@ -1717,6 +1717,15 @@ class TestClassifier(unittest.TestCase):
                 classes_for_testing.add(y[idx])
         self.assertEqual(classes_for_training, classes_for_testing)
 
+    def test_calculate_pi_value_positive01(self):
+        self.assertAlmostEqual(0.125, ImpatialTextClassifier.calculate_pi_value(3, 10), places=6)
+
+    def test_calculate_pi_value_positive02(self):
+        self.assertAlmostEqual(0.000976562, ImpatialTextClassifier.calculate_pi_value(10, 10), places=6)
+
+    def test_calculate_pi_value_positive03(self):
+        self.assertAlmostEqual(0.000976562, ImpatialTextClassifier.calculate_pi_value(13, 10), places=6)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
