@@ -751,12 +751,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         bert_module = tfhub.Module(self.bert_hub_module_handle, trainable=True, name='BERT_module')
         bert_outputs = bert_module(bert_inputs, signature='tokens', as_dict=True)
         sequence_output = tf.stop_gradient(bert_outputs['sequence_output'], name='BERT_SequenceOutput')
-        pooled_output = tf.stop_gradient(bert_outputs['pooled_output'], name='BERT_PooledOutput')
         if self.verbose:
             print('The BERT model has been loaded from the TF-Hub.')
         feature_vector_size = sequence_output.shape[-1].value
         input_sequence_layer = tf.keras.Input((self.MAX_SEQ_LENGTH, feature_vector_size), name='InputForConv')
-        input_pooled_layer = tf.keras.Input((feature_vector_size,), name='PooledInput')
         conv_layer_1 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv2, kernel_size=2, name='Conv2',
                                                        padding='valid', activation=tf.nn.tanh,
                                                        seed=self.random_seed)(input_sequence_layer)
@@ -774,10 +772,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                                                        seed=self.random_seed)(input_sequence_layer)
         conv_layer_4 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling5')(conv_layer_4)
         concat_layer = tf.keras.layers.Concatenate(name='Concat')([conv_layer_1, conv_layer_2, conv_layer_3,
-                                                                   conv_layer_4, input_pooled_layer])
+                                                                   conv_layer_4])
         output_layer = tfp.layers.DenseFlipout(self.n_classes_, seed=self.random_seed, name='OutputLayer')(concat_layer)
-        model = tf.keras.Model([input_sequence_layer, input_pooled_layer], output_layer, name='BayesianNetworkModel')
-        logits = model([sequence_output, pooled_output])
+        model = tf.keras.Model(input_sequence_layer, output_layer, name='BayesianNetworkModel')
+        logits = model(sequence_output)
         if self.multioutput:
             labels_distribution = tfp.distributions.Bernoulli(logits=logits, name='LabelsDistribution')
         else:
