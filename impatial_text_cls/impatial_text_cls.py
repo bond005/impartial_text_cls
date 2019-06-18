@@ -24,11 +24,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
 
     def __init__(self,
                  bert_hub_module_handle: Union[str, None]='https://tfhub.dev/google/bert_uncased_L-12_H-768_A-12/1',
-                 filters_for_conv2: int=100, filters_for_conv3: int=100, filters_for_conv4: int=100,
-                 filters_for_conv5: int=100, batch_size: int=32, validation_fraction: float=0.1, max_epochs: int=10,
-                 patience: int=3, num_monte_carlo: int=50, gpu_memory_frac: float=1.0, verbose: bool=False,
-                 multioutput: bool=False, random_seed: Union[int, None]=None):
+                 filters_for_conv1: int=100, filters_for_conv2: int=100, filters_for_conv3: int=100,
+                 filters_for_conv4: int=100, filters_for_conv5: int=100, batch_size: int=32,
+                 validation_fraction: float=0.1, max_epochs: int=10, patience: int=3, num_monte_carlo: int=50,
+                 gpu_memory_frac: float=1.0, verbose: bool=False, multioutput: bool=False,
+                 random_seed: Union[int, None]=None):
         self.batch_size = batch_size
+        self.filters_for_conv1 = filters_for_conv1
         self.filters_for_conv2 = filters_for_conv2
         self.filters_for_conv3 = filters_for_conv3
         self.filters_for_conv4 = filters_for_conv4
@@ -469,9 +471,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             bert_hub_module_handle=self.bert_hub_module_handle, batch_size=self.batch_size,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
             gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
-            num_monte_carlo=self.num_monte_carlo, filters_for_conv2=self.filters_for_conv2,
-            filters_for_conv3=self.filters_for_conv3, filters_for_conv4=self.filters_for_conv4,
-            filters_for_conv5=self.filters_for_conv5, multioutput=self.multioutput
+            num_monte_carlo=self.num_monte_carlo, filters_for_conv1=self.filters_for_conv1,
+            filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
+            filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
+            multioutput=self.multioutput
         )
         self.check_X(X, 'X')
         self.is_fitted()
@@ -535,9 +538,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             bert_hub_module_handle=self.bert_hub_module_handle, batch_size=self.batch_size,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
             gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
-            num_monte_carlo=self.num_monte_carlo, filters_for_conv2=self.filters_for_conv2,
-            filters_for_conv3=self.filters_for_conv3, filters_for_conv4=self.filters_for_conv4,
-            filters_for_conv5=self.filters_for_conv5, multioutput=self.multioutput
+            num_monte_carlo=self.num_monte_carlo, filters_for_conv1=self.filters_for_conv1,
+            filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
+            filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
+            multioutput=self.multioutput
         )
         self.is_fitted()
         classes_list = self.check_Xy(X, 'X', y, 'y', self.multioutput)
@@ -721,11 +725,12 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
 
     def get_params(self, deep=True) -> dict:
         return {'bert_hub_module_handle': self.bert_hub_module_handle, 'batch_size': self.batch_size,
-                'max_epochs': self.max_epochs, 'patience': self.patience, 'filters_for_conv2': self.filters_for_conv2,
-                'filters_for_conv3': self.filters_for_conv3, 'filters_for_conv4': self.filters_for_conv4,
-                'filters_for_conv5': self.filters_for_conv5, 'validation_fraction': self.validation_fraction,
-                'gpu_memory_frac': self.gpu_memory_frac, 'verbose': self.verbose, 'random_seed': self.random_seed,
-                'num_monte_carlo': self.num_monte_carlo, 'multioutput': self.multioutput}
+                'max_epochs': self.max_epochs, 'patience': self.patience, 'filters_for_conv1': self.filters_for_conv1,
+                'filters_for_conv2': self.filters_for_conv2, 'filters_for_conv3': self.filters_for_conv3,
+                'filters_for_conv4': self.filters_for_conv4, 'filters_for_conv5': self.filters_for_conv5,
+                'validation_fraction': self.validation_fraction, 'gpu_memory_frac': self.gpu_memory_frac,
+                'verbose': self.verbose, 'random_seed': self.random_seed, 'num_monte_carlo': self.num_monte_carlo,
+                'multioutput': self.multioutput}
 
     def set_params(self, **params):
         for parameter, value in params.items():
@@ -755,24 +760,38 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             print('The BERT model has been loaded from the TF-Hub.')
         feature_vector_size = sequence_output.shape[-1].value
         input_sequence_layer = tf.keras.Input((self.MAX_SEQ_LENGTH, feature_vector_size), name='InputForConv')
-        conv_layer_1 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv2, kernel_size=2, name='Conv2',
-                                                       padding='valid', activation=tf.nn.tanh,
-                                                       seed=self.random_seed)(input_sequence_layer)
-        conv_layer_1 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling2')(conv_layer_1)
-        conv_layer_2 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv2, kernel_size=3, name='Conv3',
-                                                       padding='valid', activation=tf.nn.tanh,
-                                                       seed=self.random_seed)(input_sequence_layer)
-        conv_layer_2 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling3')(conv_layer_2)
-        conv_layer_3 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv2, kernel_size=4, name='Conv4',
-                                                       padding='valid', activation=tf.nn.tanh,
-                                                       seed=self.random_seed)(input_sequence_layer)
-        conv_layer_3 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling4')(conv_layer_3)
-        conv_layer_4 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv2, kernel_size=5, name='Conv5',
-                                                       padding='valid', activation=tf.nn.tanh,
-                                                       seed=self.random_seed)(input_sequence_layer)
-        conv_layer_4 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling5')(conv_layer_4)
-        concat_layer = tf.keras.layers.Concatenate(name='Concat')([conv_layer_1, conv_layer_2, conv_layer_3,
-                                                                   conv_layer_4])
+        conv_layers = []
+        if self.filters_for_conv1 > 0:
+            conv_layer_1 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv1, kernel_size=2, name='Conv1',
+                                                           padding='valid', activation=tf.nn.tanh,
+                                                           seed=self.random_seed)(input_sequence_layer)
+            conv_layer_1 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling2')(conv_layer_1)
+            conv_layers.append(conv_layer_1)
+        if self.filters_for_conv2 > 0:
+            conv_layer_2 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv2, kernel_size=2, name='Conv2',
+                                                           padding='valid', activation=tf.nn.tanh,
+                                                           seed=self.random_seed)(input_sequence_layer)
+            conv_layer_2 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling2')(conv_layer_2)
+            conv_layers.append(conv_layer_2)
+        if self.filters_for_conv3 > 0:
+            conv_layer_3 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv3, kernel_size=3, name='Conv3',
+                                                           padding='valid', activation=tf.nn.tanh,
+                                                           seed=self.random_seed)(input_sequence_layer)
+            conv_layer_3 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling3')(conv_layer_3)
+            conv_layers.append(conv_layer_3)
+        if self.filters_for_conv4 > 0:
+            conv_layer_4 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv4, kernel_size=4, name='Conv4',
+                                                           padding='valid', activation=tf.nn.tanh,
+                                                           seed=self.random_seed)(input_sequence_layer)
+            conv_layer_4 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling4')(conv_layer_4)
+            conv_layers.append(conv_layer_4)
+        if self.filters_for_conv5 > 0:
+            conv_layer_5 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv5, kernel_size=5, name='Conv5',
+                                                           padding='valid', activation=tf.nn.tanh,
+                                                           seed=self.random_seed)(input_sequence_layer)
+            conv_layer_5 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling5')(conv_layer_5)
+            conv_layers.append(conv_layer_5)
+        concat_layer = tf.keras.layers.Concatenate(name='Concat')(conv_layers)
         output_layer = tfp.layers.DenseFlipout(self.n_classes_, seed=self.random_seed, name='OutputLayer')(concat_layer)
         model = tf.keras.Model(input_sequence_layer, output_layer, name='BayesianNetworkModel')
         logits = model(sequence_output)
@@ -830,12 +849,12 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         cls = self.__class__
         result = cls.__new__(cls)
         result.set_params(
-            bert_hub_module_handle=self.bert_hub_module_handle, filters_for_conv2=self.filters_for_conv2,
-            filters_for_conv3=self.filters_for_conv3, filters_for_conv4=self.filters_for_conv4,
-            filters_for_conv5=self.filters_for_conv5, num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size,
-            multioutput=self.multioutput, validation_fraction=self.validation_fraction, max_epochs=self.max_epochs,
-            patience=self.patience, gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose,
-            random_seed=self.random_seed
+            bert_hub_module_handle=self.bert_hub_module_handle, filters_for_conv1=self.filters_for_conv1,
+            filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
+            filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
+            num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size, multioutput=self.multioutput,
+            validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
+            gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed
         )
         try:
             self.is_fitted()
@@ -853,12 +872,12 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         cls = self.__class__
         result = cls.__new__(cls)
         result.set_params(
-            bert_hub_module_handle=self.bert_hub_module_handle, filters_for_conv2=self.filters_for_conv2,
-            filters_for_conv3=self.filters_for_conv3, filters_for_conv4=self.filters_for_conv4,
-            filters_for_conv5=self.filters_for_conv5, num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size,
-            multioutput=self.multioutput, validation_fraction=self.validation_fraction, max_epochs=self.max_epochs,
-            patience=self.patience, gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose,
-            random_seed=self.random_seed
+            bert_hub_module_handle=self.bert_hub_module_handle, filters_for_conv1=self.filters_for_conv1,
+            filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
+            filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
+            num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size, multioutput=self.multioutput,
+            validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
+            gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed
         )
         try:
             self.is_fitted()
@@ -1054,6 +1073,16 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 (not isinstance(kwargs['multioutput'], bool)) and (not isinstance(kwargs['multioutput'], np.bool)):
             raise ValueError('`multioutput` is wrong! Expected `{0}`, got `{1}`.'.format(
                 type(True), type(kwargs['multioutput'])))
+        if 'filters_for_conv1' not in kwargs:
+            raise ValueError('`filters_for_conv1` is not specified!')
+        if (not isinstance(kwargs['filters_for_conv1'], int)) and \
+                (not isinstance(kwargs['filters_for_conv1'], np.int32)) and \
+                (not isinstance(kwargs['filters_for_conv1'], np.uint32)):
+            raise ValueError('`filters_for_conv1` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(3), type(kwargs['filters_for_conv1'])))
+        if kwargs['filters_for_conv1'] < 0:
+            raise ValueError('`filters_for_conv1` is wrong! Expected a non-negative integer value, '
+                             'but {0} is not positive.'.format(kwargs['filters_for_conv1']))
         if 'filters_for_conv2' not in kwargs:
             raise ValueError('`filters_for_conv2` is not specified!')
         if (not isinstance(kwargs['filters_for_conv2'], int)) and \
@@ -1061,8 +1090,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 (not isinstance(kwargs['filters_for_conv2'], np.uint32)):
             raise ValueError('`filters_for_conv2` is wrong! Expected `{0}`, got `{1}`.'.format(
                 type(3), type(kwargs['filters_for_conv2'])))
-        if kwargs['filters_for_conv2'] < 1:
-            raise ValueError('`filters_for_conv2` is wrong! Expected a positive integer value, '
+        if kwargs['filters_for_conv2'] < 0:
+            raise ValueError('`filters_for_conv2` is wrong! Expected a non-negative integer value, '
                              'but {0} is not positive.'.format(kwargs['filters_for_conv2']))
         if 'filters_for_conv3' not in kwargs:
             raise ValueError('`filters_for_conv3` is not specified!')
@@ -1071,8 +1100,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 (not isinstance(kwargs['filters_for_conv3'], np.uint32)):
             raise ValueError('`filters_for_conv3` is wrong! Expected `{0}`, got `{1}`.'.format(
                 type(3), type(kwargs['filters_for_conv3'])))
-        if kwargs['filters_for_conv3'] < 1:
-            raise ValueError('`filters_for_conv3` is wrong! Expected a positive integer value, '
+        if kwargs['filters_for_conv3'] < 0:
+            raise ValueError('`filters_for_conv3` is wrong! Expected a non-negative integer value, '
                              'but {0} is not positive.'.format(kwargs['filters_for_conv3']))
         if 'filters_for_conv4' not in kwargs:
             raise ValueError('`filters_for_conv4` is not specified!')
@@ -1081,8 +1110,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 (not isinstance(kwargs['filters_for_conv4'], np.uint32)):
             raise ValueError('`filters_for_conv4` is wrong! Expected `{0}`, got `{1}`.'.format(
                 type(3), type(kwargs['filters_for_conv4'])))
-        if kwargs['filters_for_conv4'] < 1:
-            raise ValueError('`filters_for_conv4` is wrong! Expected a positive integer value, '
+        if kwargs['filters_for_conv4'] < 0:
+            raise ValueError('`filters_for_conv4` is wrong! Expected a non-negative integer value, '
                              'but {0} is not positive.'.format(kwargs['filters_for_conv4']))
         if 'filters_for_conv5' not in kwargs:
             raise ValueError('`filters_for_conv5` is not specified!')
@@ -1091,9 +1120,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 (not isinstance(kwargs['filters_for_conv5'], np.uint32)):
             raise ValueError('`filters_for_conv5` is wrong! Expected `{0}`, got `{1}`.'.format(
                 type(3), type(kwargs['filters_for_conv5'])))
-        if kwargs['filters_for_conv5'] < 1:
-            raise ValueError('`filters_for_conv5` is wrong! Expected a positive integer value, '
+        if kwargs['filters_for_conv5'] < 0:
+            raise ValueError('`filters_for_conv5` is wrong! Expected a non-negative integer value, '
                              'but {0} is not positive.'.format(kwargs['filters_for_conv5']))
+        if (kwargs['filters_for_conv1'] == 0) and (kwargs['filters_for_conv2'] == 0) and \
+                (kwargs['filters_for_conv3'] == 0) and (kwargs['filters_for_conv4'] == 0) and \
+                (kwargs['filters_for_conv5'] == 0):
+            raise ValueError('Number of convolution filters for all kernel sizes is zero!')
 
     @staticmethod
     def check_X(X: Union[list, tuple, np.array], X_name: str):
