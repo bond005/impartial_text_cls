@@ -163,7 +163,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 random.shuffle(bounds_of_batches_for_training)
                 feed_dict_for_batch = None
                 train_loss = 0.0
-                for cur_batch in bounds_of_batches_for_training:
+                for batch_counter, cur_batch in enumerate(bounds_of_batches_for_training):
                     X_batch = [X_train_tokenized[channel_idx][cur_batch[0]:cur_batch[1]]
                                for channel_idx in range(len(X_train_tokenized))]
                     y_batch = y_train_tokenized[cur_batch[0]:cur_batch[1]]
@@ -171,7 +171,11 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         del feed_dict_for_batch
                     feed_dict_for_batch = self.fill_feed_dict(
                         X_batch, y_batch, pi_variable=pi_,
-                        pi_value=self.calculate_pi_value(epoch + 1, max(2, self.patience - 1), 1e-1, 1e-4)
+                        pi_value=self.calculate_pi_value(
+                            epoch + float(batch_counter + 1) / float(len(bounds_of_batches_for_training)),
+                            max(2, self.patience - 1),
+                            1e-1, 1e-5
+                        )
                     )
                     _, train_loss_ = self.sess_.run([train_op, elbo_loss_], feed_dict=feed_dict_for_batch)
                     train_loss += train_loss_ * self.batch_size
@@ -1229,11 +1233,11 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         return indices[n_test:], indices[:n_test]
 
     @staticmethod
-    def calculate_pi_value(epoch_idx: int, n_epochs: int, init_value: float, fin_value: float) -> float:
-        if epoch_idx > n_epochs:
+    def calculate_pi_value(epoch: float, n_epochs: int, init_value: float, fin_value: float) -> float:
+        if epoch > n_epochs:
             res = -float(n_epochs)
         else:
-            res = -float(epoch_idx)
+            res = -epoch
         res = np.power(2.0, res)
         return (res - np.power(2.0, -1.0)) / (np.power(2.0, float(-n_epochs)) - np.power(2.0, -1.0)) * \
                (fin_value - init_value) + init_value
