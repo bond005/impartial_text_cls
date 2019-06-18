@@ -765,7 +765,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             conv_layer_1 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv1, kernel_size=2, name='Conv1',
                                                            padding='valid', activation=tf.nn.tanh,
                                                            seed=self.random_seed)(input_sequence_layer)
-            conv_layer_1 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling2')(conv_layer_1)
+            conv_layer_1 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling1')(conv_layer_1)
             conv_layers.append(conv_layer_1)
         if self.filters_for_conv2 > 0:
             conv_layer_2 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv2, kernel_size=2, name='Conv2',

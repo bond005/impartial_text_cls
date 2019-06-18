@@ -330,7 +330,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=0, filters_for_conv2=0, filters_for_conv3=0, filters_for_conv4=0,
                 filters_for_conv5=0, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
-                patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False
+                patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=False
             )
 
     def test_check_X_positive(self):
