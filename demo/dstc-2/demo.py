@@ -21,6 +21,8 @@ def main():
                         help='Path to the archive with DSTC-2 training data.')
     parser.add_argument('-e', '--test', dest='test_file_name', type=str, required=True,
                         help='Path to the archive with DSTC-2 data for final testing.')
+    parser.add_argument('--conv1', dest='size_of_conv1', type=int, required=False, default=20,
+                        help='Size of the Bayesian convolution layer with kernel size 1.')
     parser.add_argument('--conv2', dest='size_of_conv2', type=int, required=False, default=20,
                         help='Size of the Bayesian convolution layer with kernel size 2.')
     parser.add_argument('--conv3', dest='size_of_conv3', type=int, required=False, default=20,
@@ -50,11 +52,12 @@ def main():
         train_texts, train_labels, train_classes = read_dstc2_data(train_file_name)
         print('Classes list: {0}'.format(train_classes))
         print('Number of samples for training is {0}.'.format(len(train_texts)))
-        nn = ImpatialTextClassifier(filters_for_conv2=args.size_of_conv2, filters_for_conv3=args.size_of_conv3,
-                                    filters_for_conv4=args.size_of_conv4, filters_for_conv5=args.size_of_conv5,
-                                    batch_size=args.batch_size, num_monte_carlo=args.num_monte_carlo,
-                                    gpu_memory_frac=args.gpu_memory_frac, verbose=True, multioutput=True,
-                                    random_seed=42, validation_fraction=0.15, max_epochs=100, patience=5)
+        nn = ImpatialTextClassifier(filters_for_conv1=args.size_of_conv1, filters_for_conv2=args.size_of_conv2,
+                                    filters_for_conv3=args.size_of_conv3, filters_for_conv4=args.size_of_conv4,
+                                    filters_for_conv5=args.size_of_conv5, batch_size=args.batch_size,
+                                    num_monte_carlo=args.num_monte_carlo, gpu_memory_frac=args.gpu_memory_frac,
+                                    verbose=True, multioutput=True, random_seed=42, validation_fraction=0.15,
+                                    max_epochs=100, patience=5)
         nn.fit(train_texts, train_labels)
         print('')
         with open(model_name, 'wb') as fp:
