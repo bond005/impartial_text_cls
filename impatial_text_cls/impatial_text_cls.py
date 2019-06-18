@@ -50,8 +50,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             del self.tokenizer_
         self.finalize_model()
 
-    def fit(self, X: Union[list, tuple, np.array], y: Union[list, tuple, np.array],
-            validation_data: Union[None, Tuple[Union[list, tuple, np.array], Union[list, tuple, np.array]]]=None):
+    def fit(self, X: Union[list, tuple, np.ndarray], y: Union[list, tuple, np.ndarray],
+            validation_data: Union[None, Tuple[Union[list, tuple, np.ndarray], Union[list, tuple, np.ndarray]]]=None):
         classes_in_dataset = self.check_Xy(X, 'X', y, 'y', self.multioutput)
         if (classes_in_dataset[0] != 0) or (classes_in_dataset[-1] != (len(classes_in_dataset) - 1)):
             raise ValueError('`y` is wrong! Labels of classes are not ordered. '
@@ -466,7 +466,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     print('Best F1-score is {0:.6f}.'.format(best_f1))
                     print('Corresponding threshold is {0:.3f}.'.format(self.certainty_threshold_))
 
-    def predict_proba(self, X: Union[list, tuple, np.array]) -> np.ndarray:
+    def predict_proba(self, X: Union[list, tuple, np.ndarray]) -> np.ndarray:
         self.check_params(
             bert_hub_module_handle=self.bert_hub_module_handle, batch_size=self.batch_size,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
@@ -502,10 +502,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         del X_tokenized, bounds_of_batches
         return probabilities[0:n_samples]
 
-    def predict_log_proba(self, X: Union[list, tuple, np.array]) -> np.ndarray:
+    def predict_log_proba(self, X: Union[list, tuple, np.ndarray]) -> np.ndarray:
         return np.log(self.predict_proba(X) + 1e-9)
 
-    def predict(self, X: Union[list, tuple, np.array]) -> np.ndarray:
+    def predict(self, X: Union[list, tuple, np.ndarray]) -> np.ndarray:
         probabilities = self.predict_proba(X)
         if self.multioutput:
             recognized_classes = list()
@@ -521,7 +521,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 else:
                     recognized_classes.append(copy.copy(set_of_classes))
                 del set_of_classes
-            recognized_classes = np.array(recognized_classes, dtype=object)
+            recognized_classes = np.ndarray(recognized_classes, dtype=object)
         else:
             recognized_classes = probabilities.argmax(axis=-1)
             for idx in range(len(recognized_classes)):
@@ -530,7 +530,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             del probabilities
         return recognized_classes
 
-    def fit_predict(self, X: Union[list, tuple, np.array], y: Union[list, tuple, np.array], **kwargs):
+    def fit_predict(self, X: Union[list, tuple, np.ndarray], y: Union[list, tuple, np.ndarray], **kwargs):
         return self.fit(X, y).predict(X)
 
     def score(self, X, y, sample_weight=None) -> float:
@@ -577,7 +577,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
     def is_fitted(self):
         check_is_fitted(self, ['n_classes_', 'tokenizer_', 'sess_', 'certainty_threshold_'])
 
-    def fill_feed_dict(self, X: List[np.array], y: np.array = None,
+    def fill_feed_dict(self, X: List[np.ndarray], y: np.ndarray = None,
                        pi_variable: tf.Variable=None, pi_value: float=None) -> dict:
         assert len(X) == 3
         assert len(X[0]) == self.batch_size
@@ -637,7 +637,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             return [X_ext[idx][indices] for idx in range(len(X_ext))], y_ext[indices]
         return X_ext, y_ext
 
-    def tokenize_all(self, X: Union[list, tuple, np.array], y: Union[list, tuple, np.array] = None) -> \
+    def tokenize_all(self, X: Union[list, tuple, np.ndarray], y: Union[list, tuple, np.ndarray] = None) -> \
             Union[Tuple[List[np.ndarray], np.ndarray, Union[List[np.ndarray], None]], List[np.ndarray]]:
         X_tokenized = [
             np.zeros((len(X), self.MAX_SEQ_LENGTH), dtype=np.int32),
@@ -1129,7 +1129,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             raise ValueError('Number of convolution filters for all kernel sizes is zero!')
 
     @staticmethod
-    def check_X(X: Union[list, tuple, np.array], X_name: str):
+    def check_X(X: Union[list, tuple, np.ndarray], X_name: str):
         if (not hasattr(X, '__len__')) or (not hasattr(X, '__getitem__')):
             raise ValueError('`{0}` is wrong, because it is not a list-like object!'.format(X_name))
         if isinstance(X, np.ndarray):
@@ -1143,8 +1143,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     idx, X_name))
 
     @staticmethod
-    def check_Xy(X: Union[list, tuple, np.array], X_name: str,
-                 y: Union[list, tuple, np.array], y_name: str, multioutput: bool=False) -> List[int]:
+    def check_Xy(X: Union[list, tuple, np.ndarray], X_name: str,
+                 y: Union[list, tuple, np.ndarray], y_name: str, multioutput: bool=False) -> List[int]:
         ImpatialTextClassifier.check_X(X, X_name)
         if (not hasattr(y, '__len__')) or (not hasattr(y, '__getitem__')):
             raise ValueError('`{0}` is wrong, because it is not a list-like object!'.format(y_name))
@@ -1190,7 +1190,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         return sorted(list(classes_list))
 
     @staticmethod
-    def train_test_split(y: Union[list, tuple, np.array], test_part: float) -> Tuple[np.ndarray, np.ndarray]:
+    def train_test_split(y: Union[list, tuple, np.ndarray], test_part: float) -> Tuple[np.ndarray, np.ndarray]:
         n = len(y)
         n_test = int(round(n * test_part))
         if n_test < 1:
