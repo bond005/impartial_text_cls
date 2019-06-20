@@ -1,0 +1,15 @@
+{
+  "BookRestaurant": [
+    {
+      "data": [
+        {
+          "text": "Book a reservation for "
+        },
+        {
+          "text": "my babies and I",
+          "entity": "party_size_description"
+        }
+      ]
+    }
+  ]
+}

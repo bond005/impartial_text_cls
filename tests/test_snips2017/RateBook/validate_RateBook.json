@@ -1,0 +1,43 @@
+{
+  "RateBook": [
+    {
+      "data": [
+        {
+          "text": "rate "
+        },
+        {
+          "text": "this",
+          "entity": "object_select"
+        },
+        {
+          "text": " "
+        },
+        {
+          "text": "album",
+          "entity": "object_type"
+        },
+        {
+          "text": " "
+        },
+        {
+          "text": "four",
+          "entity": "rating_value"
+        },
+        {
+          "text": " out of "
+        },
+        {
+          "text": "6",
+          "entity": "best_rating"
+        },
+        {
+          "text": " "
+        },
+        {
+          "text": "stars",
+          "entity": "rating_unit"
+        }
+      ]
+    }
+  ]
+}

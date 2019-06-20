@@ -1,0 +1,32 @@
+{
+  "AddToPlaylist": [
+    {
+      "data": [
+        {
+          "text": "I'd like to have this "
+        },
+        {
+          "text": "track",
+          "entity": "music_item"
+        },
+        {
+          "text": " onto "
+        },
+        {
+          "text": "my",
+          "entity": "playlist_owner"
+        },
+        {
+          "text": " "
+        },
+        {
+          "text": "Classical Relaxations",
+          "entity": "playlist"
+        },
+        {
+          "text": " playlist."
+        }
+      ]
+    }
+  ]
+}

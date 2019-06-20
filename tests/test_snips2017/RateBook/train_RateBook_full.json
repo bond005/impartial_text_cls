@@ -1,0 +1,37 @@
+﻿{
+    "RateBook": [
+        {
+            "data": [
+                {"text": "rate "},
+                {"text": "The Lotus and the Storm", "entity": "object_name"},
+                {"text": " "},
+                {"text": "zero", "entity": "rating_value"},
+                {"text": " of "},
+                {"text": "6", "entity": "best_rating"}, {"text": "\n"}
+            ]
+        },
+        {
+            "data": [
+                {"text": "Rate "},
+                {"text": "The Fall-Down Artist", "entity": "object_name"},
+                {"text": " "},
+                {"text": "5", "entity": "rating_value"},
+                {"text": " "},
+                {"text": "stars", "entity": "rating_unit"},
+                {"text": "."}
+            ]
+        },
+        {
+            "data": [
+                {"text": "Rate the "},
+                {"text": "current", "entity": "object_select"},
+                {"text": " "},
+                {"text": "novel", "entity": "object_type"},
+                {"text": " "},
+                {"text": "one", "entity": "rating_value"},
+                {"text": " "},
+                {"text": "points", "entity": "rating_unit"}
+            ]
+        }
+    ]
+}

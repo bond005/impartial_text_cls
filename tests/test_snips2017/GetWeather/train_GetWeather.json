@@ -1,0 +1,26 @@
+{
+  "GetWeather": [
+    {
+      "data": [
+        {
+          "text": "How's the weather in "
+        },
+        {
+          "text": "Munchique National Natural Park",
+          "entity": "geographic_poi"
+        }
+      ]
+    },
+    {
+      "data": [
+        {
+          "text": "Tell me the weather forecast for "
+        },
+        {
+          "text": "France",
+          "entity": "country"
+        }
+      ]
+    }
+  ]
+}

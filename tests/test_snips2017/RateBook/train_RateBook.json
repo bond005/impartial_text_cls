@@ -1,0 +1,54 @@
+{
+  "RateBook": [
+    {
+      "data": [
+        {
+          "text": "Rate "
+        },
+        {
+          "text": "All That Remains",
+          "entity": "object_name"
+        },
+        {
+          "text": " a "
+        },
+        {
+          "text": "five",
+          "entity": "rating_value"
+        }
+      ]
+    },
+    {
+      "data": [
+        {
+          "text": "Give "
+        },
+        {
+          "text": "this",
+          "entity": "object_select"
+        },
+        {
+          "text": " "
+        },
+        {
+          "text": "album",
+          "entity": "object_type"
+        },
+        {
+          "text": " "
+        },
+        {
+          "text": "4",
+          "entity": "rating_value"
+        },
+        {
+          "text": " "
+        },
+        {
+          "text": "points",
+          "entity": "rating_unit"
+        }
+      ]
+    }
+  ]
+}

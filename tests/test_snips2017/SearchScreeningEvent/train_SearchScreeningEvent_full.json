@@ -1,0 +1,26 @@
+{
+    "SearchScreeningEvent": [
+        {
+            "data": [
+                {"text": "What are the "},
+                {"text": "movie schedule", "entity": "object_type"},
+                {"text": " at "},
+                {"text": "Malco Theatres", "entity": "location_name"}
+            ]
+        },
+        {
+            "data": [
+                {"text": "I want to get the "},
+                {"text": "movie schedule", "entity": "object_type"}
+            ]
+        },
+        {
+            "data": [
+                {"text": "Show me movie time for "},
+                {"text": "I Am Sorry", "entity": "movie_name"},
+                {"text": "  at my "},
+                {"text": "movie house", "entity": "object_location_type"}
+            ]
+        }
+    ]
+}

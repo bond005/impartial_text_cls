@@ -1,0 +1,57 @@
+{
+  "AddToPlaylist": [
+    {
+      "data": [
+        {
+          "text": "add "
+        },
+        {
+          "text": "Stani, stani Ibar vodo",
+          "entity": "entity_name"
+        },
+        {
+          "text": " songs in "
+        },
+        {
+          "text": "my",
+          "entity": "playlist_owner"
+        },
+        {
+          "text": " playlist "
+        },
+        {
+          "text": "música libre",
+          "entity": "playlist"
+        }
+      ]
+    },
+    {
+      "data": [
+        {
+          "text": "add this "
+        },
+        {
+          "text": "album",
+          "entity": "music_item"
+        },
+        {
+          "text": " to "
+        },
+        {
+          "text": "my",
+          "entity": "playlist_owner"
+        },
+        {
+          "text": " "
+        },
+        {
+          "text": "Blues",
+          "entity": "playlist"
+        },
+        {
+          "text": " playlist"
+        }
+      ]
+    }
+  ]
+}

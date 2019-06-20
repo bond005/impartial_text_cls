@@ -1,0 +1,28 @@
+{
+    "SearchCreativeWork": [
+        {
+            "data": [
+                {"text": "find the "},
+                {"text": "soundtrack", "entity": "object_type"},
+                {"text": " titled "},
+                {"text": "This Side of Paradise", "entity": "object_name"}
+            ]
+        },
+        {
+            "data": [
+                {"text": "find a "},
+                {"text": "book", "entity": "object_type"},
+                {"text": " called "},
+                {"text": "The Mad Magician", "entity": "object_name"}
+            ]
+        },
+        {
+            "data": [
+                {"text": "find the "},
+                {"text": "picture", "entity": "object_type"},
+                {"text": " "},
+                {"text": "Louder Than Bombs", "entity": "object_name"}
+            ]
+        }
+    ]
+}
