@@ -842,7 +842,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
             num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size, multioutput=self.multioutput,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
-            gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed
+            gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
+            bayesian=self.bayesian
         )
         try:
             self.is_fitted()
@@ -865,7 +866,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
             num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size, multioutput=self.multioutput,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
-            gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed
+            gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
+            bayesian=self.bayesian
         )
         try:
             self.is_fitted()
