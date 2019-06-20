@@ -788,7 +788,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             if self.multioutput:
                 loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=y_ph, logits=logits)
             else:
-                loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=y_ph, logits=logits)
+                loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y_ph, logits=logits)
             loss = tf.reduce_sum(loss, name='loss')
         with tf.name_scope('train'):
             optimizer = tf.train.AdamOptimizer()
