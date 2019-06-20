@@ -464,7 +464,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 else:
                     recognized_classes.append(copy.copy(set_of_classes))
                 del set_of_classes
-            recognized_classes = np.ndarray(recognized_classes, dtype=object)
+            recognized_classes = np.array(recognized_classes, dtype=object)
         else:
             recognized_classes = probabilities.argmax(axis=-1)
             for idx in range(len(recognized_classes)):
