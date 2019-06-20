@@ -377,13 +377,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     class_idx, self.certainty_threshold_[class_idx]))
         else:
             if X_val is None:
-                probabilities_for_labeled_samples = self._calculate_probabilities(X_train)
+                probabilities_for_labeled_samples = self._calculate_probabilities(X_train).max(axis=-1)
             else:
-                probabilities_for_labeled_samples = self._calculate_probabilities(X_val)
+                probabilities_for_labeled_samples = self._calculate_probabilities(X_val).max(axis=-1)
             if X_unlabeled is None:
                 probabilities_for_another_samples = None
             else:
-                probabilities_for_another_samples = self._calculate_probabilities(X_unlabeled)
+                probabilities_for_another_samples = self._calculate_probabilities(X_unlabeled).max(axis=-1)
             if probabilities_for_another_samples is None:
                 self.certainty_threshold_ = probabilities_for_labeled_samples.min()
                 if self.verbose:
