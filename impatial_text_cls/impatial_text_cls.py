@@ -27,7 +27,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                  filters_for_conv1: int=100, filters_for_conv2: int=100, filters_for_conv3: int=100,
                  filters_for_conv4: int=100, filters_for_conv5: int=100, batch_size: int=32,
                  validation_fraction: float=0.1, max_epochs: int=10, patience: int=3, num_monte_carlo: int=50,
-                 gpu_memory_frac: float=1.0, verbose: bool=False, multioutput: bool=False,
+                 gpu_memory_frac: float=1.0, verbose: bool=False, multioutput: bool=False, bayesian: bool=True,
                  random_seed: Union[int, None]=None):
         self.batch_size = batch_size
         self.filters_for_conv1 = filters_for_conv1
@@ -44,6 +44,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         self.validation_fraction = validation_fraction
         self.verbose = verbose
         self.multioutput = multioutput
+        self.bayesian = bayesian
 
     def __del__(self):
         if hasattr(self, 'tokenizer_'):
@@ -151,6 +152,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             train_op, elbo_loss_, val_loss_, pi_ = self.build_model()
+        if not self.bayesian:
+            val_loss_ = elbo_loss_
         init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
         init.run(session=self.sess_)
         tmp_model_name = self.get_temp_model_name()
@@ -171,14 +174,17 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     y_batch = y_train_tokenized[cur_batch[0]:cur_batch[1]]
                     if feed_dict_for_batch is not None:
                         del feed_dict_for_batch
-                    feed_dict_for_batch = self.fill_feed_dict(
-                        X_batch, y_batch, pi_variable=pi_,
-                        pi_value=self.calculate_pi_value(
-                            epoch + float(batch_counter + 1) / float(len(bounds_of_batches_for_training)),
-                            max(2, self.patience - 1),
-                            1e-1, 1e-5
+                    if self.bayesian:
+                        feed_dict_for_batch = self.fill_feed_dict(
+                            X_batch, y_batch, pi_variable=pi_,
+                            pi_value=self.calculate_pi_value(
+                                epoch + float(batch_counter + 1) / float(len(bounds_of_batches_for_training)),
+                                max(2, self.patience - 1),
+                                1e-1, 1e-5
+                            )
                         )
-                    )
+                    else:
+                        feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
                     _, train_loss_ = self.sess_.run([train_op, elbo_loss_], feed_dict=feed_dict_for_batch)
                     train_loss += train_loss_ * self.batch_size
                 train_loss /= float(X_train_tokenized[0].shape[0])
@@ -192,11 +198,15 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
                         test_loss_ = self.sess_.run(val_loss_, feed_dict=feed_dict_for_batch)
                         test_loss += test_loss_ * self.batch_size
-                        probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0',
-                                                           feed_dict=feed_dict_for_batch)
-                                            for _ in range(self.num_monte_carlo)])
+                        if self.bayesian:
+                            probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0',
+                                                               feed_dict=feed_dict_for_batch)
+                                                for _ in range(self.num_monte_carlo)])
+                            mean_probs = np.mean(probs, axis=0)
+                            del probs
+                        else:
+                            mean_probs = self.sess_.run('Logits:0', feed_dict=feed_dict_for_batch)
                         del feed_dict_for_batch
-                        mean_probs = np.mean(probs, axis=0)
                         if self.multioutput:
                             if y_pred is None:
                                 y_pred = mean_probs.copy()
@@ -207,7 +217,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                                 y_pred = mean_probs.argmax(axis=-1)
                             else:
                                 y_pred = np.concatenate((y_pred, mean_probs.argmax(axis=-1)))
-                        del probs, mean_probs
+                        del mean_probs
                     test_loss /= float(X_val_tokenized[0].shape[0])
                     if self.verbose:
                         print('Epoch {0}'.format(epoch))
@@ -299,55 +309,40 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                                           X_unlabeled_tokenized)
         return self
 
+    def _calculate_probabilities(self, X: List[np.ndarray]) -> np.ndarray:
+        n_batches = int(np.ceil(X[0].shape[0] / float(self.batch_size)))
+        probabilities = np.zeros((X[0].shape[0], self.n_classes_), dtype=np.float32)
+        for iteration in range(n_batches):
+            batch_start = iteration * self.batch_size
+            batch_end = min(batch_start + self.batch_size, X[0].shape[0])
+            X_batch = [X[channel_idx][batch_start:batch_end]
+                       for channel_idx in range(len(X))]
+            feed_dict_for_batch = self.fill_feed_dict(X_batch)
+            if self.bayesian:
+                probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0', feed_dict=feed_dict_for_batch)
+                                    for _ in range(self.num_monte_carlo)])
+                mean_probs = np.mean(probs, axis=0)
+                probabilities[batch_start:batch_end] = mean_probs[0:(batch_end - batch_start)]
+                del probs, mean_probs
+            else:
+                probs = self.sess_.run('Logits:0', feed_dict=feed_dict_for_batch)
+                probabilities[batch_start:batch_end] = probs[0:(batch_end - batch_start)]
+                del probs
+            del feed_dict_for_batch
+        return probabilities
+
     def calculate_certainty_treshold(self, X_train: List[np.ndarray], y_train: np.ndarray,
                                      X_val: Union[List[np.ndarray], None], y_val: Union[np.ndarray, None],
                                      X_unlabeled: Union[List[np.ndarray], None]):
         if self.multioutput:
             if y_val is None:
-                n_batches = int(np.ceil(X_train[0].shape[0] / float(self.batch_size)))
-                probabilities = np.zeros((X_train[0].shape[0], self.n_classes_), dtype=np.float32)
-                for iteration in range(n_batches):
-                    batch_start = iteration * self.batch_size
-                    batch_end = min(batch_start + self.batch_size, X_train[0].shape[0])
-                    X_batch = [X_train[channel_idx][batch_start:batch_end]
-                               for channel_idx in range(len(X_train))]
-                    feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                    probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0', feed_dict=feed_dict_for_batch)
-                                        for _ in range(self.num_monte_carlo)])
-                    del feed_dict_for_batch
-                    mean_probs = np.mean(probs, axis=0)
-                    probabilities[batch_start:batch_end] = mean_probs[0:(batch_end - batch_start)]
-                    del probs, mean_probs
+                probabilities = self._calculate_probabilities(X_train)
                 y_true = np.copy(y_train)
             else:
-                probabilities = np.zeros((X_val[0].shape[0], self.n_classes_), dtype=np.float32)
-                n_batches = int(np.ceil(X_val[0].shape[0] / float(self.batch_size)))
-                for iteration in range(n_batches):
-                    batch_start = iteration * self.batch_size
-                    batch_end = min(batch_start + self.batch_size, X_val[0].shape[0])
-                    X_batch = [X_val[channel_idx][batch_start:batch_end]
-                               for channel_idx in range(len(X_val))]
-                    feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                    probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0', feed_dict=feed_dict_for_batch)
-                                        for _ in range(self.num_monte_carlo)])
-                    del feed_dict_for_batch
-                    mean_probs = np.mean(probs, axis=0)
-                    probabilities[batch_start:batch_end] = mean_probs[0:(batch_end - batch_start)]
-                    del probs, mean_probs
+                probabilities = self._calculate_probabilities(X_val)
                 y_true = np.copy(y_val)
             if X_unlabeled is not None:
-                n_batches = int(np.ceil(X_unlabeled[0].shape[0] / float(self.batch_size)))
-                probabilities_for_unlabeled = np.empty((X_unlabeled[0].shape[0], self.n_classes_))
-                for iteration in range(n_batches):
-                    batch_start = iteration * self.batch_size
-                    batch_end = min(batch_start + self.batch_size, X_unlabeled[0].shape[0])
-                    X_batch = [X_unlabeled[channel_idx][batch_start:batch_end]
-                               for channel_idx in range(len(X_unlabeled))]
-                    feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                    probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0', feed_dict=feed_dict_for_batch)
-                                        for _ in range(self.num_monte_carlo)])
-                    mean_probs = np.mean(probs, axis=0)
-                    probabilities_for_unlabeled[batch_start:batch_end] = mean_probs[0:(batch_end - batch_start)]
+                probabilities_for_unlabeled = self._calculate_probabilities(X_unlabeled)
                 probabilities = np.vstack(
                     (
                         probabilities,
@@ -382,54 +377,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     class_idx, self.certainty_threshold_[class_idx]))
         else:
             if X_val is None:
-                n_batches = int(np.ceil(X_train[0].shape[0] / float(self.batch_size)))
-                probabilities_for_labeled_samples = np.zeros((X_train[0].shape[0],), dtype=np.float32)
-                for iteration in range(n_batches):
-                    batch_start = iteration * self.batch_size
-                    batch_end = min(batch_start + self.batch_size, X_train[0].shape[0])
-                    X_batch = [X_train[channel_idx][batch_start:batch_end]
-                               for channel_idx in range(len(X_train))]
-                    feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                    probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0', feed_dict=feed_dict_for_batch)
-                                        for _ in range(self.num_monte_carlo)])
-                    del feed_dict_for_batch
-                    mean_probs = np.mean(probs, axis=0)
-                    probabilities_for_labeled_samples[batch_start:batch_end] = mean_probs.max(
-                        axis=-1)[0:(batch_end - batch_start)]
-                    del probs, mean_probs
+                probabilities_for_labeled_samples = self._calculate_probabilities(X_train)
             else:
-                probabilities_for_labeled_samples = np.zeros((X_val[0].shape[0],), dtype=np.float32)
-                n_batches = int(np.ceil(X_val[0].shape[0] / float(self.batch_size)))
-                for iteration in range(n_batches):
-                    batch_start = iteration * self.batch_size
-                    batch_end = min(batch_start + self.batch_size, X_val[0].shape[0])
-                    X_batch = [X_val[channel_idx][batch_start:batch_end]
-                               for channel_idx in range(len(X_val))]
-                    feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                    probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0', feed_dict=feed_dict_for_batch)
-                                        for _ in range(self.num_monte_carlo)])
-                    del feed_dict_for_batch
-                    mean_probs = np.mean(probs, axis=0)
-                    probabilities_for_labeled_samples[batch_start:batch_end] = mean_probs.max(
-                        axis=-1)[0:(batch_end - batch_start)]
-                    del probs, mean_probs
+                probabilities_for_labeled_samples = self._calculate_probabilities(X_val)
             if X_unlabeled is None:
                 probabilities_for_another_samples = None
             else:
-                probabilities_for_another_samples = np.zeros((X_unlabeled[0].shape[0]), dtype=np.float32)
-                n_batches = int(np.ceil(X_unlabeled[0].shape[0] / float(self.batch_size)))
-                for iteration in range(n_batches):
-                    batch_start = iteration * self.batch_size
-                    batch_end = min(batch_start + self.batch_size, X_unlabeled[0].shape[0])
-                    X_batch = [X_unlabeled[channel_idx][batch_start:batch_end]
-                               for channel_idx in range(len(X_unlabeled))]
-                    feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                    probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0', feed_dict=feed_dict_for_batch)
-                                        for _ in range(self.num_monte_carlo)])
-                    mean_probs = np.mean(probs, axis=0)
-                    probabilities_for_another_samples[batch_start:batch_end] = mean_probs.max(
-                        axis=-1)[0:(batch_end - batch_start)]
-                    del probs, mean_probs
+                probabilities_for_another_samples = self._calculate_probabilities(X_unlabeled)
             if probabilities_for_another_samples is None:
                 self.certainty_threshold_ = probabilities_for_labeled_samples.min()
                 if self.verbose:
@@ -474,32 +428,15 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             num_monte_carlo=self.num_monte_carlo, filters_for_conv1=self.filters_for_conv1,
             filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
             filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
-            multioutput=self.multioutput
+            multioutput=self.multioutput, bayesian=self.bayesian
         )
         self.check_X(X, 'X')
         self.is_fitted()
         X_tokenized = self.tokenize_all(X)
         n_samples = X_tokenized[0].shape[0]
         X_tokenized = self.extend_Xy(X_tokenized)
-        n_batches = X_tokenized[0].shape[0] // self.batch_size
-        bounds_of_batches = []
-        for iteration in range(n_batches):
-            batch_start = iteration * self.batch_size
-            batch_end = batch_start + self.batch_size
-            bounds_of_batches.append((batch_start, batch_end))
-        probabilities = np.zeros((X_tokenized[0].shape[0], self.n_classes_), dtype=np.float32)
-        for cur_batch in bounds_of_batches:
-            feed_dict = self.fill_feed_dict(
-                [
-                    X_tokenized[channel_idx][cur_batch[0]:cur_batch[1]]
-                    for channel_idx in range(len(X_tokenized))
-                ]
-            )
-            probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0', feed_dict=feed_dict)
-                                for _ in range(self.num_monte_carlo)])
-            probabilities[cur_batch[0]:cur_batch[1]] = np.mean(probs, axis=0)
-            del probs
-        del X_tokenized, bounds_of_batches
+        probabilities = self._calculate_probabilities(X_tokenized)
+        del X_tokenized
         return probabilities[0:n_samples]
 
     def predict_log_proba(self, X: Union[list, tuple, np.ndarray]) -> np.ndarray:
@@ -541,7 +478,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             num_monte_carlo=self.num_monte_carlo, filters_for_conv1=self.filters_for_conv1,
             filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
             filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
-            multioutput=self.multioutput
+            multioutput=self.multioutput, bayesian=self.bayesian
         )
         self.is_fitted()
         classes_list = self.check_Xy(X, 'X', y, 'y', self.multioutput)
@@ -730,7 +667,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 'filters_for_conv4': self.filters_for_conv4, 'filters_for_conv5': self.filters_for_conv5,
                 'validation_fraction': self.validation_fraction, 'gpu_memory_frac': self.gpu_memory_frac,
                 'verbose': self.verbose, 'random_seed': self.random_seed, 'num_monte_carlo': self.num_monte_carlo,
-                'multioutput': self.multioutput}
+                'multioutput': self.multioutput, 'bayesian': self.bayesian}
 
     def set_params(self, **params):
         for parameter, value in params.items():
@@ -762,51 +699,102 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         input_sequence_layer = tf.keras.Input((self.MAX_SEQ_LENGTH, feature_vector_size), name='InputForConv')
         conv_layers = []
         if self.filters_for_conv1 > 0:
-            conv_layer_1 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv1, kernel_size=2, name='Conv1',
-                                                           padding='valid', activation=tf.nn.tanh,
-                                                           seed=self.random_seed)(input_sequence_layer)
+            if self.bayesian:
+                conv_layer_1 = tfp.layers.Convolution1DFlipout(
+                    filters=self.filters_for_conv1, kernel_size=2, name='Conv1', padding='valid', activation=tf.nn.tanh,
+                    seed=self.random_seed
+                )(input_sequence_layer)
+            else:
+                conv_layer_1 = tf.keras.layers.Conv1D(
+                    filters=self.filters_for_conv1, kernel_size=2, name='Conv1', padding='valid', activation=tf.nn.tanh,
+                    kernel_initializer=tf.keras.initializers.glorot_uniform(seed=self.random_seed)
+                )(input_sequence_layer)
             conv_layer_1 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling1')(conv_layer_1)
             conv_layers.append(conv_layer_1)
         if self.filters_for_conv2 > 0:
-            conv_layer_2 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv2, kernel_size=2, name='Conv2',
-                                                           padding='valid', activation=tf.nn.tanh,
-                                                           seed=self.random_seed)(input_sequence_layer)
+            if self.bayesian:
+                conv_layer_2 = tfp.layers.Convolution1DFlipout(
+                    filters=self.filters_for_conv2, kernel_size=2, name='Conv2', padding='valid', activation=tf.nn.tanh,
+                    seed=self.random_seed
+                )(input_sequence_layer)
+            else:
+                conv_layer_2 = tf.keras.layers.Conv1D(
+                    filters=self.filters_for_conv2, kernel_size=2, name='Conv2', padding='valid', activation=tf.nn.tanh,
+                    kernel_initializer=tf.keras.initializers.glorot_uniform(seed=self.random_seed)
+                )(input_sequence_layer)
             conv_layer_2 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling2')(conv_layer_2)
             conv_layers.append(conv_layer_2)
         if self.filters_for_conv3 > 0:
-            conv_layer_3 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv3, kernel_size=3, name='Conv3',
-                                                           padding='valid', activation=tf.nn.tanh,
-                                                           seed=self.random_seed)(input_sequence_layer)
+            if self.bayesian:
+                conv_layer_3 = tfp.layers.Convolution1DFlipout(
+                    filters=self.filters_for_conv3, kernel_size=3, name='Conv3', padding='valid', activation=tf.nn.tanh,
+                    seed=self.random_seed
+                )(input_sequence_layer)
+            else:
+                conv_layer_3 = tf.keras.layers.Conv1D(
+                    filters=self.filters_for_conv3, kernel_size=3, name='Conv3', padding='valid', activation=tf.nn.tanh,
+                    kernel_initializer=tf.keras.initializers.glorot_uniform(seed=self.random_seed)
+                )(input_sequence_layer)
             conv_layer_3 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling3')(conv_layer_3)
             conv_layers.append(conv_layer_3)
         if self.filters_for_conv4 > 0:
-            conv_layer_4 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv4, kernel_size=4, name='Conv4',
-                                                           padding='valid', activation=tf.nn.tanh,
-                                                           seed=self.random_seed)(input_sequence_layer)
+            if self.bayesian:
+                conv_layer_4 = tfp.layers.Convolution1DFlipout(
+                    filters=self.filters_for_conv4, kernel_size=4, name='Conv4', padding='valid', activation=tf.nn.tanh,
+                    seed=self.random_seed
+                )(input_sequence_layer)
+            else:
+                conv_layer_4 = tf.keras.layers.Conv1D(
+                    filters=self.filters_for_conv4, kernel_size=4, name='Conv4', padding='valid', activation=tf.nn.tanh,
+                    kernel_initializer=tf.keras.initializers.glorot_uniform(seed=self.random_seed)
+                )(input_sequence_layer)
             conv_layer_4 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling4')(conv_layer_4)
             conv_layers.append(conv_layer_4)
         if self.filters_for_conv5 > 0:
-            conv_layer_5 = tfp.layers.Convolution1DFlipout(filters=self.filters_for_conv5, kernel_size=5, name='Conv5',
-                                                           padding='valid', activation=tf.nn.tanh,
-                                                           seed=self.random_seed)(input_sequence_layer)
+            if self.bayesian:
+                conv_layer_5 = tfp.layers.Convolution1DFlipout(
+                    filters=self.filters_for_conv5, kernel_size=5, name='Conv5', padding='valid', activation=tf.nn.tanh,
+                    seed=self.random_seed
+                )(input_sequence_layer)
+            else:
+                conv_layer_5 = tf.keras.layers.Conv1D(
+                    filters=self.filters_for_conv5, kernel_size=5, name='Conv5', padding='valid', activation=tf.nn.tanh,
+                    kernel_initializer=tf.keras.initializers.glorot_uniform(seed=self.random_seed)
+                )(input_sequence_layer)
             conv_layer_5 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling5')(conv_layer_5)
             conv_layers.append(conv_layer_5)
         concat_layer = tf.keras.layers.Concatenate(name='Concat')(conv_layers)
-        output_layer = tfp.layers.DenseFlipout(self.n_classes_, seed=self.random_seed, name='OutputLayer')(concat_layer)
-        model = tf.keras.Model(input_sequence_layer, output_layer, name='BayesianNetworkModel')
-        logits = model(sequence_output)
-        if self.multioutput:
-            labels_distribution = tfp.distributions.Bernoulli(logits=logits, name='LabelsDistribution')
-        else:
-            labels_distribution = tfp.distributions.Categorical(logits=logits, name='LabelsDistribution')
-        neg_log_likelihood = -tf.reduce_sum(input_tensor=labels_distribution.log_prob(y_ph))
-        pi = tf.Variable(0.0, trainable=False, name='Pi_for_ELBO_loss', dtype=tf.float32)
-        kl = sum(model.losses)
-        elbo_loss = neg_log_likelihood + pi * kl
+        if self.bayesian:
+            output_layer = tfp.layers.DenseFlipout(self.n_classes_, seed=self.random_seed, name='OutputLayer')(
+                concat_layer)
+            model = tf.keras.Model(input_sequence_layer, output_layer, name='BayesianNetworkModel')
+            logits = model(sequence_output)
+            if self.multioutput:
+                labels_distribution = tfp.distributions.Bernoulli(logits=logits, name='LabelsDistribution')
+            else:
+                labels_distribution = tfp.distributions.Categorical(logits=logits, name='LabelsDistribution')
+            neg_log_likelihood = -tf.reduce_sum(input_tensor=labels_distribution.log_prob(y_ph))
+            pi = tf.Variable(0.0, trainable=False, name='Pi_for_ELBO_loss', dtype=tf.float32)
+            kl = sum(model.losses)
+            elbo_loss = neg_log_likelihood + pi * kl
+            with tf.name_scope('train'):
+                optimizer = tf.train.AdamOptimizer()
+                train_op = optimizer.minimize(elbo_loss)
+            return train_op, elbo_loss, neg_log_likelihood, pi
+        glorot_init = tf.keras.initializers.glorot_uniform(seed=self.random_seed)
+        logits = tf.layers.dense(concat_layer, self.n_classes_, kernel_initializer=glorot_init, name='Logits',
+                                 activation=(tf.nn.sigmoid if self.multioutput else tf.nn.softmax))
+        with tf.name_scope('loss'):
+            if self.multioutput:
+                loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=y_ph, logits=logits)
+            else:
+                loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=y_ph, logits=logits)
+            loss = tf.reduce_sum(loss, name='loss')
         with tf.name_scope('train'):
             optimizer = tf.train.AdamOptimizer()
-            train_op = optimizer.minimize(elbo_loss)
-        return train_op, elbo_loss, neg_log_likelihood, pi
+            train_op = optimizer.minimize(loss)
+        return train_op, loss, None, None
+
 
     def finalize_model(self):
         if hasattr(self, 'sess_'):
@@ -1073,6 +1061,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 (not isinstance(kwargs['multioutput'], bool)) and (not isinstance(kwargs['multioutput'], np.bool)):
             raise ValueError('`multioutput` is wrong! Expected `{0}`, got `{1}`.'.format(
                 type(True), type(kwargs['multioutput'])))
+        if 'bayesian' not in kwargs:
+            raise ValueError('`bayesian` is not specified!')
+        if (not isinstance(kwargs['bayesian'], int)) and (not isinstance(kwargs['bayesian'], np.int32)) and \
+                (not isinstance(kwargs['bayesian'], np.uint32)) and \
+                (not isinstance(kwargs['bayesian'], bool)) and (not isinstance(kwargs['bayesian'], np.bool)):
+            raise ValueError('`bayesian` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(True), type(kwargs['bayesian'])))
         if 'filters_for_conv1' not in kwargs:
             raise ValueError('`filters_for_conv1` is not specified!')
         if (not isinstance(kwargs['filters_for_conv1'], int)) and \
