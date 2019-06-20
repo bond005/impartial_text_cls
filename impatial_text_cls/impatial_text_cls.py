@@ -205,7 +205,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                             mean_probs = np.mean(probs, axis=0)
                             del probs
                         else:
-                            mean_probs = self.sess_.run('Logits:0', feed_dict=feed_dict_for_batch)
+                            if self.multioutput:
+                                mean_probs = self.sess_.run('Logits/Sigmoid:0', feed_dict=feed_dict_for_batch)
+                            else:
+                                mean_probs = self.sess_.run('Logits/Softmax:0', feed_dict=feed_dict_for_batch)
                         del feed_dict_for_batch
                         if self.multioutput:
                             if y_pred is None:
@@ -325,7 +328,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 probabilities[batch_start:batch_end] = mean_probs[0:(batch_end - batch_start)]
                 del probs, mean_probs
             else:
-                probs = self.sess_.run('Logits:0', feed_dict=feed_dict_for_batch)
+                if self.multioutput:
+                    probs = self.sess_.run('Logits/Sigmoid:0', feed_dict=feed_dict_for_batch)
+                else:
+                    probs = self.sess_.run('Logits/Softmax:0', feed_dict=feed_dict_for_batch)
                 probabilities[batch_start:batch_end] = probs[0:(batch_end - batch_start)]
                 del probs
             del feed_dict_for_batch
@@ -805,7 +811,6 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             optimizer = tf.train.AdamOptimizer()
             train_op = optimizer.minimize(loss)
         return train_op, loss, None, None
-
 
     def finalize_model(self):
         if hasattr(self, 'sess_'):
