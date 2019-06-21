@@ -110,7 +110,10 @@ def main():
                     fill_value=len(classes_list), dtype=np.int32)
         )
     )
-    y_pred = nn.predict(test_texts)
+    if args.nn_type == 'additional_class':
+        y_pred = nn.predict_proba(test_texts).argmax(axis=1)
+    else:
+        y_pred = nn.predict(test_texts)
     for sample_idx in range(len(y_pred)):
         if y_pred[sample_idx] < 0:
             y_pred[sample_idx] = len(classes_list)
