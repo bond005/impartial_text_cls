@@ -84,21 +84,43 @@ def main():
         with open(model_name, 'rb') as fp:
             nn = pickle.load(fp)
     else:
-        train_texts = np.concatenate((train_data[0], unlabeled_texts_for_training))
-        train_labels = np.concatenate(
-            (
-                train_data[1],
-                np.full(shape=(len(unlabeled_texts_for_training),),
-                        fill_value=(len(classes_list) if args.nn_type == 'additional_class' else -1), dtype=np.int32)
+        if args.nn_type == 'additional_class':
+            indices = np.arange(0, len(unlabeled_texts_for_training), 1, dtype=np.int32)
+            np.random.seed(42)
+            np.random.shuffle(indices)
+            n = int(round(0.15 * len(indices)))
+            train_texts = np.concatenate((train_data[0], unlabeled_texts_for_training[n:]))
+            train_labels = np.concatenate(
+                (
+                    train_data[1],
+                    np.full(shape=(len(unlabeled_texts_for_training) - n,), fill_value=len(classes_list),
+                            dtype=np.int32)
+                )
             )
-        )
+            val_texts = np.concatenate((val_data[0], unlabeled_texts_for_training[:n]))
+            val_labels = np.concatenate(
+                (
+                    val_data[1],
+                    np.full(shape=(n,), fill_value=len(classes_list), dtype=np.int32)
+                )
+            )
+        else:
+            train_texts = np.concatenate((train_data[0], unlabeled_texts_for_training))
+            train_labels = np.concatenate(
+                (
+                    train_data[1],
+                    np.full(shape=(len(unlabeled_texts_for_training),), fill_value=-1, dtype=np.int32)
+                )
+            )
+            val_texts = val_data[0]
+            val_labels = val_data[1]
         nn = ImpatialTextClassifier(filters_for_conv1=args.size_of_conv1, filters_for_conv2=args.size_of_conv2,
                                     filters_for_conv3=args.size_of_conv3, filters_for_conv4=args.size_of_conv4,
                                     filters_for_conv5=args.size_of_conv5, batch_size=args.batch_size,
                                     num_monte_carlo=args.num_monte_carlo, gpu_memory_frac=args.gpu_memory_frac,
                                     verbose=True, multioutput=False, random_seed=42, validation_fraction=0.15,
                                     max_epochs=100, patience=5, bayesian=(args.nn_type == 'bayesian'))
-        nn.fit(train_texts, train_labels, validation_data=val_data)
+        nn.fit(train_texts, train_labels, validation_data=(val_texts, val_labels))
         print('')
         with open(model_name, 'wb') as fp:
             pickle.dump(nn, fp)
