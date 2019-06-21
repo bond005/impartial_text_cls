@@ -199,9 +199,11 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         test_loss_ = self.sess_.run(val_loss_, feed_dict=feed_dict_for_batch)
                         test_loss += test_loss_ * self.batch_size
                         if self.bayesian:
+                            features = self._calculate_features(X_batch)
                             probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0',
-                                                               feed_dict=feed_dict_for_batch)
+                                                               feed_dict={'BERT_SequenceOutput:0': features})
                                                 for _ in range(self.num_monte_carlo)])
+                            del features
                             mean_probs = np.mean(probs, axis=0)
                             del probs
                         else:
@@ -320,22 +322,44 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             batch_end = min(batch_start + self.batch_size, X[0].shape[0])
             X_batch = [X[channel_idx][batch_start:batch_end]
                        for channel_idx in range(len(X))]
-            feed_dict_for_batch = self.fill_feed_dict(X_batch)
             if self.bayesian:
-                probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0', feed_dict=feed_dict_for_batch)
+                features = self._calculate_features(X_batch)
+                probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0',
+                                                   feed_dict={'BERT_SequenceOutput:0': features})
                                     for _ in range(self.num_monte_carlo)])
+                del features
                 mean_probs = np.mean(probs, axis=0)
                 probabilities[batch_start:batch_end] = mean_probs[0:(batch_end - batch_start)]
                 del probs, mean_probs
             else:
+                feed_dict_for_batch = self.fill_feed_dict(X_batch)
                 if self.multioutput:
                     probs = self.sess_.run('Logits/Sigmoid:0', feed_dict=feed_dict_for_batch)
                 else:
                     probs = self.sess_.run('Logits/Softmax:0', feed_dict=feed_dict_for_batch)
                 probabilities[batch_start:batch_end] = probs[0:(batch_end - batch_start)]
                 del probs
-            del feed_dict_for_batch
+                del feed_dict_for_batch
         return probabilities
+
+    def _calculate_features(self, X: List[np.ndarray]) -> np.ndarray:
+        feed_dict = self.fill_feed_dict(X)
+        features = self.sess_.run('BERT_SequenceOutput:0', feed_dict=feed_dict)
+        if len(features.shape) != 3:
+            raise ValueError('Features are wrong! Expected a 3-D array, but got a {0}-D one.'.format(
+                len(features.shape)))
+        if features.shape[1] < self.MAX_SEQ_LENGTH:
+            features = np.concatenate(
+                (
+                    features,
+                    np.zeros((features.shape[0], self.MAX_SEQ_LENGTH - features.shape[1], features.shape[2]),
+                             dtype=np.float32)
+                ),
+                axis=1
+            )
+        elif features.shape[1] > self.MAX_SEQ_LENGTH:
+            features = features[0:features.shape[0]][0:self.MAX_SEQ_LENGTH][0:features.shape[2]]
+        return features
 
     def calculate_certainty_treshold(self, X_train: List[np.ndarray], y_train: np.ndarray,
                                      X_val: Union[List[np.ndarray], None], y_val: Union[np.ndarray, None],
