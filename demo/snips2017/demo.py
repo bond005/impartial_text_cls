@@ -89,7 +89,7 @@ def main():
             np.random.seed(42)
             np.random.shuffle(indices)
             n = int(round(0.15 * len(indices)))
-            train_texts = np.concatenate((train_data[0], unlabeled_texts_for_training[n:]))
+            train_texts = np.concatenate((train_data[0], unlabeled_texts_for_training[indices[n:]]))
             train_labels = np.concatenate(
                 (
                     train_data[1],
@@ -97,13 +97,14 @@ def main():
                             dtype=np.int32)
                 )
             )
-            val_texts = np.concatenate((val_data[0], unlabeled_texts_for_training[:n]))
+            val_texts = np.concatenate((val_data[0], unlabeled_texts_for_training[indices[:n]]))
             val_labels = np.concatenate(
                 (
                     val_data[1],
                     np.full(shape=(n,), fill_value=len(classes_list), dtype=np.int32)
                 )
             )
+            del indices
         else:
             train_texts = np.concatenate((train_data[0], unlabeled_texts_for_training))
             train_labels = np.concatenate(
