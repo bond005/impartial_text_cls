@@ -29,8 +29,10 @@ def load_unlabeled_data(subset_name: str) -> np.ndarray:
         src = sent_tokenize(cur)
         lengths = list(map(lambda it: len(word_tokenize(it)), src))
         indices = list(filter(lambda idx: (lengths[idx] >= 5) and (lengths[idx] <= 30), range(len(src))))
-        for idx in indices:
-            sentences.append(src[idx])
+        if len(indices) > 0:
+            sentences.append(src[indices[0]])
+            if len(indices) > 1:
+                sentences.append(src[indices[-1]])
     return np.array(sentences, dtype=object)
 
 
