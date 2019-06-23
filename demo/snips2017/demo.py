@@ -3,9 +3,10 @@ import os
 import pickle
 import sys
 
-from nltk import sent_tokenize, word_tokenize
+import nltk
+from nltk.corpus import brown, genesis
+from nltk.tokenize.treebank import TreebankWordDetokenizer
 import numpy as np
-from sklearn.datasets import fetch_20newsgroups
 from sklearn.metrics import classification_report
 
 
@@ -18,22 +19,40 @@ except:
     from impatial_text_cls.utils import read_snips2017_data
 
 
-def load_unlabeled_data(subset_name: str) -> np.ndarray:
-    data = fetch_20newsgroups(data_home=os.path.join(os.path.dirname(__file__), 'data'), subset=subset_name)
-    if data is None:
-        raise ValueError('Data for training and testing cannot be downloaded!')
-    texts = [' '.join(list(filter(lambda it2: len(it2) > 0, map(lambda it1: it1.strip(), cur.lower().split()))))
-             for cur in data['data']]
-    sentences = []
-    for cur in texts:
-        src = sent_tokenize(cur)
-        lengths = list(map(lambda it: len(word_tokenize(it)), src))
-        indices = list(filter(lambda idx: (lengths[idx] >= 5) and (lengths[idx] <= 30), range(len(src))))
-        if len(indices) > 0:
-            sentences.append(src[indices[0]])
-            if len(indices) > 1:
-                sentences.append(src[indices[-1]])
-    return np.array(sentences, dtype=object)
+def load_brown_corpus() -> np.ndarray:
+    nltk.download('brown')
+    sentences = list(filter(
+        lambda sent: (len(sent) <= 10) and (len(sent) > 1) and any(map(lambda word: word.isalpha(), sent)),
+        brown.sents()
+    ))
+    mdetok = TreebankWordDetokenizer()
+    return np.array(
+        list(map(
+            lambda sent: mdetok.detokenize(
+                (' '.join(sent).replace('``', '"').replace("''", '"').replace('`', "'")).split()
+            ),
+            sentences
+        )),
+        dtype=object
+    )
+
+
+def load_genesis_corpus() -> np.ndarray:
+    nltk.download('genesis')
+    sentences = list(filter(
+        lambda sent: (len(sent) <= 10) and (len(sent) > 1) and any(map(lambda word: word.isalpha(), sent)),
+        genesis.sents()
+    ))
+    mdetok = TreebankWordDetokenizer()
+    return np.array(
+        list(map(
+            lambda sent: mdetok.detokenize(
+                (' '.join(sent).replace('``', '"').replace("''", '"').replace('`', "'")).split()
+            ),
+            sentences
+        )),
+        dtype=object
+    )
 
 
 def main():
@@ -74,8 +93,8 @@ def main():
     print('Number of samples for validation is {0}.'.format(len(val_data[0])))
     print('Number of samples for final testing is {0}.'.format(len(test_data[0])))
     print('')
-    unlabeled_texts_for_training = load_unlabeled_data('train')
-    unlabeled_texts_for_testing = load_unlabeled_data('test')
+    unlabeled_texts_for_training = load_brown_corpus()
+    unlabeled_texts_for_testing = load_genesis_corpus()
     print('Number of unlabeled (unknown) samples for training is {0}.'.format(len(unlabeled_texts_for_training)))
     print('Number of unlabeled (unknown) samples for final testing is {0}.'.format(len(unlabeled_texts_for_testing)))
     print('')

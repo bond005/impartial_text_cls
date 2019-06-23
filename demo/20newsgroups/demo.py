@@ -46,6 +46,8 @@ def main():
                         help='Size of mini-batch.')
     parser.add_argument('--gpu_frac', dest='gpu_memory_frac', type=float, required=False, default=0.9,
                         help='Allocable part of the GPU memory for the classifier.')
+    parser.add_argument('--nn_type', dest='nn_type', type=str, choices=['bayesian', 'usual'],
+                        required=False, default='bayesian', help='Neural network type: `bayesian` or `usual`.')
     args = parser.parse_args()
 
     model_name = os.path.normpath(args.model_name)
@@ -60,7 +62,7 @@ def main():
                                     filters_for_conv5=args.size_of_conv5, batch_size=args.batch_size,
                                     num_monte_carlo=args.num_monte_carlo, gpu_memory_frac=args.gpu_memory_frac,
                                     verbose=True, multioutput=False, random_seed=42, validation_fraction=0.15,
-                                    max_epochs=100, patience=5)
+                                    max_epochs=100, patience=5, bayesian=(args.nn_type == 'bayesian'))
         nn.fit(train_texts, train_labels)
         print('')
         with open(model_name, 'wb') as fp:
