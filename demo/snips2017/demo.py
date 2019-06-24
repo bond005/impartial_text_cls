@@ -22,7 +22,7 @@ except:
 def load_brown_corpus() -> np.ndarray:
     nltk.download('brown')
     sentences = list(filter(
-        lambda sent: (len(sent) <= 10) and (len(sent) > 1) and any(map(lambda word: word.isalpha(), sent)),
+        lambda sent: (len(sent) <= 30) and (len(sent) >= 1) and any(map(lambda word: word.isalpha(), sent)),
         brown.sents()
     ))
     mdetok = TreebankWordDetokenizer()
@@ -40,7 +40,7 @@ def load_brown_corpus() -> np.ndarray:
 def load_genesis_corpus() -> np.ndarray:
     nltk.download('genesis')
     sentences = list(filter(
-        lambda sent: (len(sent) <= 10) and (len(sent) > 1) and any(map(lambda word: word.isalpha(), sent)),
+        lambda sent: (len(sent) <= 30) and (len(sent) >= 1) and any(map(lambda word: word.isalpha(), sent)),
         genesis.sents()
     ))
     mdetok = TreebankWordDetokenizer()
@@ -72,7 +72,7 @@ def main():
                         help='Size of the Bayesian convolution layer with kernel size 4.')
     parser.add_argument('--conv5', dest='size_of_conv5', type=int, required=False, default=20,
                         help='Size of the Bayesian convolution layer with kernel size 5.')
-    parser.add_argument('--num_monte_carlo', dest='num_monte_carlo', type=int, required=False, default=10,
+    parser.add_argument('--num_monte_carlo', dest='num_monte_carlo', type=int, required=False, default=50,
                         help='Number of generated Monte Carlo samples for each data sample.')
     parser.add_argument('--batch_size', dest='batch_size', type=int, required=False, default=16,
                         help='Size of mini-batch.')
