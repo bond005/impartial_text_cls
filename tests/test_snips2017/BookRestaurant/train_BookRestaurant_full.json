@@ -1,0 +1,92 @@
+{
+  "BookRestaurant": [
+    {
+      "data": [
+        {
+          "text": "book "
+        },
+        {
+          "text": "The Middle East",
+          "entity": "restaurant_name"
+        },
+        {
+          "text": " "
+        },
+        {
+          "text": "restaurant",
+          "entity": "restaurant_type"
+        },
+        {
+          "text": " in "
+        },
+        {
+          "text": "IN",
+          "entity": "state"
+        },
+        {
+          "text": " for "
+        },
+        {
+          "text": "noon",
+          "entity": "timeRange"
+        }
+      ]
+    },
+    {
+      "data": [
+        {
+          "text": "Book a table at "
+        },
+        {
+          "text": "T-Rex",
+          "entity": "restaurant_name"
+        },
+        {
+          "text": " "
+        },
+        {
+          "text": "distant",
+          "entity": "spatial_relation"
+        },
+        {
+          "text": " from "
+        },
+        {
+          "text": "Halsey St",
+          "entity": "poi"
+        },
+        {
+          "text": "."
+        }
+      ]
+    },
+    {
+      "data": [
+        {
+          "text": "I'd like to eat at a "
+        },
+        {
+          "text": "taverna",
+          "entity": "restaurant_type"
+        },
+        {
+          "text": " that serves "
+        },
+        {
+          "text": "chili con carne",
+          "entity": "served_dish"
+        },
+        {
+          "text": " for a party of "
+        },
+        {
+          "text": "10",
+          "entity": "party_size_number"
+        },
+        {
+          "text": " "
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,85 @@
+{
+  "GetWeather": [
+    {
+      "data": [
+        {
+          "text": "What will the weather be "
+        },
+        {
+          "text": "this year",
+          "entity": "timeRange"
+        },
+        {
+          "text": " in "
+        },
+        {
+          "text": "Horseshoe Lake State Fish and Wildlife Area",
+          "entity": "geographic_poi"
+        },
+        {
+          "text": "?"
+        }
+      ]
+    },
+    {
+      "data": [
+        {
+          "text": "Will it be "
+        },
+        {
+          "text": "sunny",
+          "entity": "condition_description"
+        },
+        {
+          "text": " "
+        },
+        {
+          "text": "one hundred thirty five days from now",
+          "entity": "timeRange"
+        },
+        {
+          "text": " in "
+        },
+        {
+          "text": "Monterey Bay National Marine Sanctuary",
+          "entity": "geographic_poi"
+        }
+      ]
+    },
+    {
+      "data": [
+        {
+          "text": "Is it supposed to "
+        },
+        {
+          "text": "rain",
+          "entity": "condition_description"
+        },
+        {
+          "text": " "
+        },
+        {
+          "text": "nearby",
+          "entity": "spatial_relation"
+        },
+        {
+          "text": " my "
+        },
+        {
+          "text": "current location",
+          "entity": "current_location"
+        },
+        {
+          "text": " at "
+        },
+        {
+          "text": "0 o'clock",
+          "entity": "timeRange"
+        },
+        {
+          "text": "?"
+        }
+      ]
+    }
+  ]
+}

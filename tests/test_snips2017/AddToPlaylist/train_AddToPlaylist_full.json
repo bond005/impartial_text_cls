@@ -1,0 +1,68 @@
+{
+  "AddToPlaylist": [
+    {
+      "data": [
+        {
+          "text": "Add another "
+        },
+        {
+          "text": "song",
+          "entity": "music_item"
+        },
+        {
+          "text": " to the "
+        },
+        {
+          "text": "Cita Romántica",
+          "entity": "playlist"
+        },
+        {
+          "text": " playlist. "
+        }
+      ]
+    },
+    {
+      "data": [
+        {
+          "text": "add "
+        },
+        {
+          "text": "clem burke",
+          "entity": "artist"
+        },
+        {
+          "text": " in "
+        },
+        {
+          "text": "my",
+          "entity": "playlist_owner"
+        },
+        {
+          "text": " playlist "
+        },
+        {
+          "text": "Pre-Party R&B Jams",
+          "entity": "playlist"
+        }
+      ]
+    },
+    {
+      "data": [
+        {
+          "text": "Add "
+        },
+        {
+          "text": "Live from Aragon Ballroom",
+          "entity": "entity_name"
+        },
+        {
+          "text": " to "
+        },
+        {
+          "text": "Trapeo",
+          "entity": "playlist"
+        }
+      ]
+    }
+  ]
+}

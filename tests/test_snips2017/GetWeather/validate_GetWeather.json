@@ -1,0 +1,25 @@
+{
+  "GetWeather": [
+    {
+      "data": [
+        {
+          "text": "What will the weather be "
+        },
+        {
+          "text": "faraway",
+          "entity": "spatial_relation"
+        },
+        {
+          "text": " from "
+        },
+        {
+          "text": "here",
+          "entity": "current_location"
+        },
+        {
+          "text": "?"
+        }
+      ]
+    }
+  ]
+}

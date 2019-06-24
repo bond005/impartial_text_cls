@@ -1,0 +1,43 @@
+{
+  "SearchScreeningEvent": [
+    {
+      "data": [
+        {
+          "text": "Find "
+        },
+        {
+          "text": "movie times",
+          "entity": "object_type"
+        },
+        {
+          "text": " for "
+        },
+        {
+          "text": "Landmark Theatres",
+          "entity": "location_name"
+        },
+        {
+          "text": "."
+        }
+      ]
+    },
+    {
+      "data": [
+        {
+          "text": "What are the "
+        },
+        {
+          "text": "movie times",
+          "entity": "object_type"
+        },
+        {
+          "text": " for "
+        },
+        {
+          "text": "Amco Entertainment",
+          "entity": "location_name"
+        }
+      ]
+    }
+  ]
+}

@@ -22,13 +22,19 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
     MAX_SEQ_LENGTH = 512
 
-    def __init__(self, hidden_layer_sizes: Union[tuple, List[int]]=(100,),
+    def __init__(self,
                  bert_hub_module_handle: Union[str, None]='https://tfhub.dev/google/bert_uncased_L-12_H-768_A-12/1',
-                 batch_size: int=32, validation_fraction: float=0.1, max_epochs: int=10, patience: int=3,
-                 num_monte_carlo: int=50, gpu_memory_frac: float=1.0, verbose: bool=False, multioutput: bool=False,
+                 filters_for_conv1: int=100, filters_for_conv2: int=100, filters_for_conv3: int=100,
+                 filters_for_conv4: int=100, filters_for_conv5: int=100, batch_size: int=32,
+                 validation_fraction: float=0.1, max_epochs: int=10, patience: int=3, num_monte_carlo: int=50,
+                 gpu_memory_frac: float=1.0, verbose: bool=False, multioutput: bool=False, bayesian: bool=True,
                  random_seed: Union[int, None]=None):
         self.batch_size = batch_size
-        self.hidden_layer_sizes = hidden_layer_sizes
+        self.filters_for_conv1 = filters_for_conv1
+        self.filters_for_conv2 = filters_for_conv2
+        self.filters_for_conv3 = filters_for_conv3
+        self.filters_for_conv4 = filters_for_conv4
+        self.filters_for_conv5 = filters_for_conv5
         self.bert_hub_module_handle = bert_hub_module_handle
         self.max_epochs = max_epochs
         self.num_monte_carlo = num_monte_carlo
@@ -38,14 +44,15 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         self.validation_fraction = validation_fraction
         self.verbose = verbose
         self.multioutput = multioutput
+        self.bayesian = bayesian
 
     def __del__(self):
         if hasattr(self, 'tokenizer_'):
             del self.tokenizer_
         self.finalize_model()
 
-    def fit(self, X: Union[list, tuple, np.array], y: Union[list, tuple, np.array],
-            validation_data: Union[None, Tuple[Union[list, tuple, np.array], Union[list, tuple, np.array]]]=None):
+    def fit(self, X: Union[list, tuple, np.ndarray], y: Union[list, tuple, np.ndarray],
+            validation_data: Union[None, Tuple[Union[list, tuple, np.ndarray], Union[list, tuple, np.ndarray]]]=None):
         classes_in_dataset = self.check_Xy(X, 'X', y, 'y', self.multioutput)
         if (classes_in_dataset[0] != 0) or (classes_in_dataset[-1] != (len(classes_in_dataset) - 1)):
             raise ValueError('`y` is wrong! Labels of classes are not ordered. '
@@ -145,6 +152,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             train_op, elbo_loss_, val_loss_, pi_ = self.build_model()
+        if not self.bayesian:
+            val_loss_ = elbo_loss_
         init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
         init.run(session=self.sess_)
         tmp_model_name = self.get_temp_model_name()
@@ -154,25 +163,30 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         n_epochs_without_improving = 0
         try:
             best_acc = None
-            batch_counter = 1
             for epoch in range(self.max_epochs):
                 start_time = time.time()
                 random.shuffle(bounds_of_batches_for_training)
                 feed_dict_for_batch = None
                 train_loss = 0.0
-                for cur_batch in bounds_of_batches_for_training:
+                for batch_counter, cur_batch in enumerate(bounds_of_batches_for_training):
                     X_batch = [X_train_tokenized[channel_idx][cur_batch[0]:cur_batch[1]]
                                for channel_idx in range(len(X_train_tokenized))]
                     y_batch = y_train_tokenized[cur_batch[0]:cur_batch[1]]
                     if feed_dict_for_batch is not None:
                         del feed_dict_for_batch
-                    feed_dict_for_batch = self.fill_feed_dict(
-                        X_batch, y_batch, pi_variable=pi_,
-                        pi_value=self.calculate_pi_value(batch_counter, len(bounds_of_batches_for_training) * 2)
-                    )
+                    if self.bayesian:
+                        feed_dict_for_batch = self.fill_feed_dict(
+                            X_batch, y_batch, pi_variable=pi_,
+                            pi_value=self.calculate_pi_value(
+                                epoch + float(batch_counter + 1) / float(len(bounds_of_batches_for_training)),
+                                max(2, self.patience - 1),
+                                1e-1, 1e-5
+                            )
+                        )
+                    else:
+                        feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
                     _, train_loss_ = self.sess_.run([train_op, elbo_loss_], feed_dict=feed_dict_for_batch)
                     train_loss += train_loss_ * self.batch_size
-                    batch_counter += 1
                 train_loss /= float(X_train_tokenized[0].shape[0])
                 if bounds_of_batches_for_validation is not None:
                     test_loss = 0.0
@@ -184,11 +198,20 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
                         test_loss_ = self.sess_.run(val_loss_, feed_dict=feed_dict_for_batch)
                         test_loss += test_loss_ * self.batch_size
-                        probs = np.asarray([self.sess_.run(self.labels_distribution_.probs,
-                                                           feed_dict=feed_dict_for_batch)
-                                            for _ in range(self.num_monte_carlo)])
+                        if self.bayesian:
+                            features = self._calculate_features(X_batch)
+                            probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0',
+                                                               feed_dict={'BERT_SequenceOutput:0': features})
+                                                for _ in range(self.num_monte_carlo)])
+                            del features
+                            mean_probs = np.mean(probs, axis=0)
+                            del probs
+                        else:
+                            if self.multioutput:
+                                mean_probs = self.sess_.run('Logits/Sigmoid:0', feed_dict=feed_dict_for_batch)
+                            else:
+                                mean_probs = self.sess_.run('Logits/Softmax:0', feed_dict=feed_dict_for_batch)
                         del feed_dict_for_batch
-                        mean_probs = np.mean(probs, axis=0)
                         if self.multioutput:
                             if y_pred is None:
                                 y_pred = mean_probs.copy()
@@ -199,7 +222,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                                 y_pred = mean_probs.argmax(axis=-1)
                             else:
                                 y_pred = np.concatenate((y_pred, mean_probs.argmax(axis=-1)))
-                        del probs, mean_probs
+                        del mean_probs
                     test_loss /= float(X_val_tokenized[0].shape[0])
                     if self.verbose:
                         print('Epoch {0}'.format(epoch))
@@ -277,10 +300,12 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         print('Epoch %05d: early stopping' % (epoch + 1))
                     break
             if best_acc is not None:
-                self.finalize_model()
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    _, _, _, _ = self.build_model()
+                if hasattr(self, 'sess_'):
+                    for k in list(self.sess_.graph.get_all_collection_keys()):
+                        self.sess_.graph.clear_collection(k)
+                    self.sess_.close()
+                    del self.sess_
+                tf.reset_default_graph()
                 self.load_model(tmp_model_name)
         finally:
             for cur_name in self.find_all_model_files(tmp_model_name):
@@ -289,55 +314,65 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                                           X_unlabeled_tokenized)
         return self
 
+    def _calculate_probabilities(self, X: List[np.ndarray]) -> np.ndarray:
+        n_batches = int(np.ceil(X[0].shape[0] / float(self.batch_size)))
+        probabilities = np.zeros((X[0].shape[0], self.n_classes_), dtype=np.float32)
+        for iteration in range(n_batches):
+            batch_start = iteration * self.batch_size
+            batch_end = min(batch_start + self.batch_size, X[0].shape[0])
+            X_batch = [X[channel_idx][batch_start:batch_end]
+                       for channel_idx in range(len(X))]
+            if self.bayesian:
+                features = self._calculate_features(X_batch)
+                probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0',
+                                                   feed_dict={'BERT_SequenceOutput:0': features})
+                                    for _ in range(self.num_monte_carlo)])
+                del features
+                mean_probs = np.mean(probs, axis=0)
+                probabilities[batch_start:batch_end] = mean_probs[0:(batch_end - batch_start)]
+                del probs, mean_probs
+            else:
+                feed_dict_for_batch = self.fill_feed_dict(X_batch)
+                if self.multioutput:
+                    probs = self.sess_.run('Logits/Sigmoid:0', feed_dict=feed_dict_for_batch)
+                else:
+                    probs = self.sess_.run('Logits/Softmax:0', feed_dict=feed_dict_for_batch)
+                probabilities[batch_start:batch_end] = probs[0:(batch_end - batch_start)]
+                del probs
+                del feed_dict_for_batch
+        return probabilities
+
+    def _calculate_features(self, X: List[np.ndarray]) -> np.ndarray:
+        feed_dict = self.fill_feed_dict(X)
+        features = self.sess_.run('BERT_SequenceOutput:0', feed_dict=feed_dict)
+        if len(features.shape) != 3:
+            raise ValueError('Features are wrong! Expected a 3-D array, but got a {0}-D one.'.format(
+                len(features.shape)))
+        if features.shape[1] < self.MAX_SEQ_LENGTH:
+            features = np.concatenate(
+                (
+                    features,
+                    np.zeros((features.shape[0], self.MAX_SEQ_LENGTH - features.shape[1], features.shape[2]),
+                             dtype=np.float32)
+                ),
+                axis=1
+            )
+        elif features.shape[1] > self.MAX_SEQ_LENGTH:
+            features = features[0:features.shape[0]][0:self.MAX_SEQ_LENGTH][0:features.shape[2]]
+        return features
+
     def calculate_certainty_treshold(self, X_train: List[np.ndarray], y_train: np.ndarray,
                                      X_val: Union[List[np.ndarray], None], y_val: Union[np.ndarray, None],
                                      X_unlabeled: Union[List[np.ndarray], None]):
         if self.multioutput:
             if y_val is None:
-                n_batches = int(np.ceil(X_train[0].shape[0] / float(self.batch_size)))
-                probabilities = np.zeros((X_train[0].shape[0], self.n_classes_), dtype=np.float32)
-                for iteration in range(n_batches):
-                    batch_start = iteration * self.batch_size
-                    batch_end = min(batch_start + self.batch_size, X_train[0].shape[0])
-                    X_batch = [X_train[channel_idx][batch_start:batch_end]
-                               for channel_idx in range(len(X_train))]
-                    feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                    probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
-                                        for _ in range(self.num_monte_carlo)])
-                    del feed_dict_for_batch
-                    mean_probs = np.mean(probs, axis=0)
-                    probabilities[batch_start:batch_end] = mean_probs[0:(batch_end - batch_start)]
-                    del probs, mean_probs
+                probabilities = self._calculate_probabilities(X_train)
                 y_true = np.copy(y_train)
             else:
-                probabilities = np.zeros((X_val[0].shape[0], self.n_classes_), dtype=np.float32)
-                n_batches = int(np.ceil(X_val[0].shape[0] / float(self.batch_size)))
-                for iteration in range(n_batches):
-                    batch_start = iteration * self.batch_size
-                    batch_end = min(batch_start + self.batch_size, X_val[0].shape[0])
-                    X_batch = [X_val[channel_idx][batch_start:batch_end]
-                               for channel_idx in range(len(X_val))]
-                    feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                    probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
-                                        for _ in range(self.num_monte_carlo)])
-                    del feed_dict_for_batch
-                    mean_probs = np.mean(probs, axis=0)
-                    probabilities[batch_start:batch_end] = mean_probs[0:(batch_end - batch_start)]
-                    del probs, mean_probs
+                probabilities = self._calculate_probabilities(X_val)
                 y_true = np.copy(y_val)
             if X_unlabeled is not None:
-                n_batches = int(np.ceil(X_unlabeled[0].shape[0] / float(self.batch_size)))
-                probabilities_for_unlabeled = np.empty((X_unlabeled[0].shape[0], self.n_classes_))
-                for iteration in range(n_batches):
-                    batch_start = iteration * self.batch_size
-                    batch_end = min(batch_start + self.batch_size, X_unlabeled[0].shape[0])
-                    X_batch = [X_unlabeled[channel_idx][batch_start:batch_end]
-                               for channel_idx in range(len(X_unlabeled))]
-                    feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                    probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
-                                        for _ in range(self.num_monte_carlo)])
-                    mean_probs = np.mean(probs, axis=0)
-                    probabilities_for_unlabeled[batch_start:batch_end] = mean_probs[0:(batch_end - batch_start)]
+                probabilities_for_unlabeled = self._calculate_probabilities(X_unlabeled)
                 probabilities = np.vstack(
                     (
                         probabilities,
@@ -372,54 +407,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     class_idx, self.certainty_threshold_[class_idx]))
         else:
             if X_val is None:
-                n_batches = int(np.ceil(X_train[0].shape[0] / float(self.batch_size)))
-                probabilities_for_labeled_samples = np.zeros((X_train[0].shape[0],), dtype=np.float32)
-                for iteration in range(n_batches):
-                    batch_start = iteration * self.batch_size
-                    batch_end = min(batch_start + self.batch_size, X_train[0].shape[0])
-                    X_batch = [X_train[channel_idx][batch_start:batch_end]
-                               for channel_idx in range(len(X_train))]
-                    feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                    probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
-                                        for _ in range(self.num_monte_carlo)])
-                    del feed_dict_for_batch
-                    mean_probs = np.mean(probs, axis=0)
-                    probabilities_for_labeled_samples[batch_start:batch_end] = mean_probs.max(
-                        axis=-1)[0:(batch_end - batch_start)]
-                    del probs, mean_probs
+                probabilities_for_labeled_samples = self._calculate_probabilities(X_train).max(axis=-1)
             else:
-                probabilities_for_labeled_samples = np.zeros((X_val[0].shape[0],), dtype=np.float32)
-                n_batches = int(np.ceil(X_val[0].shape[0] / float(self.batch_size)))
-                for iteration in range(n_batches):
-                    batch_start = iteration * self.batch_size
-                    batch_end = min(batch_start + self.batch_size, X_val[0].shape[0])
-                    X_batch = [X_val[channel_idx][batch_start:batch_end]
-                               for channel_idx in range(len(X_val))]
-                    feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                    probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
-                                        for _ in range(self.num_monte_carlo)])
-                    del feed_dict_for_batch
-                    mean_probs = np.mean(probs, axis=0)
-                    probabilities_for_labeled_samples[batch_start:batch_end] = mean_probs.max(
-                        axis=-1)[0:(batch_end - batch_start)]
-                    del probs, mean_probs
+                probabilities_for_labeled_samples = self._calculate_probabilities(X_val).max(axis=-1)
             if X_unlabeled is None:
                 probabilities_for_another_samples = None
             else:
-                probabilities_for_another_samples = np.zeros((X_unlabeled[0].shape[0]), dtype=np.float32)
-                n_batches = int(np.ceil(X_unlabeled[0].shape[0] / float(self.batch_size)))
-                for iteration in range(n_batches):
-                    batch_start = iteration * self.batch_size
-                    batch_end = min(batch_start + self.batch_size, X_unlabeled[0].shape[0])
-                    X_batch = [X_unlabeled[channel_idx][batch_start:batch_end]
-                               for channel_idx in range(len(X_unlabeled))]
-                    feed_dict_for_batch = self.fill_feed_dict(X_batch)
-                    probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict_for_batch)
-                                        for _ in range(self.num_monte_carlo)])
-                    mean_probs = np.mean(probs, axis=0)
-                    probabilities_for_another_samples[batch_start:batch_end] = mean_probs.max(
-                        axis=-1)[0:(batch_end - batch_start)]
-                    del probs, mean_probs
+                probabilities_for_another_samples = self._calculate_probabilities(X_unlabeled).max(axis=-1)
             if probabilities_for_another_samples is None:
                 self.certainty_threshold_ = probabilities_for_labeled_samples.min()
                 if self.verbose:
@@ -456,44 +450,29 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     print('Best F1-score is {0:.6f}.'.format(best_f1))
                     print('Corresponding threshold is {0:.3f}.'.format(self.certainty_threshold_))
 
-    def predict_proba(self, X: Union[list, tuple, np.array]) -> np.ndarray:
+    def predict_proba(self, X: Union[list, tuple, np.ndarray]) -> np.ndarray:
         self.check_params(
             bert_hub_module_handle=self.bert_hub_module_handle, batch_size=self.batch_size,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
             gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
-            num_monte_carlo=self.num_monte_carlo, hidden_layer_sizes=self.hidden_layer_sizes,
-            multioutput=self.multioutput
+            num_monte_carlo=self.num_monte_carlo, filters_for_conv1=self.filters_for_conv1,
+            filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
+            filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
+            multioutput=self.multioutput, bayesian=self.bayesian
         )
         self.check_X(X, 'X')
         self.is_fitted()
         X_tokenized = self.tokenize_all(X)
         n_samples = X_tokenized[0].shape[0]
         X_tokenized = self.extend_Xy(X_tokenized)
-        n_batches = X_tokenized[0].shape[0] // self.batch_size
-        bounds_of_batches = []
-        for iteration in range(n_batches):
-            batch_start = iteration * self.batch_size
-            batch_end = batch_start + self.batch_size
-            bounds_of_batches.append((batch_start, batch_end))
-        probabilities = np.zeros((X_tokenized[0].shape[0], self.n_classes_), dtype=np.float32)
-        for cur_batch in bounds_of_batches:
-            feed_dict = self.fill_feed_dict(
-                [
-                    X_tokenized[channel_idx][cur_batch[0]:cur_batch[1]]
-                    for channel_idx in range(len(X_tokenized))
-                ]
-            )
-            probs = np.asarray([self.sess_.run(self.labels_distribution_.probs, feed_dict=feed_dict)
-                                for _ in range(self.num_monte_carlo)])
-            probabilities[cur_batch[0]:cur_batch[1]] = np.mean(probs, axis=0)
-            del probs
-        del X_tokenized, bounds_of_batches
+        probabilities = self._calculate_probabilities(X_tokenized)
+        del X_tokenized
         return probabilities[0:n_samples]
 
-    def predict_log_proba(self, X: Union[list, tuple, np.array]) -> np.ndarray:
+    def predict_log_proba(self, X: Union[list, tuple, np.ndarray]) -> np.ndarray:
         return np.log(self.predict_proba(X) + 1e-9)
 
-    def predict(self, X: Union[list, tuple, np.array]) -> np.ndarray:
+    def predict(self, X: Union[list, tuple, np.ndarray]) -> np.ndarray:
         probabilities = self.predict_proba(X)
         if self.multioutput:
             recognized_classes = list()
@@ -518,7 +497,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             del probabilities
         return recognized_classes
 
-    def fit_predict(self, X: Union[list, tuple, np.array], y: Union[list, tuple, np.array], **kwargs):
+    def fit_predict(self, X: Union[list, tuple, np.ndarray], y: Union[list, tuple, np.ndarray], **kwargs):
         return self.fit(X, y).predict(X)
 
     def score(self, X, y, sample_weight=None) -> float:
@@ -526,8 +505,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             bert_hub_module_handle=self.bert_hub_module_handle, batch_size=self.batch_size,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
             gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
-            num_monte_carlo=self.num_monte_carlo, hidden_layer_sizes=self.hidden_layer_sizes,
-            multioutput=self.multioutput
+            num_monte_carlo=self.num_monte_carlo, filters_for_conv1=self.filters_for_conv1,
+            filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
+            filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
+            multioutput=self.multioutput, bayesian=self.bayesian
         )
         self.is_fitted()
         classes_list = self.check_Xy(X, 'X', y, 'y', self.multioutput)
@@ -561,18 +542,17 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         tf.random.set_random_seed(self.random_seed)
 
     def is_fitted(self):
-        check_is_fitted(self, ['n_classes_', 'logits_', 'tokenizer_', 'input_ids_', 'input_mask_', 'segment_ids_',
-                               'labels_distribution_', 'y_ph_', 'sess_', 'certainty_threshold_'])
+        check_is_fitted(self, ['n_classes_', 'tokenizer_', 'sess_', 'certainty_threshold_'])
 
-    def fill_feed_dict(self, X: List[np.array], y: np.array = None,
+    def fill_feed_dict(self, X: List[np.ndarray], y: np.ndarray = None,
                        pi_variable: tf.Variable=None, pi_value: float=None) -> dict:
         assert len(X) == 3
         assert len(X[0]) == self.batch_size
         feed_dict = {
-            ph: x for ph, x in zip([self.input_ids_, self.input_mask_, self.segment_ids_], X)
+            ph: x for ph, x in zip(['input_ids:0', 'input_mask:0', 'segment_ids:0'], X)
         }
         if y is not None:
-            feed_dict[self.y_ph_] = y
+            feed_dict['y_ph:0'] = y
         if (pi_variable is not None) and (pi_value is not None):
             feed_dict[pi_variable] = pi_value
         return feed_dict
@@ -624,7 +604,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             return [X_ext[idx][indices] for idx in range(len(X_ext))], y_ext[indices]
         return X_ext, y_ext
 
-    def tokenize_all(self, X: Union[list, tuple, np.array], y: Union[list, tuple, np.array] = None) -> \
+    def tokenize_all(self, X: Union[list, tuple, np.ndarray], y: Union[list, tuple, np.ndarray] = None) -> \
             Union[Tuple[List[np.ndarray], np.ndarray, Union[List[np.ndarray], None]], List[np.ndarray]]:
         X_tokenized = [
             np.zeros((len(X), self.MAX_SEQ_LENGTH), dtype=np.int32),
@@ -712,10 +692,12 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
 
     def get_params(self, deep=True) -> dict:
         return {'bert_hub_module_handle': self.bert_hub_module_handle, 'batch_size': self.batch_size,
-                'max_epochs': self.max_epochs, 'patience': self.patience, 'hidden_layer_sizes': self.hidden_layer_sizes,
+                'max_epochs': self.max_epochs, 'patience': self.patience, 'filters_for_conv1': self.filters_for_conv1,
+                'filters_for_conv2': self.filters_for_conv2, 'filters_for_conv3': self.filters_for_conv3,
+                'filters_for_conv4': self.filters_for_conv4, 'filters_for_conv5': self.filters_for_conv5,
                 'validation_fraction': self.validation_fraction, 'gpu_memory_frac': self.gpu_memory_frac,
                 'verbose': self.verbose, 'random_seed': self.random_seed, 'num_monte_carlo': self.num_monte_carlo,
-                'multioutput': self.multioutput}
+                'multioutput': self.multioutput, 'bayesian': self.bayesian}
 
     def set_params(self, **params):
         for parameter, value in params.items():
@@ -726,62 +708,135 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         config = tf.ConfigProto()
         config.gpu_options.per_process_gpu_memory_fraction = self.gpu_memory_frac
         self.sess_ = tf.Session(config=config)
-        self.input_ids_ = tf.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32,
-                                         name='input_ids')
-        self.input_mask_ = tf.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32,
-                                          name='input_mask')
-        self.segment_ids_ = tf.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32,
-                                           name='segment_ids')
+        input_ids = tf.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32, name='input_ids')
+        input_mask = tf.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32, name='input_mask')
+        segment_ids = tf.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32, name='segment_ids')
         if self.multioutput:
-            self.y_ph_ = tf.placeholder(shape=(self.batch_size, self.n_classes_), dtype=tf.int32, name='y_ph')
+            y_ph = tf.placeholder(shape=(self.batch_size, self.n_classes_), dtype=tf.int32, name='y_ph')
         else:
-            self.y_ph_ = tf.placeholder(shape=(self.batch_size,), dtype=tf.int32, name='y_ph')
+            y_ph = tf.placeholder(shape=(self.batch_size,), dtype=tf.int32, name='y_ph')
         bert_inputs = dict(
-            input_ids=self.input_ids_,
-            input_mask=self.input_mask_,
-            segment_ids=self.segment_ids_
+            input_ids=input_ids,
+            input_mask=input_mask,
+            segment_ids=segment_ids
         )
-        with tf.name_scope('BERT_base'):
-            bert_module = tfhub.Module(self.bert_hub_module_handle, trainable=True)
-            bert_outputs = bert_module(bert_inputs, signature='tokens', as_dict=True)
-            pooled_output = tf.stop_gradient(bert_outputs['pooled_output'])
+        bert_module = tfhub.Module(self.bert_hub_module_handle, trainable=True, name='BERT_module')
+        bert_outputs = bert_module(bert_inputs, signature='tokens', as_dict=True)
+        sequence_output = tf.stop_gradient(bert_outputs['sequence_output'], name='BERT_SequenceOutput')
         if self.verbose:
             print('The BERT model has been loaded from the TF-Hub.')
-        layers = []
-        for hidden_layer_idx in range(len(self.hidden_layer_sizes)):
-            layers.append(
-                tfp.layers.DenseFlipout(self.hidden_layer_sizes[hidden_layer_idx], seed=self.random_seed,
-                                        activation=tf.nn.relu, name='HiddenLayer{0}'.format(hidden_layer_idx + 1))
-            )
-        layers.append(tfp.layers.DenseFlipout(self.n_classes_, seed=self.random_seed, name='OutputLayer'))
-        model = tf.keras.Sequential(layers)
-        self.logits_ = model(pooled_output)
-        if self.multioutput:
-            self.labels_distribution_ = tfp.distributions.Bernoulli(logits=self.logits_)
-        else:
-            self.labels_distribution_ = tfp.distributions.Categorical(logits=self.logits_)
-        neg_log_likelihood = -tf.reduce_sum(input_tensor=self.labels_distribution_.log_prob(self.y_ph_))
-        pi = tf.Variable(0.0, trainable=False, name='Pi_for_ELBO_loss', dtype=tf.float32)
-        kl = sum(model.losses)
-        elbo_loss = neg_log_likelihood + pi * kl
+        conv_layers = []
+        if self.bayesian:
+            feature_vector_size = sequence_output.shape[-1].value
+            input_sequence_layer = tf.keras.Input((self.MAX_SEQ_LENGTH, feature_vector_size), name='InputForConv')
+            if self.filters_for_conv1 > 0:
+                conv_layer_1 = tfp.layers.Convolution1DFlipout(
+                    filters=self.filters_for_conv1, kernel_size=2, name='Conv1', padding='valid',
+                    activation=tf.nn.tanh,
+                    seed=self.random_seed
+                )(input_sequence_layer)
+                conv_layer_1 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling1')(conv_layer_1)
+                conv_layers.append(conv_layer_1)
+            if self.filters_for_conv2 > 0:
+                conv_layer_2 = tfp.layers.Convolution1DFlipout(
+                    filters=self.filters_for_conv2, kernel_size=2, name='Conv2', padding='valid',
+                    activation=tf.nn.tanh,
+                    seed=self.random_seed
+                )(input_sequence_layer)
+                conv_layer_2 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling2')(conv_layer_2)
+                conv_layers.append(conv_layer_2)
+            if self.filters_for_conv3 > 0:
+                conv_layer_3 = tfp.layers.Convolution1DFlipout(
+                    filters=self.filters_for_conv3, kernel_size=3, name='Conv3', padding='valid',
+                    activation=tf.nn.tanh,
+                    seed=self.random_seed
+                )(input_sequence_layer)
+                conv_layer_3 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling3')(conv_layer_3)
+                conv_layers.append(conv_layer_3)
+            if self.filters_for_conv4 > 0:
+                conv_layer_4 = tfp.layers.Convolution1DFlipout(
+                    filters=self.filters_for_conv4, kernel_size=4, name='Conv4', padding='valid',
+                    activation=tf.nn.tanh,
+                    seed=self.random_seed
+                )(input_sequence_layer)
+                conv_layer_4 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling4')(conv_layer_4)
+                conv_layers.append(conv_layer_4)
+            if self.filters_for_conv5 > 0:
+                conv_layer_5 = tfp.layers.Convolution1DFlipout(
+                    filters=self.filters_for_conv5, kernel_size=5, name='Conv5', padding='valid',
+                    activation=tf.nn.tanh,
+                    seed=self.random_seed
+                )(input_sequence_layer)
+                conv_layer_5 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling5')(conv_layer_5)
+                conv_layers.append(conv_layer_5)
+            concat_layer = tf.keras.layers.Concatenate(name='Concat')(conv_layers)
+            output_layer = tfp.layers.DenseFlipout(self.n_classes_, seed=self.random_seed, name='OutputLayer')(
+                concat_layer)
+            model = tf.keras.Model(input_sequence_layer, output_layer, name='BayesianNetworkModel')
+            logits = model(sequence_output)
+            if self.multioutput:
+                labels_distribution = tfp.distributions.Bernoulli(logits=logits, name='LabelsDistribution')
+            else:
+                labels_distribution = tfp.distributions.Categorical(logits=logits, name='LabelsDistribution')
+            neg_log_likelihood = -tf.reduce_sum(input_tensor=labels_distribution.log_prob(y_ph))
+            pi = tf.Variable(0.0, trainable=False, name='Pi_for_ELBO_loss', dtype=tf.float32)
+            kl = sum(model.losses)
+            elbo_loss = neg_log_likelihood + pi * kl
+            with tf.name_scope('train'):
+                optimizer = tf.train.AdamOptimizer()
+                train_op = optimizer.minimize(elbo_loss)
+            return train_op, elbo_loss, neg_log_likelihood, pi
+        if self.filters_for_conv1 > 0:
+            conv_layer_1 = tf.keras.layers.Conv1D(
+                filters=self.filters_for_conv1, kernel_size=2, name='Conv1', padding='valid', activation=tf.nn.tanh,
+                kernel_initializer=tf.keras.initializers.glorot_uniform(seed=self.random_seed)
+            )(sequence_output)
+            conv_layer_1 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling1')(conv_layer_1)
+            conv_layers.append(conv_layer_1)
+        if self.filters_for_conv2 > 0:
+            conv_layer_2 = tf.keras.layers.Conv1D(
+                filters=self.filters_for_conv2, kernel_size=2, name='Conv2', padding='valid', activation=tf.nn.tanh,
+                kernel_initializer=tf.keras.initializers.glorot_uniform(seed=self.random_seed)
+            )(sequence_output)
+            conv_layer_2 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling2')(conv_layer_2)
+            conv_layers.append(conv_layer_2)
+        if self.filters_for_conv3 > 0:
+            conv_layer_3 = tf.keras.layers.Conv1D(
+                filters=self.filters_for_conv3, kernel_size=3, name='Conv3', padding='valid', activation=tf.nn.tanh,
+                kernel_initializer=tf.keras.initializers.glorot_uniform(seed=self.random_seed)
+            )(sequence_output)
+            conv_layer_3 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling3')(conv_layer_3)
+            conv_layers.append(conv_layer_3)
+        if self.filters_for_conv4 > 0:
+            conv_layer_4 = tf.keras.layers.Conv1D(
+                filters=self.filters_for_conv4, kernel_size=4, name='Conv4', padding='valid', activation=tf.nn.tanh,
+                kernel_initializer=tf.keras.initializers.glorot_uniform(seed=self.random_seed)
+            )(sequence_output)
+            conv_layer_4 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling4')(conv_layer_4)
+            conv_layers.append(conv_layer_4)
+        if self.filters_for_conv5 > 0:
+            conv_layer_5 = tf.keras.layers.Conv1D(
+                filters=self.filters_for_conv5, kernel_size=5, name='Conv5', padding='valid', activation=tf.nn.tanh,
+                kernel_initializer=tf.keras.initializers.glorot_uniform(seed=self.random_seed)
+            )(sequence_output)
+            conv_layer_5 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling5')(conv_layer_5)
+            conv_layers.append(conv_layer_5)
+        concat_layer = tf.keras.layers.Concatenate(name='Concat')(conv_layers)
+        glorot_init = tf.keras.initializers.glorot_uniform(seed=self.random_seed)
+        logits = tf.layers.dense(concat_layer, self.n_classes_, kernel_initializer=glorot_init, name='Logits',
+                                 activation=(tf.nn.sigmoid if self.multioutput else tf.nn.softmax))
+        with tf.name_scope('loss'):
+            if self.multioutput:
+                loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=y_ph, logits=logits)
+            else:
+                loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y_ph, logits=logits)
+            loss = tf.reduce_sum(loss, name='loss')
         with tf.name_scope('train'):
             optimizer = tf.train.AdamOptimizer()
-            train_op = optimizer.minimize(elbo_loss)
-        return train_op, elbo_loss, neg_log_likelihood, pi
+            train_op = optimizer.minimize(loss)
+        return train_op, loss, None, None
 
     def finalize_model(self):
-        if hasattr(self, 'input_ids_'):
-            del self.input_ids_
-        if hasattr(self, 'input_mask_'):
-            del self.input_mask_
-        if hasattr(self, 'segment_ids_'):
-            del self.segment_ids_
-        if hasattr(self, 'y_ph_'):
-            del self.y_ph_
-        if hasattr(self, 'logits_'):
-            del self.logits_
-        if hasattr(self, 'labels_distribution_'):
-            del self.labels_distribution_
         if hasattr(self, 'sess_'):
             for k in list(self.sess_.graph.get_all_collection_keys()):
                 self.sess_.graph.clear_collection(k)
@@ -790,11 +845,15 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         tf.reset_default_graph()
 
     def save_model(self, file_name: str):
-        saver = tf.train.Saver(allow_empty=True)
+        saver = tf.train.Saver()
         saver.save(self.sess_, file_name)
 
     def load_model(self, file_name: str):
-        saver = tf.train.Saver(allow_empty=True)
+        if not hasattr(self, 'sess_'):
+            config = tf.ConfigProto()
+            config.gpu_options.per_process_gpu_memory_fraction = self.gpu_memory_frac
+            self.sess_ = tf.Session(config=config)
+        saver = tf.train.import_meta_graph(file_name + '.meta', clear_devices=True)
         saver.restore(self.sess_, file_name)
 
     def initialize_bert_tokenizer(self) -> FullTokenizer:
@@ -818,10 +877,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         cls = self.__class__
         result = cls.__new__(cls)
         result.set_params(
-            bert_hub_module_handle=self.bert_hub_module_handle, hidden_layer_sizes=copy.copy(self.hidden_layer_sizes),
+            bert_hub_module_handle=self.bert_hub_module_handle, filters_for_conv1=self.filters_for_conv1,
+            filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
+            filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
             num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size, multioutput=self.multioutput,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
-            gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed
+            gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
+            bayesian=self.bayesian
         )
         try:
             self.is_fitted()
@@ -831,24 +893,21 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         if is_fitted:
             result.certainty_threshold_ = copy.copy(self.certainty_threshold_)
             result.n_classes_ = self.n_classes_
-            result.logits_ = self.logits_
             result.tokenizer_ = self.tokenizer_
-            result.input_ids_ = self.input_ids_
-            result.input_mask_ = self.input_mask_
-            result.segment_ids_ = self.segment_ids_
-            result.y_ph_ = self.y_ph_
             result.sess_ = self.sess_
-            result.labels_distribution_ = self.labels_distribution_
         return result
 
     def __deepcopy__(self, memodict={}):
         cls = self.__class__
         result = cls.__new__(cls)
         result.set_params(
-            bert_hub_module_handle=self.bert_hub_module_handle, hidden_layer_sizes=copy.copy(self.hidden_layer_sizes),
+            bert_hub_module_handle=self.bert_hub_module_handle, filters_for_conv1=self.filters_for_conv1,
+            filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
+            filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
             num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size, multioutput=self.multioutput,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
-            gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed
+            gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
+            bayesian=self.bayesian
         )
         try:
             self.is_fitted()
@@ -858,14 +917,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         if is_fitted:
             result.certainty_threshold_ = copy.copy(self.certainty_threshold_)
             result.n_classes_ = self.n_classes_
-            result.logits_ = self.logits_
             result.tokenizer_ = self.tokenizer_
-            result.input_ids_ = self.input_ids_
-            result.input_mask_ = self.input_mask_
-            result.segment_ids_ = self.segment_ids_
-            result.y_ph_ = self.y_ph_
             result.sess_ = self.sess_
-            result.labels_distribution_ = self.labels_distribution_
         return result
 
     def __getstate__(self):
@@ -936,9 +989,6 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 for idx in range(len(model_files)):
                     with open(tmp_file_names[idx], 'wb') as fp:
                         fp.write(new_params['model.' + model_files[idx]])
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    _, _, _, _ = self.build_model()
                 self.load_model(os.path.join(tmp_dir_name, new_params['model_name_']))
             finally:
                 for cur in tmp_file_names:
@@ -1053,34 +1103,70 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 (not isinstance(kwargs['multioutput'], bool)) and (not isinstance(kwargs['multioutput'], np.bool)):
             raise ValueError('`multioutput` is wrong! Expected `{0}`, got `{1}`.'.format(
                 type(True), type(kwargs['multioutput'])))
-        if 'hidden_layer_sizes' not in kwargs:
-            raise ValueError('`hidden_layer_sizes` is not specified!')
-        if (not isinstance(kwargs['hidden_layer_sizes'], list)) and \
-                (not isinstance(kwargs['hidden_layer_sizes'], tuple)) and \
-                (not isinstance(kwargs['hidden_layer_sizes'], np.ndarray)):
-            raise ValueError('`hidden_layer_sizes` is wrong! Expected `{0}`, got `{1}`.'.format(
-                type((1, 2, 3)), type(kwargs['hidden_layer_sizes'])))
-        if isinstance(kwargs['hidden_layer_sizes'], np.ndarray):
-            if len(kwargs['hidden_layer_sizes'].shape) != 1:
-                raise ValueError('`hidden_layer_sizes` is wrong! Expected 1d array, but got {0}d one.'.format(
-                    len(kwargs['hidden_layer_sizes'].shape)))
-        if len(kwargs['hidden_layer_sizes']) < 1:
-            raise ValueError('`hidden_layer_sizes` is wrong! It is empty.')
-        for layer_idx, layer_size in enumerate(kwargs['hidden_layer_sizes']):
-            if (not isinstance(layer_size, int)) and (not isinstance(layer_size, np.int32)) and \
-                    (not isinstance(layer_size, np.int64)) and (not isinstance(layer_size, np.int)) and \
-                    (not isinstance(layer_size, np.int16)) and (not isinstance(layer_size, np.int8)) and \
-                    (not isinstance(layer_size, np.uint32)) and (not isinstance(layer_size, np.uint64)) and \
-                    (not isinstance(layer_size, np.uint16)) and (not isinstance(layer_size, np.uint8)) and \
-                    (not isinstance(layer_size, np.uint)):
-                raise ValueError('Item {0} of `hidden_layer_sizes` is wrong! Expected `{1}`, got `{2}`.'.format(
-                    layer_idx, type(1), type(layer_size)))
-            if layer_size <= 0:
-                raise ValueError('Item {0} of `hidden_layer_sizes` is wrong! Expected a positive value, '
-                                 'got {1}.'.format(layer_idx, layer_size))
+        if 'bayesian' not in kwargs:
+            raise ValueError('`bayesian` is not specified!')
+        if (not isinstance(kwargs['bayesian'], int)) and (not isinstance(kwargs['bayesian'], np.int32)) and \
+                (not isinstance(kwargs['bayesian'], np.uint32)) and \
+                (not isinstance(kwargs['bayesian'], bool)) and (not isinstance(kwargs['bayesian'], np.bool)):
+            raise ValueError('`bayesian` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(True), type(kwargs['bayesian'])))
+        if 'filters_for_conv1' not in kwargs:
+            raise ValueError('`filters_for_conv1` is not specified!')
+        if (not isinstance(kwargs['filters_for_conv1'], int)) and \
+                (not isinstance(kwargs['filters_for_conv1'], np.int32)) and \
+                (not isinstance(kwargs['filters_for_conv1'], np.uint32)):
+            raise ValueError('`filters_for_conv1` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(3), type(kwargs['filters_for_conv1'])))
+        if kwargs['filters_for_conv1'] < 0:
+            raise ValueError('`filters_for_conv1` is wrong! Expected a non-negative integer value, '
+                             'but {0} is not positive.'.format(kwargs['filters_for_conv1']))
+        if 'filters_for_conv2' not in kwargs:
+            raise ValueError('`filters_for_conv2` is not specified!')
+        if (not isinstance(kwargs['filters_for_conv2'], int)) and \
+                (not isinstance(kwargs['filters_for_conv2'], np.int32)) and \
+                (not isinstance(kwargs['filters_for_conv2'], np.uint32)):
+            raise ValueError('`filters_for_conv2` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(3), type(kwargs['filters_for_conv2'])))
+        if kwargs['filters_for_conv2'] < 0:
+            raise ValueError('`filters_for_conv2` is wrong! Expected a non-negative integer value, '
+                             'but {0} is not positive.'.format(kwargs['filters_for_conv2']))
+        if 'filters_for_conv3' not in kwargs:
+            raise ValueError('`filters_for_conv3` is not specified!')
+        if (not isinstance(kwargs['filters_for_conv3'], int)) and \
+                (not isinstance(kwargs['filters_for_conv3'], np.int32)) and \
+                (not isinstance(kwargs['filters_for_conv3'], np.uint32)):
+            raise ValueError('`filters_for_conv3` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(3), type(kwargs['filters_for_conv3'])))
+        if kwargs['filters_for_conv3'] < 0:
+            raise ValueError('`filters_for_conv3` is wrong! Expected a non-negative integer value, '
+                             'but {0} is not positive.'.format(kwargs['filters_for_conv3']))
+        if 'filters_for_conv4' not in kwargs:
+            raise ValueError('`filters_for_conv4` is not specified!')
+        if (not isinstance(kwargs['filters_for_conv4'], int)) and \
+                (not isinstance(kwargs['filters_for_conv4'], np.int32)) and \
+                (not isinstance(kwargs['filters_for_conv4'], np.uint32)):
+            raise ValueError('`filters_for_conv4` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(3), type(kwargs['filters_for_conv4'])))
+        if kwargs['filters_for_conv4'] < 0:
+            raise ValueError('`filters_for_conv4` is wrong! Expected a non-negative integer value, '
+                             'but {0} is not positive.'.format(kwargs['filters_for_conv4']))
+        if 'filters_for_conv5' not in kwargs:
+            raise ValueError('`filters_for_conv5` is not specified!')
+        if (not isinstance(kwargs['filters_for_conv5'], int)) and \
+                (not isinstance(kwargs['filters_for_conv5'], np.int32)) and \
+                (not isinstance(kwargs['filters_for_conv5'], np.uint32)):
+            raise ValueError('`filters_for_conv5` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(3), type(kwargs['filters_for_conv5'])))
+        if kwargs['filters_for_conv5'] < 0:
+            raise ValueError('`filters_for_conv5` is wrong! Expected a non-negative integer value, '
+                             'but {0} is not positive.'.format(kwargs['filters_for_conv5']))
+        if (kwargs['filters_for_conv1'] == 0) and (kwargs['filters_for_conv2'] == 0) and \
+                (kwargs['filters_for_conv3'] == 0) and (kwargs['filters_for_conv4'] == 0) and \
+                (kwargs['filters_for_conv5'] == 0):
+            raise ValueError('Number of convolution filters for all kernel sizes is zero!')
 
     @staticmethod
-    def check_X(X: Union[list, tuple, np.array], X_name: str):
+    def check_X(X: Union[list, tuple, np.ndarray], X_name: str):
         if (not hasattr(X, '__len__')) or (not hasattr(X, '__getitem__')):
             raise ValueError('`{0}` is wrong, because it is not a list-like object!'.format(X_name))
         if isinstance(X, np.ndarray):
@@ -1094,8 +1180,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     idx, X_name))
 
     @staticmethod
-    def check_Xy(X: Union[list, tuple, np.array], X_name: str,
-                 y: Union[list, tuple, np.array], y_name: str, multioutput: bool=False) -> List[int]:
+    def check_Xy(X: Union[list, tuple, np.ndarray], X_name: str,
+                 y: Union[list, tuple, np.ndarray], y_name: str, multioutput: bool=False) -> List[int]:
         ImpatialTextClassifier.check_X(X, X_name)
         if (not hasattr(y, '__len__')) or (not hasattr(y, '__getitem__')):
             raise ValueError('`{0}` is wrong, because it is not a list-like object!'.format(y_name))
@@ -1141,7 +1227,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         return sorted(list(classes_list))
 
     @staticmethod
-    def train_test_split(y: Union[list, tuple, np.array], test_part: float) -> Tuple[np.ndarray, np.ndarray]:
+    def train_test_split(y: Union[list, tuple, np.ndarray], test_part: float) -> Tuple[np.ndarray, np.ndarray]:
         n = len(y)
         n_test = int(round(n * test_part))
         if n_test < 1:
@@ -1215,9 +1301,11 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         return indices[n_test:], indices[:n_test]
 
     @staticmethod
-    def calculate_pi_value(batch_idx: int, n_batches: int) -> float:
-        if batch_idx > n_batches:
-            res = -float(n_batches)
+    def calculate_pi_value(epoch: float, n_epochs: int, init_value: float, fin_value: float) -> float:
+        if epoch > n_epochs:
+            res = -float(n_epochs)
         else:
-            res = float(n_batches - batch_idx) - float(n_batches)
-        return np.power(2.0, res)
+            res = -epoch
+        res = np.power(2.0, res)
+        return (res - np.power(2.0, -1.0)) / (np.power(2.0, float(-n_epochs)) - np.power(2.0, -1.0)) * \
+               (fin_value - init_value) + init_value

@@ -1,0 +1,18 @@
+{
+  "SearchScreeningEvent": [
+    {
+      "data": [
+        {
+          "text": "Is "
+        },
+        {
+          "text": "Babar: King of the Elephants",
+          "entity": "movie_name"
+        },
+        {
+          "text": " playing "
+        }
+      ]
+    }
+  ]
+}

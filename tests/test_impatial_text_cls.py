@@ -32,7 +32,11 @@ class TestClassifier(unittest.TestCase):
     def test_creation(self):
         self.cls = ImpatialTextClassifier()
         self.assertIsInstance(self.cls, ImpatialTextClassifier)
-        self.assertTrue(hasattr(self.cls, 'hidden_layer_sizes'))
+        self.assertTrue(hasattr(self.cls, 'filters_for_conv1'))
+        self.assertTrue(hasattr(self.cls, 'filters_for_conv2'))
+        self.assertTrue(hasattr(self.cls, 'filters_for_conv3'))
+        self.assertTrue(hasattr(self.cls, 'filters_for_conv4'))
+        self.assertTrue(hasattr(self.cls, 'filters_for_conv5'))
         self.assertTrue(hasattr(self.cls, 'batch_size'))
         self.assertTrue(hasattr(self.cls, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(self.cls, 'max_epochs'))
@@ -43,7 +47,12 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.cls, 'verbose'))
         self.assertTrue(hasattr(self.cls, 'multioutput'))
         self.assertTrue(hasattr(self.cls, 'num_monte_carlo'))
-        self.assertIsInstance(self.cls.hidden_layer_sizes, tuple)
+        self.assertTrue(hasattr(self.cls, 'bayesian'))
+        self.assertIsInstance(self.cls.filters_for_conv1, int)
+        self.assertIsInstance(self.cls.filters_for_conv2, int)
+        self.assertIsInstance(self.cls.filters_for_conv3, int)
+        self.assertIsInstance(self.cls.filters_for_conv4, int)
+        self.assertIsInstance(self.cls.filters_for_conv5, int)
         self.assertIsInstance(self.cls.batch_size, int)
         self.assertIsInstance(self.cls.bert_hub_module_handle, str)
         self.assertIsInstance(self.cls.max_epochs, int)
@@ -54,12 +63,14 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(self.cls.verbose, bool)
         self.assertIsInstance(self.cls.multioutput, bool)
         self.assertIsInstance(self.cls.num_monte_carlo, int)
+        self.assertIsInstance(self.cls.bayesian, bool)
 
     def test_check_params_positive(self):
         ImpatialTextClassifier.check_params(
             bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-            hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
-            patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
+            filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+            filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
+            patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True
         )
         self.assertTrue(True)
 
@@ -67,8 +78,9 @@ class TestClassifier(unittest.TestCase):
         true_err_msg = re.escape('`bert_hub_module_handle` is not specified!')
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
-                hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
+                patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative002(self):
@@ -77,8 +89,9 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle=1,
-                hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
+                patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative003(self):
@@ -86,8 +99,9 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, 50), num_monte_carlo=100, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=100, validation_fraction=0.0, max_epochs=10, patience=3,
+                gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative004(self):
@@ -96,8 +110,9 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size='32', validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size='32', validation_fraction=0.0, max_epochs=10,
+                patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative005(self):
@@ -105,8 +120,9 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=-3, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size=-3, validation_fraction=0.0, max_epochs=10,
+                patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative006(self):
@@ -114,8 +130,9 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, patience=3,
+                gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative007(self):
@@ -124,8 +141,9 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs='10', patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs='10',
+                patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative008(self):
@@ -133,8 +151,9 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=-3, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
+                filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10, filters_for_conv5=10,
+                num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=-3, patience=3,
+                gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative009(self):
@@ -142,8 +161,9 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
+                gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative010(self):
@@ -152,8 +172,9 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience='3', gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
+                patience='3', gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative011(self):
@@ -161,8 +182,9 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=-3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
+                patience=-3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative012(self):
@@ -170,8 +192,9 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, 50), batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, batch_size=32, validation_fraction=0.0, max_epochs=10, patience=3,
+                gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative013(self):
@@ -180,8 +203,9 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, 50), num_monte_carlo='100', batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo='100', batch_size=32, validation_fraction=0.0, max_epochs=10,
+                patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative014(self):
@@ -190,8 +214,9 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, 50), num_monte_carlo=0, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=0, batch_size=32, validation_fraction=0.0, max_epochs=10,
+                patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative015(self):
@@ -199,8 +224,9 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, max_epochs=10, patience=3,
+                gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative016(self):
@@ -209,8 +235,9 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction='0.1',
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction='0.1', max_epochs=10,
+                patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative017(self):
@@ -219,8 +246,9 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=-0.1,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=-0.1, max_epochs=10,
+                patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative018(self):
@@ -229,8 +257,9 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=1.1,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=1.1, max_epochs=10,
+                patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative019(self):
@@ -238,8 +267,9 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, verbose=False, random_seed=42, multioutput=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
+                patience=3, verbose=False, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative020(self):
@@ -248,8 +278,9 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac='1.0', verbose=False, random_seed=42, multioutput=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
+                patience=3, gpu_memory_frac='1.0', verbose=False, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative021(self):
@@ -258,8 +289,9 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=-1.0, verbose=False, random_seed=42, multioutput=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
+                patience=3, gpu_memory_frac=-1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative022(self):
@@ -268,8 +300,9 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=1.3, verbose=False, random_seed=42, multioutput=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
+                patience=3, gpu_memory_frac=1.3, verbose=False, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative023(self):
@@ -277,74 +310,39 @@ class TestClassifier(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, random_seed=42, multioutput=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
+                patience=3, gpu_memory_frac=1.0, random_seed=42, multioutput=False, bayesian=True
             )
 
     def test_check_params_negative024(self):
-        true_err_msg = re.escape('`hidden_layer_sizes` is not specified!')
-        with self.assertRaisesRegex(ValueError, true_err_msg):
-            ImpatialTextClassifier.check_params(
-                bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, verbose=False, random_seed=42, gpu_memory_frac=1.0, multioutput=False
-            )
-
-    def test_check_params_negative025(self):
-        true_err_msg = re.escape('`hidden_layer_sizes` is wrong! Expected `{0}`, got `{1}`.'.format(
-            type((3, 5)), type('3')))
-        with self.assertRaisesRegex(ValueError, true_err_msg):
-            ImpatialTextClassifier.check_params(
-                bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes='(100, 50)', num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, verbose=False, random_seed=42, gpu_memory_frac=1.0, multioutput=False
-            )
-
-    def test_check_params_negative026(self):
-        true_err_msg = re.escape('`hidden_layer_sizes` is wrong! Expected 1d array, but got 2d one.')
-        with self.assertRaisesRegex(ValueError, true_err_msg):
-            ImpatialTextClassifier.check_params(
-                bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=np.array([[100, 50], [200, 130]], dtype=np.int32), num_monte_carlo=100,
-                batch_size=32, validation_fraction=0.0, max_epochs=10, patience=3, verbose=False, random_seed=42,
-                gpu_memory_frac=1.0, multioutput=False
-            )
-
-    def test_check_params_negative027(self):
-        true_err_msg = re.escape('`hidden_layer_sizes` is wrong! It is empty.')
-        with self.assertRaisesRegex(ValueError, true_err_msg):
-            ImpatialTextClassifier.check_params(
-                bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=[], num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, verbose=False, random_seed=42, gpu_memory_frac=1.0, multioutput=False
-            )
-
-    def test_check_params_negative028(self):
-        true_err_msg = re.escape('Item 1 of `hidden_layer_sizes` is wrong! Expected `{0}`, got `{1}`.'.format(
-            type(1), type('1')))
-        with self.assertRaisesRegex(ValueError, true_err_msg):
-            ImpatialTextClassifier.check_params(
-                bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, '50'), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, verbose=False, random_seed=42, gpu_memory_frac=1.0, multioutput=False
-            )
-
-    def test_check_params_negative029(self):
-        true_err_msg = re.escape('Item 1 of `hidden_layer_sizes` is wrong! Expected a positive value, got -50.')
-        with self.assertRaisesRegex(ValueError, true_err_msg):
-            ImpatialTextClassifier.check_params(
-                bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, -50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, verbose=False, random_seed=42, gpu_memory_frac=1.0, multioutput=False
-            )
-
-    def test_check_params_negative030(self):
         true_err_msg = re.escape('`multioutput` is not specified!')
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                hidden_layer_sizes=(100, 50), num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_epochs=10, patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
+                patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, bayesian=True
+            )
+
+    def test_check_params_negative025(self):
+        true_err_msg = re.escape('Number of convolution filters for all kernel sizes is zero!')
+        with self.assertRaisesRegex(ValueError, true_err_msg):
+            ImpatialTextClassifier.check_params(
+                bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
+                filters_for_conv1=0, filters_for_conv2=0, filters_for_conv3=0, filters_for_conv4=0,
+                filters_for_conv5=0, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
+                patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=False, bayesian=True
+            )
+
+    def test_check_params_negative026(self):
+        true_err_msg = re.escape('`bayesian` is not specified!')
+        with self.assertRaisesRegex(ValueError, true_err_msg):
+            ImpatialTextClassifier.check_params(
+                bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
+                patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=True
             )
 
     def test_check_X_positive(self):
@@ -571,7 +569,11 @@ class TestClassifier(unittest.TestCase):
 
     def test_serialize_positive01(self):
         self.cls = ImpatialTextClassifier(random_seed=31)
-        old_hidden_layer_sizes = self.cls.hidden_layer_sizes
+        old_filters_for_conv1 = self.cls.filters_for_conv1
+        old_filters_for_conv2 = self.cls.filters_for_conv2
+        old_filters_for_conv3 = self.cls.filters_for_conv3
+        old_filters_for_conv4 = self.cls.filters_for_conv4
+        old_filters_for_conv5 = self.cls.filters_for_conv5
         old_num_monte_carlo = self.cls.num_monte_carlo
         old_batch_size = self.cls.batch_size
         old_bert_hub_module_handle = self.cls.bert_hub_module_handle
@@ -582,6 +584,7 @@ class TestClassifier(unittest.TestCase):
         old_validation_fraction = self.cls.validation_fraction
         old_verbose = self.cls.verbose
         old_multioutput = self.cls.multioutput
+        old_bayesian = self.cls.bayesian
         self.temp_file_name = tempfile.NamedTemporaryFile().name
         with open(self.temp_file_name, mode='wb') as fp:
             pickle.dump(self.cls, fp)
@@ -599,11 +602,20 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.cls, 'validation_fraction'))
         self.assertTrue(hasattr(self.cls, 'verbose'))
         self.assertTrue(hasattr(self.cls, 'multioutput'))
-        self.assertTrue(hasattr(self.cls, 'hidden_layer_sizes'))
+        self.assertTrue(hasattr(self.cls, 'filters_for_conv1'))
+        self.assertTrue(hasattr(self.cls, 'filters_for_conv2'))
+        self.assertTrue(hasattr(self.cls, 'filters_for_conv3'))
+        self.assertTrue(hasattr(self.cls, 'filters_for_conv4'))
+        self.assertTrue(hasattr(self.cls, 'filters_for_conv5'))
         self.assertTrue(hasattr(self.cls, 'num_monte_carlo'))
+        self.assertTrue(hasattr(self.cls, 'bayesian'))
         self.assertEqual(self.cls.batch_size, old_batch_size)
         self.assertEqual(self.cls.num_monte_carlo, old_num_monte_carlo)
-        self.assertAlmostEqual(self.cls.hidden_layer_sizes, old_hidden_layer_sizes)
+        self.assertAlmostEqual(self.cls.filters_for_conv1, old_filters_for_conv1)
+        self.assertAlmostEqual(self.cls.filters_for_conv2, old_filters_for_conv2)
+        self.assertAlmostEqual(self.cls.filters_for_conv3, old_filters_for_conv3)
+        self.assertAlmostEqual(self.cls.filters_for_conv4, old_filters_for_conv4)
+        self.assertAlmostEqual(self.cls.filters_for_conv5, old_filters_for_conv5)
         self.assertEqual(self.cls.bert_hub_module_handle, old_bert_hub_module_handle)
         self.assertEqual(self.cls.max_epochs, old_max_epochs)
         self.assertEqual(self.cls.patience, old_patience)
@@ -611,6 +623,7 @@ class TestClassifier(unittest.TestCase):
         self.assertAlmostEqual(self.cls.validation_fraction, old_validation_fraction)
         self.assertEqual(self.cls.verbose, old_verbose)
         self.assertEqual(self.cls.multioutput, old_multioutput)
+        self.assertEqual(self.cls.bayesian, old_bayesian)
         self.assertEqual(self.cls.random_seed, old_random_seed)
 
     def test_serialize_positive02(self):
@@ -682,7 +695,11 @@ class TestClassifier(unittest.TestCase):
         ]
         valid_labels = [0, 0, 1, 1, 2, 2, 4, -1, -1, -1]
         self.cls = ImpatialTextClassifier(random_seed=31, batch_size=4, validation_fraction=0.0, verbose=True)
-        old_hidden_layer_sizes = self.cls.hidden_layer_sizes
+        old_filters_for_conv1 = self.cls.filters_for_conv1
+        old_filters_for_conv2 = self.cls.filters_for_conv2
+        old_filters_for_conv3 = self.cls.filters_for_conv3
+        old_filters_for_conv4 = self.cls.filters_for_conv4
+        old_filters_for_conv5 = self.cls.filters_for_conv5
         old_num_monte_carlo = self.cls.num_monte_carlo
         old_batch_size = self.cls.batch_size
         old_bert_hub_module_handle = self.cls.bert_hub_module_handle
@@ -693,6 +710,7 @@ class TestClassifier(unittest.TestCase):
         old_validation_fraction = self.cls.validation_fraction
         old_verbose = self.cls.verbose
         old_multioutput = self.cls.multioutput
+        old_bayesian = self.cls.bayesian
         self.cls.fit(train_texts, train_labels)
         old_certainty_threshold = self.cls.certainty_threshold_
         old_y = self.cls.predict(valid_texts)
@@ -716,11 +734,20 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.cls, 'validation_fraction'))
         self.assertTrue(hasattr(self.cls, 'verbose'))
         self.assertTrue(hasattr(self.cls, 'multioutput'))
-        self.assertTrue(hasattr(self.cls, 'hidden_layer_sizes'))
+        self.assertTrue(hasattr(self.cls, 'bayesian'))
+        self.assertTrue(hasattr(self.cls, 'filters_for_conv1'))
+        self.assertTrue(hasattr(self.cls, 'filters_for_conv2'))
+        self.assertTrue(hasattr(self.cls, 'filters_for_conv3'))
+        self.assertTrue(hasattr(self.cls, 'filters_for_conv4'))
+        self.assertTrue(hasattr(self.cls, 'filters_for_conv5'))
         self.assertTrue(hasattr(self.cls, 'num_monte_carlo'))
         self.assertEqual(self.cls.batch_size, old_batch_size)
         self.assertEqual(self.cls.num_monte_carlo, old_num_monte_carlo)
-        self.assertAlmostEqual(self.cls.hidden_layer_sizes, old_hidden_layer_sizes)
+        self.assertAlmostEqual(self.cls.filters_for_conv1, old_filters_for_conv1)
+        self.assertAlmostEqual(self.cls.filters_for_conv2, old_filters_for_conv2)
+        self.assertAlmostEqual(self.cls.filters_for_conv3, old_filters_for_conv3)
+        self.assertAlmostEqual(self.cls.filters_for_conv4, old_filters_for_conv4)
+        self.assertAlmostEqual(self.cls.filters_for_conv5, old_filters_for_conv5)
         self.assertEqual(self.cls.bert_hub_module_handle, old_bert_hub_module_handle)
         self.assertEqual(self.cls.max_epochs, old_max_epochs)
         self.assertEqual(self.cls.patience, old_patience)
@@ -728,17 +755,12 @@ class TestClassifier(unittest.TestCase):
         self.assertAlmostEqual(self.cls.validation_fraction, old_validation_fraction)
         self.assertEqual(self.cls.verbose, old_verbose)
         self.assertEqual(self.cls.multioutput, old_multioutput)
+        self.assertEqual(self.cls.bayesian, old_bayesian)
         self.assertEqual(self.cls.random_seed, old_random_seed)
         self.assertTrue(hasattr(self.cls, 'tokenizer_'))
         self.assertTrue(hasattr(self.cls, 'n_classes_'))
         self.assertTrue(hasattr(self.cls, 'sess_'))
         self.assertTrue(hasattr(self.cls, 'certainty_threshold_'))
-        self.assertTrue(hasattr(self.cls, 'logits_'))
-        self.assertTrue(hasattr(self.cls, 'labels_distribution_'))
-        self.assertTrue(hasattr(self.cls, 'input_ids_'))
-        self.assertTrue(hasattr(self.cls, 'input_mask_'))
-        self.assertTrue(hasattr(self.cls, 'segment_ids_'))
-        self.assertTrue(hasattr(self.cls, 'y_ph_'))
         self.assertIsInstance(self.cls.tokenizer_, FullTokenizer)
         self.assertIsInstance(self.cls.n_classes_, int)
         self.assertIsInstance(self.cls.certainty_threshold_, float)
@@ -758,7 +780,11 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(self.another_cls, ImpatialTextClassifier)
         self.assertIsNot(self.cls, self.another_cls)
         self.assertTrue(hasattr(self.another_cls, 'batch_size'))
-        self.assertTrue(hasattr(self.another_cls, 'hidden_layer_sizes'))
+        self.assertTrue(hasattr(self.another_cls, 'filters_for_conv1'))
+        self.assertTrue(hasattr(self.another_cls, 'filters_for_conv2'))
+        self.assertTrue(hasattr(self.another_cls, 'filters_for_conv3'))
+        self.assertTrue(hasattr(self.another_cls, 'filters_for_conv4'))
+        self.assertTrue(hasattr(self.another_cls, 'filters_for_conv5'))
         self.assertTrue(hasattr(self.another_cls, 'num_monte_carlo'))
         self.assertTrue(hasattr(self.another_cls, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(self.another_cls, 'max_epochs'))
@@ -768,9 +794,14 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.another_cls, 'validation_fraction'))
         self.assertTrue(hasattr(self.another_cls, 'verbose'))
         self.assertTrue(hasattr(self.another_cls, 'multioutput'))
+        self.assertTrue(hasattr(self.another_cls, 'bayesian'))
         self.assertEqual(self.cls.batch_size, self.another_cls.batch_size)
         self.assertEqual(self.cls.num_monte_carlo, self.another_cls.num_monte_carlo)
-        self.assertAlmostEqual(self.cls.hidden_layer_sizes, self.another_cls.hidden_layer_sizes)
+        self.assertAlmostEqual(self.cls.filters_for_conv1, self.another_cls.filters_for_conv1)
+        self.assertAlmostEqual(self.cls.filters_for_conv2, self.another_cls.filters_for_conv2)
+        self.assertAlmostEqual(self.cls.filters_for_conv3, self.another_cls.filters_for_conv3)
+        self.assertAlmostEqual(self.cls.filters_for_conv4, self.another_cls.filters_for_conv4)
+        self.assertAlmostEqual(self.cls.filters_for_conv5, self.another_cls.filters_for_conv5)
         self.assertEqual(self.cls.bert_hub_module_handle, self.another_cls.bert_hub_module_handle)
         self.assertEqual(self.cls.max_epochs, self.another_cls.max_epochs)
         self.assertEqual(self.cls.patience, self.another_cls.patience)
@@ -779,6 +810,7 @@ class TestClassifier(unittest.TestCase):
         self.assertAlmostEqual(self.cls.validation_fraction, self.another_cls.validation_fraction)
         self.assertEqual(self.cls.verbose, self.another_cls.verbose)
         self.assertEqual(self.cls.multioutput, self.another_cls.multioutput)
+        self.assertEqual(self.cls.bayesian, self.another_cls.bayesian)
 
     def test_copy_positive02(self):
         train_texts = [
@@ -854,7 +886,11 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(self.another_cls, ImpatialTextClassifier)
         self.assertIsNot(self.cls, self.another_cls)
         self.assertTrue(hasattr(self.another_cls, 'batch_size'))
-        self.assertTrue(hasattr(self.another_cls, 'hidden_layer_sizes'))
+        self.assertTrue(hasattr(self.another_cls, 'filters_for_conv1'))
+        self.assertTrue(hasattr(self.another_cls, 'filters_for_conv2'))
+        self.assertTrue(hasattr(self.another_cls, 'filters_for_conv3'))
+        self.assertTrue(hasattr(self.another_cls, 'filters_for_conv4'))
+        self.assertTrue(hasattr(self.another_cls, 'filters_for_conv5'))
         self.assertTrue(hasattr(self.another_cls, 'num_monte_carlo'))
         self.assertTrue(hasattr(self.another_cls, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(self.another_cls, 'max_epochs'))
@@ -864,19 +900,18 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.another_cls, 'validation_fraction'))
         self.assertTrue(hasattr(self.another_cls, 'verbose'))
         self.assertTrue(hasattr(self.another_cls, 'multioutput'))
+        self.assertTrue(hasattr(self.another_cls, 'bayesian'))
         self.assertTrue(hasattr(self.another_cls, 'tokenizer_'))
         self.assertTrue(hasattr(self.another_cls, 'n_classes_'))
         self.assertTrue(hasattr(self.another_cls, 'sess_'))
         self.assertTrue(hasattr(self.another_cls, 'certainty_threshold_'))
-        self.assertTrue(hasattr(self.another_cls, 'logits_'))
-        self.assertTrue(hasattr(self.another_cls, 'labels_distribution_'))
-        self.assertTrue(hasattr(self.another_cls, 'input_ids_'))
-        self.assertTrue(hasattr(self.another_cls, 'input_mask_'))
-        self.assertTrue(hasattr(self.another_cls, 'segment_ids_'))
-        self.assertTrue(hasattr(self.another_cls, 'y_ph_'))
         self.assertEqual(self.cls.batch_size, self.another_cls.batch_size)
         self.assertEqual(self.cls.num_monte_carlo, self.another_cls.num_monte_carlo)
-        self.assertAlmostEqual(self.cls.hidden_layer_sizes, self.another_cls.hidden_layer_sizes)
+        self.assertAlmostEqual(self.cls.filters_for_conv1, self.another_cls.filters_for_conv1)
+        self.assertAlmostEqual(self.cls.filters_for_conv2, self.another_cls.filters_for_conv2)
+        self.assertAlmostEqual(self.cls.filters_for_conv3, self.another_cls.filters_for_conv3)
+        self.assertAlmostEqual(self.cls.filters_for_conv4, self.another_cls.filters_for_conv4)
+        self.assertAlmostEqual(self.cls.filters_for_conv5, self.another_cls.filters_for_conv5)
         self.assertEqual(self.cls.bert_hub_module_handle, self.another_cls.bert_hub_module_handle)
         self.assertEqual(self.cls.max_epochs, self.another_cls.max_epochs)
         self.assertEqual(self.cls.patience, self.another_cls.patience)
@@ -885,6 +920,7 @@ class TestClassifier(unittest.TestCase):
         self.assertAlmostEqual(self.cls.validation_fraction, self.another_cls.validation_fraction)
         self.assertEqual(self.cls.verbose, self.another_cls.verbose)
         self.assertEqual(self.cls.multioutput, self.another_cls.multioutput)
+        self.assertEqual(self.cls.bayesian, self.another_cls.bayesian)
         self.assertAlmostEqual(self.cls.certainty_threshold_, self.another_cls.certainty_threshold_, places=9)
         self.assertEqual(self.cls.n_classes_, self.another_cls.n_classes_)
         y_pred = self.cls.predict(valid_texts)
@@ -965,7 +1001,11 @@ class TestClassifier(unittest.TestCase):
         self.cls = ImpatialTextClassifier(batch_size=4, verbose=True)
         res = self.cls.fit(train_texts, train_labels, validation_data=(valid_texts, valid_labels))
         self.assertIsInstance(res, ImpatialTextClassifier)
-        self.assertTrue(hasattr(res, 'hidden_layer_sizes'))
+        self.assertTrue(hasattr(res, 'filters_for_conv1'))
+        self.assertTrue(hasattr(res, 'filters_for_conv2'))
+        self.assertTrue(hasattr(res, 'filters_for_conv3'))
+        self.assertTrue(hasattr(res, 'filters_for_conv4'))
+        self.assertTrue(hasattr(res, 'filters_for_conv5'))
         self.assertTrue(hasattr(res, 'batch_size'))
         self.assertTrue(hasattr(res, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(res, 'max_epochs'))
@@ -975,8 +1015,13 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(res, 'validation_fraction'))
         self.assertTrue(hasattr(res, 'verbose'))
         self.assertTrue(hasattr(res, 'multioutput'))
+        self.assertTrue(hasattr(res, 'bayesian'))
         self.assertTrue(hasattr(res, 'num_monte_carlo'))
-        self.assertIsInstance(res.hidden_layer_sizes, tuple)
+        self.assertIsInstance(res.filters_for_conv1, int)
+        self.assertIsInstance(res.filters_for_conv2, int)
+        self.assertIsInstance(res.filters_for_conv3, int)
+        self.assertIsInstance(res.filters_for_conv4, int)
+        self.assertIsInstance(res.filters_for_conv5, int)
         self.assertIsInstance(res.batch_size, int)
         self.assertIsInstance(res.bert_hub_module_handle, str)
         self.assertIsInstance(res.max_epochs, int)
@@ -986,17 +1031,12 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.validation_fraction, float)
         self.assertIsInstance(res.verbose, bool)
         self.assertIsInstance(res.multioutput, bool)
+        self.assertIsInstance(res.bayesian, bool)
         self.assertIsInstance(res.num_monte_carlo, int)
         self.assertTrue(hasattr(res, 'tokenizer_'))
         self.assertTrue(hasattr(res, 'n_classes_'))
         self.assertTrue(hasattr(res, 'sess_'))
         self.assertTrue(hasattr(res, 'certainty_threshold_'))
-        self.assertTrue(hasattr(res, 'logits_'))
-        self.assertTrue(hasattr(res, 'labels_distribution_'))
-        self.assertTrue(hasattr(res, 'input_ids_'))
-        self.assertTrue(hasattr(res, 'input_mask_'))
-        self.assertTrue(hasattr(res, 'segment_ids_'))
-        self.assertTrue(hasattr(res, 'y_ph_'))
         self.assertIsInstance(res.tokenizer_, FullTokenizer)
         self.assertIsInstance(res.n_classes_, int)
         self.assertIsInstance(res.certainty_threshold_, float)
@@ -1109,10 +1149,16 @@ class TestClassifier(unittest.TestCase):
             dtype=np.str
         )
         valid_labels = np.array([0, 0, 1, 1, 2, 2, 4, -1, -1, -1], dtype=np.int32)
-        self.cls = ImpatialTextClassifier(validation_fraction=0.2, batch_size=4, verbose=True)
+        self.cls = ImpatialTextClassifier(validation_fraction=0.2, batch_size=4, verbose=True, filters_for_conv1=10,
+                                          filters_for_conv2=20, filters_for_conv3=5, filters_for_conv4=0,
+                                          filters_for_conv5=0, bayesian=False)
         res = self.cls.fit(train_texts, train_labels)
         self.assertIsInstance(res, ImpatialTextClassifier)
-        self.assertTrue(hasattr(res, 'hidden_layer_sizes'))
+        self.assertTrue(hasattr(res, 'filters_for_conv1'))
+        self.assertTrue(hasattr(res, 'filters_for_conv2'))
+        self.assertTrue(hasattr(res, 'filters_for_conv3'))
+        self.assertTrue(hasattr(res, 'filters_for_conv4'))
+        self.assertTrue(hasattr(res, 'filters_for_conv5'))
         self.assertTrue(hasattr(res, 'batch_size'))
         self.assertTrue(hasattr(res, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(res, 'max_epochs'))
@@ -1123,7 +1169,12 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(res, 'verbose'))
         self.assertTrue(hasattr(res, 'num_monte_carlo'))
         self.assertTrue(hasattr(res, 'multioutput'))
-        self.assertIsInstance(res.hidden_layer_sizes, tuple)
+        self.assertTrue(hasattr(res, 'bayesian'))
+        self.assertIsInstance(res.filters_for_conv1, int)
+        self.assertIsInstance(res.filters_for_conv2, int)
+        self.assertIsInstance(res.filters_for_conv3, int)
+        self.assertIsInstance(res.filters_for_conv4, int)
+        self.assertIsInstance(res.filters_for_conv5, int)
         self.assertIsInstance(res.batch_size, int)
         self.assertIsInstance(res.bert_hub_module_handle, str)
         self.assertIsInstance(res.max_epochs, int)
@@ -1132,18 +1183,13 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.gpu_memory_frac, float)
         self.assertIsInstance(res.validation_fraction, float)
         self.assertIsInstance(res.verbose, bool)
+        self.assertIsInstance(res.bayesian, bool)
         self.assertIsInstance(res.multioutput, bool)
         self.assertIsInstance(res.num_monte_carlo, int)
         self.assertTrue(hasattr(res, 'tokenizer_'))
         self.assertTrue(hasattr(res, 'n_classes_'))
         self.assertTrue(hasattr(res, 'sess_'))
         self.assertTrue(hasattr(res, 'certainty_threshold_'))
-        self.assertTrue(hasattr(res, 'logits_'))
-        self.assertTrue(hasattr(res, 'labels_distribution_'))
-        self.assertTrue(hasattr(res, 'input_ids_'))
-        self.assertTrue(hasattr(res, 'input_mask_'))
-        self.assertTrue(hasattr(res, 'segment_ids_'))
-        self.assertTrue(hasattr(res, 'y_ph_'))
         self.assertIsInstance(res.tokenizer_, FullTokenizer)
         self.assertIsInstance(res.n_classes_, int)
         self.assertIsInstance(res.certainty_threshold_, float)
@@ -1252,7 +1298,11 @@ class TestClassifier(unittest.TestCase):
         self.cls = ImpatialTextClassifier(batch_size=4, verbose=True, multioutput=True)
         res = self.cls.fit(train_texts, train_labels, validation_data=(valid_texts, valid_labels))
         self.assertIsInstance(res, ImpatialTextClassifier)
-        self.assertTrue(hasattr(res, 'hidden_layer_sizes'))
+        self.assertTrue(hasattr(res, 'filters_for_conv1'))
+        self.assertTrue(hasattr(res, 'filters_for_conv2'))
+        self.assertTrue(hasattr(res, 'filters_for_conv3'))
+        self.assertTrue(hasattr(res, 'filters_for_conv4'))
+        self.assertTrue(hasattr(res, 'filters_for_conv5'))
         self.assertTrue(hasattr(res, 'batch_size'))
         self.assertTrue(hasattr(res, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(res, 'max_epochs'))
@@ -1262,8 +1312,13 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(res, 'validation_fraction'))
         self.assertTrue(hasattr(res, 'verbose'))
         self.assertTrue(hasattr(res, 'multioutput'))
+        self.assertTrue(hasattr(res, 'bayesian'))
         self.assertTrue(hasattr(res, 'num_monte_carlo'))
-        self.assertIsInstance(res.hidden_layer_sizes, tuple)
+        self.assertIsInstance(res.filters_for_conv1, int)
+        self.assertIsInstance(res.filters_for_conv2, int)
+        self.assertIsInstance(res.filters_for_conv3, int)
+        self.assertIsInstance(res.filters_for_conv4, int)
+        self.assertIsInstance(res.filters_for_conv5, int)
         self.assertIsInstance(res.batch_size, int)
         self.assertIsInstance(res.bert_hub_module_handle, str)
         self.assertIsInstance(res.max_epochs, int)
@@ -1273,17 +1328,12 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.validation_fraction, float)
         self.assertIsInstance(res.verbose, bool)
         self.assertIsInstance(res.multioutput, bool)
+        self.assertIsInstance(res.bayesian, bool)
         self.assertIsInstance(res.num_monte_carlo, int)
         self.assertTrue(hasattr(res, 'tokenizer_'))
         self.assertTrue(hasattr(res, 'n_classes_'))
         self.assertTrue(hasattr(res, 'sess_'))
         self.assertTrue(hasattr(res, 'certainty_threshold_'))
-        self.assertTrue(hasattr(res, 'logits_'))
-        self.assertTrue(hasattr(res, 'labels_distribution_'))
-        self.assertTrue(hasattr(res, 'input_ids_'))
-        self.assertTrue(hasattr(res, 'input_mask_'))
-        self.assertTrue(hasattr(res, 'segment_ids_'))
-        self.assertTrue(hasattr(res, 'y_ph_'))
         self.assertIsInstance(res.tokenizer_, FullTokenizer)
         self.assertIsInstance(res.n_classes_, int)
         self.assertIsInstance(res.certainty_threshold_, np.ndarray)
@@ -1724,6 +1774,18 @@ class TestClassifier(unittest.TestCase):
             else:
                 classes_for_testing.add(y[idx])
         self.assertEqual(classes_for_training, classes_for_testing)
+
+    def test_calculate_pi_value_positive01(self):
+        self.assertAlmostEqual(0.025604697, ImpatialTextClassifier.calculate_pi_value(3, 10, 0.1, 0.001), places=6)
+
+    def test_calculate_pi_value_positive02(self):
+        self.assertAlmostEqual(0.007005871, ImpatialTextClassifier.calculate_pi_value(5, 10, 0.1, 0.001), places=6)
+
+    def test_calculate_pi_value_positive03(self):
+        self.assertAlmostEqual(0.001, ImpatialTextClassifier.calculate_pi_value(10, 10, 0.1, 0.001), places=6)
+
+    def test_calculate_pi_value_positive04(self):
+        self.assertAlmostEqual(0.001, ImpatialTextClassifier.calculate_pi_value(13, 10, 0.1, 0.001), places=6)
 
 
 if __name__ == '__main__':

@@ -1,4 +1,6 @@
+import codecs
 import json
+import os
 import tarfile
 from typing import List, Tuple, Union
 
@@ -108,3 +110,93 @@ def read_dstc2_data(archive_name: str, classes_list: Union[None, List[str]]=None
             IDs.append(-1)
     del labels
     return np.array(texts, dtype=object), np.array(IDs, dtype=object), classes
+
+
+def read_snips2017_file(file_name: str) -> List[str]:
+    with codecs.open(file_name, mode='r', encoding='utf-8', errors='ignore') as fp:
+        source_str = ' '.join(
+            list(filter(
+                lambda it: len(it.strip()) > 0,
+                fp.read().replace('\u2060', ' ').replace('\uFEFF', '').split()
+            ))
+        )
+        source_data = json.loads(source_str)
+    if not isinstance(source_data, dict):
+        raise ValueError('Data in the file `{0}` are wrong! Expected `{1}`, got `{2}`'.format(
+            file_name, type({'a': 1, 'b': 2}), type(source_data)))
+    intent_name = os.path.basename(os.path.dirname(file_name))
+    if intent_name not in source_data:
+        raise ValueError('Data in the file `{0}` are wrong! The key `{1}` is expected in the dictionary'.format(
+            file_name, intent_name))
+    samples = source_data[intent_name]
+    if not isinstance(samples, list):
+        raise ValueError('Data in the file `{0}` are wrong! Samples list must be a `{1}`, but it is a `{2}`.'.format(
+            file_name, type([1, 2]), type(samples)))
+    all_texts = []
+    for sample_idx in range(len(samples)):
+        cur_sample = samples[sample_idx]
+        err_msg = 'Data in the file `{0}` are wrong! Sample {1} contains incorrect information!'.format(
+            file_name, sample_idx)
+        if not isinstance(cur_sample, dict):
+            raise ValueError(err_msg)
+        if 'data' not in cur_sample:
+            raise ValueError(err_msg)
+        subtexts = cur_sample['data']
+        if not isinstance(subtexts, list):
+            raise ValueError(err_msg)
+        new_text = ''
+        for cur_subtext in subtexts:
+            if not isinstance(cur_subtext, dict):
+                raise ValueError(err_msg)
+            if not 'text' in cur_subtext:
+                raise ValueError(err_msg)
+            if not isinstance(cur_subtext['text'], str):
+                raise ValueError(err_msg)
+            new_text += cur_subtext['text']
+        all_texts.append(' '.join(new_text.strip().split()))
+    return all_texts
+
+
+def read_snips2017_data(dir_name: str) -> Tuple[Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray],
+                                                Tuple[np.ndarray, np.ndarray], List[str]]:
+    true_intents = {'addtoplaylist', 'bookrestaurant', 'getweather', 'playmusic', 'ratebook', 'searchcreativework',
+                    'searchscreeningevent'}
+    intents = list(filter(lambda it: it.lower() in true_intents, os.listdir(dir_name)))
+    if len(intents) != len(true_intents):
+        raise ValueError('The directory `{0}` does not contain the SNIPS-2017 dataset!'.format(dir_name))
+    subdirs_with_intents = sorted([os.path.join(dir_name, cur) for cur in intents])
+    data_for_training = []
+    labels_for_training = []
+    data_for_validation = []
+    labels_for_validation = []
+    data_for_final_testing = []
+    labels_for_final_testing = []
+    true_intents = sorted(list(true_intents))
+    for cur_subdir in subdirs_with_intents:
+        base_intent_dir = os.path.basename(cur_subdir)
+        intent_idx = true_intents.index(os.path.basename(cur_subdir).lower())
+        if not os.path.isfile(os.path.join(cur_subdir, 'train_{0}.json'.format(base_intent_dir))):
+            raise ValueError('The file `{0}` does not exist!'.format(
+                os.path.join(cur_subdir, 'train_{0}.json'.format(base_intent_dir))))
+        if not os.path.isfile(os.path.join(cur_subdir, 'train_{0}_full.json'.format(base_intent_dir))):
+            raise ValueError('The file `{0}` does not exist!'.format(
+                os.path.join(cur_subdir, 'train_{0}_full.json'.format(base_intent_dir))))
+        if not os.path.isfile(os.path.join(cur_subdir, 'validate_{0}.json'.format(base_intent_dir))):
+            raise ValueError('The file `{0}` does not exist!'.format(
+                os.path.join(cur_subdir, 'validate_{0}.json'.format(base_intent_dir))))
+        texts = read_snips2017_file(os.path.join(cur_subdir, 'train_{0}_full.json'.format(base_intent_dir)))
+        labels = [intent_idx for _ in range(len(texts))]
+        data_for_training += texts
+        labels_for_training += labels
+        texts = read_snips2017_file(os.path.join(cur_subdir, 'train_{0}.json'.format(base_intent_dir)))
+        labels = [intent_idx for _ in range(len(texts))]
+        data_for_validation += texts
+        labels_for_validation += labels
+        texts = read_snips2017_file(os.path.join(cur_subdir, 'validate_{0}.json'.format(base_intent_dir)))
+        labels = [intent_idx for _ in range(len(texts))]
+        data_for_final_testing += texts
+        labels_for_final_testing += labels
+    return (np.array(data_for_training, dtype=object), np.array(labels_for_training, dtype=np.int32)), \
+           (np.array(data_for_validation, dtype=object), np.array(labels_for_validation, dtype=np.int32)), \
+           (np.array(data_for_final_testing, dtype=object), np.array(labels_for_final_testing, dtype=np.int32)), \
+           true_intents
