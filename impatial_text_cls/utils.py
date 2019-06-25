@@ -238,6 +238,8 @@ def read_csv(file_name: str, min_freq: int=0) -> Tuple[np.ndarray, np.ndarray, L
             if isinstance(cur, set):
                 if class_name in cur:
                     classes_distr[class_name] = classes_distr.get(class_name, 0) + 1
+            else:
+                classes_distr[cur] = classes_distr.get(cur, 0) + 1
     set_of_classes = sorted(list(filter(lambda class_name: classes_distr.get(class_name, 0) > min_freq,
                                         classes_distr.keys())))
     if len(set_of_classes) < 2:
