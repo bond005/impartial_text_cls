@@ -203,7 +203,7 @@ def read_snips2017_data(dir_name: str) -> Tuple[Tuple[np.ndarray, np.ndarray], T
            true_intents
 
 
-def read_csv(file_name: str) -> Tuple[np.ndarray, np.ndarray, List[str]]:
+def read_csv(file_name: str, min_freq: int=0) -> Tuple[np.ndarray, np.ndarray, List[str]]:
     texts = []
     labels = []
     line_idx = 1
@@ -230,6 +230,16 @@ def read_csv(file_name: str) -> Tuple[np.ndarray, np.ndarray, List[str]]:
                     labels.append(new_label)
             line_idx += 1
     set_of_classes = sorted(list(set_of_classes))
+    if len(set_of_classes) < 2:
+        raise ValueError('Only single class is represented in the file `{0}`!'.format(file_name))
+    classes_distr = dict()
+    for class_name in set_of_classes:
+        for cur in labels:
+            if isinstance(cur, set):
+                if class_name in cur:
+                    classes_distr[class_name] = classes_distr.get(class_name, 0) + 1
+    set_of_classes = sorted(list(filter(lambda class_name: classes_distr.get(class_name, 0) > min_freq,
+                                        classes_distr.keys())))
     if len(set_of_classes) < 2:
         raise ValueError('Only single class is represented in the file `{0}`!'.format(file_name))
     label_indices = []

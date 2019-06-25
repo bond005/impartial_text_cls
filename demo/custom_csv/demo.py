@@ -290,7 +290,7 @@ def main():
         assert len(unlabeled_texts_for_testing) > 0, 'File `{0}` is empty!'.format(unlabeled_test_data_name)
     else:
         unlabeled_texts_for_testing = None
-    labeled_texts, labels, classes_list = read_csv(labeled_data_name)
+    labeled_texts, labels, classes_list = read_csv(labeled_data_name, 7)
     print('Number of labeled texts is {0}.'.format(len(labeled_texts)))
     print('Number of classes is {0}.'.format(len(classes_list)))
     if any(map(lambda it: isinstance(it, set), labels)):
