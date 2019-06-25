@@ -1301,6 +1301,46 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         return indices[n_test:], indices[:n_test]
 
     @staticmethod
+    def cv_split(y: Union[list, tuple, np.ndarray], cv: int) -> List[Tuple[np.ndarray, np.ndarray]]:
+        if cv < 2:
+            raise ValueError('{0} is too small for the CV parameter!'.format(cv))
+        n = len(y)
+        n_test = n // cv
+        if n_test < 1:
+            raise ValueError('{0} is too large for the CV parameter! Dataset size is {1}.'.format(cv, n))
+        indices = np.arange(0, n, 1, dtype=np.int32)
+        np.random.shuffle(indices)
+        bounds = [(idx * n_test, (idx + 1) * n_test) for idx in range(cv - 1)]
+        bounds.append(((cv - 1) * n_test, n))
+        classes_distr = [set() for _ in range(cv)]
+        for cv_idx in range(cv):
+            for idx in indices[bounds[cv_idx][0]:bounds[cv_idx][1]]:
+                if isinstance(y[idx], set):
+                    classes_distr[cv_idx] |= y[idx]
+                else:
+                    classes_distr[cv_idx].add(y[idx])
+        for restart in range(10):
+            if all(map(lambda it: it == classes_distr[0], classes_distr[1:])):
+                break
+            np.random.shuffle(indices)
+            del classes_distr
+            classes_distr = [set() for _ in range(cv)]
+            for cv_idx in range(cv):
+                for idx in indices[bounds[cv_idx][0]:bounds[cv_idx][1]]:
+                    if isinstance(y[idx], set):
+                        classes_distr[cv_idx] |= y[idx]
+                    else:
+                        classes_distr[cv_idx].add(y[idx])
+        if not all(map(lambda it: it == classes_distr[0], classes_distr[1:])):
+            raise ValueError('Source data cannot be splitted by {0} parts!'.format(cv))
+        cv_indices = []
+        for cv_idx in range(cv):
+            test_index = indices[bounds[cv_idx][0]:bounds[cv_idx][1]]
+            train_index = np.array(sorted(list(set(indices.tolist()) - set(test_index.tolist()))), dtype=np.int32)
+            cv_indices.append((train_index, test_index))
+        return cv_indices
+
+    @staticmethod
     def calculate_pi_value(epoch: float, n_epochs: int, init_value: float, fin_value: float) -> float:
         if epoch > n_epochs:
             res = -float(n_epochs)

@@ -1,4 +1,5 @@
 import codecs
+import csv
 import json
 import os
 import tarfile
@@ -200,3 +201,44 @@ def read_snips2017_data(dir_name: str) -> Tuple[Tuple[np.ndarray, np.ndarray], T
            (np.array(data_for_validation, dtype=object), np.array(labels_for_validation, dtype=np.int32)), \
            (np.array(data_for_final_testing, dtype=object), np.array(labels_for_final_testing, dtype=np.int32)), \
            true_intents
+
+
+def read_csv(file_name: str) -> Tuple[np.ndarray, np.ndarray, List[str]]:
+    texts = []
+    labels = []
+    line_idx = 1
+    set_of_classes = set()
+    with codecs.open(file_name, mode='r', encoding='utf-8', errors='ignore') as fp:
+        reader = csv.reader(fp, quotechar='"', delimiter=',')
+        for row in reader:
+            if len(row) > 0:
+                err_msg = 'File `{0}`: line {1} is wrong!'.format(file_name, line_idx)
+                if len(row) != 2:
+                    raise ValueError(err_msg)
+                new_text = row[0].strip()
+                new_label = row[1].strip()
+                if len(new_label) == 0:
+                    raise ValueError(err_msg)
+                texts.append(new_text)
+                new_label = set(filter(lambda it2: len(it2) > 0, map(lambda it1: it1.strip(), new_label.split(','))))
+                if len(new_label) == 0:
+                    raise ValueError(err_msg)
+                set_of_classes |= new_label
+                if len(new_label) == 1:
+                    labels.append(new_label.pop())
+                else:
+                    labels.append(new_label)
+            line_idx += 1
+    set_of_classes = sorted(list(set_of_classes))
+    if len(set_of_classes) < 2:
+        raise ValueError('Only single class is represented in the file `{0}`!'.format(file_name))
+    label_indices = []
+    multioutput = False
+    for cur in labels:
+        if isinstance(cur, set):
+            label_indices.append(set(map(lambda it: set_of_classes.index(it), cur)))
+            multioutput = True
+        else:
+            label_indices.append(set_of_classes.index(cur))
+    return np.array(texts, dtype=object), np.array(label_indices, dtype=object if multioutput else np.int32), \
+           set_of_classes
