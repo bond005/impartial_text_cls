@@ -1787,6 +1787,36 @@ class TestClassifier(unittest.TestCase):
     def test_calculate_pi_value_positive04(self):
         self.assertAlmostEqual(0.001, ImpatialTextClassifier.calculate_pi_value(13, 10, 0.1, 0.001), places=6)
 
+    def test_cv_split(self):
+        y = np.array([0, 1, 2, {0, 2}, 2, {1, 2}, 1, 1, 0, 1, 0, 0, 2, {1, 2}, 2, 2, 0, 1, {1, 2}, 0, 0, 1, 2, {0, 2},
+                      2, {1, 2}, 1, 1, 0, 1, 0, 0, 2, {1, 2}, 2, 2, 0, 1, {1, 2}, 0], dtype=object)
+        res = ImpatialTextClassifier.cv_split(y, 3)
+        self.assertIsInstance(res, list)
+        self.assertEqual(len(res), 3)
+        all_test_indices = set()
+        for train_index, test_index in res:
+            self.assertIsInstance(train_index, np.ndarray)
+            self.assertIsInstance(test_index, np.ndarray)
+            self.assertEqual(train_index.shape, (10,))
+            self.assertEqual(test_index.shape, (10,))
+            self.assertEqual(train_index.dtype, np.int32)
+            self.assertEqual(test_index.dtype, np.int32)
+            classes_for_training = set()
+            for idx in train_index:
+                if isinstance(y[idx], set):
+                    classes_for_training |= y[idx]
+                else:
+                    classes_for_training.add(y[idx])
+            classes_for_testing = set()
+            for idx in test_index:
+                if isinstance(y[idx], set):
+                    classes_for_testing |= y[idx]
+                else:
+                    classes_for_testing.add(y[idx])
+            self.assertEqual(classes_for_training, classes_for_testing)
+            self.assertTrue(len(set(test_index.tolist()) & all_test_indices) == 0)
+            all_test_indices |= set(test_index.tolist())
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
