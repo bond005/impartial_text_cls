@@ -348,6 +348,53 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(true_texts, loaded_texts.tolist())
         self.assertEqual(true_labels, loaded_labels.tolist())
 
+    def test_read_csv_positive03(self):
+        file_name = os.path.join(os.path.dirname(__file__), 'csv_for_testing2.csv')
+        true_classes = ['Криминал', 'Культура', 'Общество', 'Политика', 'Экономика']
+        true_texts = [
+            'Германия разрешила третий пол.',
+            'Лукашенко объяснил поставки оружия Азербайджану.',
+            'Шакиру уличили в неуплате налогов.',
+            'Люди в масках ворвались на собрание врачей в Киеве и отказались их выпускать.',
+            'Подсчитаны расходы на российскую сверхтяжелую ракету для освоения Луны.',
+            'Популярные актеры дебютируют в короткометражных хоррорах.',
+            'Россия ответила на высылку дипломата из Словакии.',
+            'Российские нефтяники заработали триллионы на фоне бензинового кризиса.',
+            'Google выбрал своего «Человека года».'
+        ]
+        true_labels = [2, {3, 4}, {0, 1}, 0, 4, 1, 3, 4, 2]
+        loaded_texts, loaded_labels, loaded_classes = read_csv(file_name, 1)
+        self.assertIsInstance(loaded_classes, list)
+        self.assertEqual(true_classes, loaded_classes)
+        self.assertIsInstance(loaded_texts, np.ndarray)
+        self.assertIsInstance(loaded_labels, np.ndarray)
+        self.assertEqual(loaded_texts.shape, (len(true_texts),))
+        self.assertEqual(loaded_labels.shape, (len(true_labels),))
+        self.assertEqual(true_texts, loaded_texts.tolist())
+        self.assertEqual(true_labels, loaded_labels.tolist())
+
+    def test_read_csv_positive04(self):
+        file_name = os.path.join(os.path.dirname(__file__), 'csv_for_testing1.csv')
+        true_classes = ['Криминал', 'Политика', 'Спорт']
+        true_texts = [
+            'Испанские клубы открестились от Неймара.',
+            'Семилетняя беженка погибла после задержания на границе США.',
+            'Главная реформа Обамы признана неконституционной.',
+            'Бывший чемпион UFC не выдержал кровопролития и сдался.',
+            'Охранника магазина зарезали из-за трех бутылок водки.',
+            'Лукашенко пожаловался Путину на украинских «отмороженных нацменов».'
+        ]
+        true_labels = [2, 0, 1, 2, 0, 1]
+        loaded_texts, loaded_labels, loaded_classes = read_csv(file_name, 1)
+        self.assertIsInstance(loaded_classes, list)
+        self.assertEqual(true_classes, loaded_classes)
+        self.assertIsInstance(loaded_texts, np.ndarray)
+        self.assertIsInstance(loaded_labels, np.ndarray)
+        self.assertEqual(loaded_texts.shape, (len(true_texts),))
+        self.assertEqual(loaded_labels.shape, (len(true_labels),))
+        self.assertEqual(true_texts, loaded_texts.tolist())
+        self.assertEqual(true_labels, loaded_labels.tolist())
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

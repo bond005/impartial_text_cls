@@ -245,11 +245,20 @@ def read_csv(file_name: str, min_freq: int=0) -> Tuple[np.ndarray, np.ndarray, L
         raise ValueError('Only single class is represented in the file `{0}`!'.format(file_name))
     label_indices = []
     multioutput = False
-    for cur in labels:
+    filtered_texts = []
+    for idx, cur in enumerate(labels):
         if isinstance(cur, set):
-            label_indices.append(set(map(lambda it: set_of_classes.index(it), cur)))
-            multioutput = True
+            new_ = set(map(lambda it2: set_of_classes.index(it2), filter(lambda it1: it1 in set_of_classes, cur)))
+            if len(new_) > 0:
+                if len(new_) > 1:
+                    label_indices.append(new_)
+                    multioutput = True
+                else:
+                    label_indices.append(new_.pop())
+                filtered_texts.append(texts[idx])
         else:
-            label_indices.append(set_of_classes.index(cur))
-    return np.array(texts, dtype=object), np.array(label_indices, dtype=object if multioutput else np.int32), \
+            if cur in set_of_classes:
+                label_indices.append(set_of_classes.index(cur))
+                filtered_texts.append(texts[idx])
+    return np.array(filtered_texts, dtype=object), np.array(label_indices, dtype=object if multioutput else np.int32), \
            set_of_classes
