@@ -29,7 +29,14 @@ def load_unlabeled_texts(file_name: str) -> np.ndarray:
 def print_classes_distribution(y: np.ndarray, classes: List[str]):
     classes_distr = dict()
     for class_idx in range(len(classes)):
-        classes_distr[class_idx] = sum(filter(lambda it: it == class_idx, y))
+        classes_distr[class_idx] = 0
+        for cur in y:
+            if isinstance(cur, set):
+                if class_idx in cur:
+                    classes_distr[class_idx] += 1
+            else:
+                if cur == class_idx:
+                    classes_distr[class_idx] += 1
     number_width = max([len(str(classes_distr[val])) for val in classes_distr.keys()])
     name_width = max([len(cur) for cur in classes])
     print('Distribution of classes in labeled dataset:')
