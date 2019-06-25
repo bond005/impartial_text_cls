@@ -62,25 +62,27 @@ def main():
                                          filters_for_conv4=conv4_, filters_for_conv5=conv5_, multioutput=multioutput,
                                          gpu_memory_frac=gpu_memory_frac, num_monte_carlo=num_monte_carlo,
                                          verbose=False, random_seed=42, max_epochs=100, patience=5)
-            train_index_, val_index = cls.train_test_split(labels[train_index], 0.1)
+            train_texts = labeled_texts[train_index]
+            train_labels = labels[train_index]
+            train_index_, val_index = cls.train_test_split(train_labels, 0.1)
+            val_texts = train_texts[val_index]
+            val_labels = train_labels[val_index]
             if unlabeled_texts_for_training is None:
-                train_texts = labeled_texts[train_index_]
-                train_labels = labels[train_index_]
+                train_texts = train_texts[train_index_]
+                train_labels = train_labels[train_index_]
             else:
                 train_texts = np.concatenate(
                     (
-                        labeled_texts[train_index_],
+                        train_texts[train_index_],
                         unlabeled_texts_for_training
                     )
                 )
                 train_labels = np.concatenate(
                     (
-                        labels[train_index_],
+                        train_labels[train_index_],
                         np.full(shape=(len(unlabeled_texts_for_training),), fill_value=-1, dtype=np.int32)
                     )
                 )
-            val_texts = labeled_texts[val_index]
-            val_labels = labels[val_index]
             cls.fit(train_texts, train_labels, validation_data=(val_texts, val_labels))
             del train_texts, train_labels, val_texts, val_labels, train_index_, val_index
             if unlabeled_texts_for_testing is None:
@@ -128,24 +130,27 @@ def main():
                                          gpu_memory_frac=gpu_memory_frac, num_monte_carlo=num_monte_carlo, verbose=True,
                                          random_seed=42, max_epochs=100, patience=5, multioutput=multioutput)
             train_index_, val_index = cls.train_test_split(labels[train_index], 0.1)
+            train_texts = labeled_texts[train_index]
+            train_labels = labels[train_index]
+            train_index_, val_index = cls.train_test_split(train_labels, 0.1)
+            val_texts = train_texts[val_index]
+            val_labels = train_labels[val_index]
             if unlabeled_texts_for_training is None:
-                train_texts = labeled_texts[train_index_]
-                train_labels = labels[train_index_]
+                train_texts = train_texts[train_index_]
+                train_labels = train_labels[train_index_]
             else:
                 train_texts = np.concatenate(
                     (
-                        labeled_texts[train_index_],
+                        train_texts[train_index_],
                         unlabeled_texts_for_training
                     )
                 )
                 train_labels = np.concatenate(
                     (
-                        labels[train_index_],
+                        train_labels[train_index_],
                         np.full(shape=(len(unlabeled_texts_for_training),), fill_value=-1, dtype=np.int32)
                     )
                 )
-            val_texts = labeled_texts[val_index]
-            val_labels = labels[val_index]
             cls.fit(train_texts, train_labels, validation_data=(val_texts, val_labels))
             print('')
             del train_texts, train_labels, val_texts, val_labels, train_index_, val_index
