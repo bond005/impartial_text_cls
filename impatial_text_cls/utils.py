@@ -220,7 +220,7 @@ def read_csv(file_name: str) -> Tuple[np.ndarray, np.ndarray, List[str]]:
                 if len(new_label) == 0:
                     raise ValueError(err_msg)
                 texts.append(new_text)
-                new_label = set(filter(lambda it2: len(it2) > 0, map(lambda it1: it1.strip(), new_label.split(','))))
+                new_label = set(filter(lambda it2: len(it2) > 0, map(lambda it1: it1.strip(), new_label.split('::'))))
                 if len(new_label) == 0:
                     raise ValueError(err_msg)
                 set_of_classes |= new_label
