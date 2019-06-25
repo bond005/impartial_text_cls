@@ -47,12 +47,12 @@ def print_classes_distribution(y: np.ndarray, classes: List[str]):
 
 def main():
 
-    def func(*args):
+    def func(args):
         conv1_ = int(args[0])
         conv2_ = int(args[1])
         conv3_ = int(args[2])
         conv4_ = int(args[3])
-        conv5_ = int(args[1])
+        conv5_ = int(args[4])
         quality = 0.0
         print('Filters number for different convolution kernels: ({0}, {1}, {2}, {3}, {4})'.format(
             conv1_, conv2_, conv3_, conv4_, conv5_))
@@ -108,12 +108,12 @@ def main():
         print('')
         return -quality
 
-    def score(*args):
+    def score(args):
         conv1_ = int(args[0])
         conv2_ = int(args[1])
         conv3_ = int(args[2])
         conv4_ = int(args[3])
-        conv5_ = int(args[1])
+        conv5_ = int(args[4])
         total_quality = 0.0
         quality_by_classes = [0.0 for _ in range(len(classes_list))]
         n = [0 for _ in range(len(classes_list))]
@@ -215,12 +215,12 @@ def main():
                 print('  {0:>{1}} {2:.6f}'.format(classes_list[class_idx], name_width, quality_by_classes[class_idx]))
         print('')
 
-    def train(*args) -> ImpatialTextClassifier:
+    def train(args) -> ImpatialTextClassifier:
         conv1_ = int(args[0])
         conv2_ = int(args[1])
         conv3_ = int(args[2])
         conv4_ = int(args[3])
-        conv5_ = int(args[1])
+        conv5_ = int(args[4])
         train_index, val_index = ImpatialTextClassifier.train_test_split(labels, 0.1)
         if unlabeled_texts_for_training is None:
             train_texts = labeled_texts[train_index]
