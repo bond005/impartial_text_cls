@@ -1797,8 +1797,9 @@ class TestClassifier(unittest.TestCase):
         for train_index, test_index in res:
             self.assertIsInstance(train_index, np.ndarray)
             self.assertIsInstance(test_index, np.ndarray)
-            self.assertEqual(train_index.shape, (10,))
-            self.assertEqual(test_index.shape, (10,))
+            self.assertEqual(len(train_index.shape), 1)
+            self.assertEqual(len(test_index.shape), 1)
+            self.assertEqual(train_index.shape[0] + test_index.shape[0], len(y))
             self.assertEqual(train_index.dtype, np.int32)
             self.assertEqual(test_index.dtype, np.int32)
             classes_for_training = set()
