@@ -732,7 +732,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             bert_config = BertConfig.from_json_file(os.path.join(path_to_bert, 'bert_config.json'))
             bert_model = BertModel(config=bert_config, is_training=False, input_ids=input_ids, input_mask=input_mask,
                                    token_type_ids=segment_ids, use_one_hot_embeddings=False)
-            sequence_output = bert_model.sequence_output
+            sequence_output = tf.stop_gradient(bert_model.sequence_output, name='BERT_SequenceOutput')
             tvars = tf.trainable_variables()
             init_checkpoint = os.path.join(self.PATH_TO_BERT, 'bert_model.ckpt')
             (assignment_map, initialized_variable_names) = get_assignment_map_from_checkpoint(tvars, init_checkpoint)
