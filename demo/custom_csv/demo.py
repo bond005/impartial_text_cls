@@ -317,8 +317,8 @@ def main():
     indices_for_cv = ImpatialTextClassifier.cv_split(labels, 5)
     optimal_res = gp_minimize(
         func,
-        dimensions=[Integer(0, 100), Integer(0, 100), Integer(0, 100), Integer(0, 100), Integer(0, 100)],
-        n_calls=100, n_random_starts=10, random_state=42, verbose=False, n_jobs=1
+        dimensions=[Integer(0, 200), Integer(0, 200), Integer(0, 200), Integer(0, 200), Integer(0, 200)],
+        n_calls=20, n_random_starts=5, random_state=42, verbose=False, n_jobs=1
     )
     print('')
     score(optimal_res.x)
