@@ -62,7 +62,7 @@ def main():
                                          filters_for_conv1=conv1_, filters_for_conv2=conv2_, filters_for_conv3=conv3_,
                                          filters_for_conv4=conv4_, filters_for_conv5=conv5_, multioutput=multioutput,
                                          gpu_memory_frac=gpu_memory_frac, num_monte_carlo=num_monte_carlo,
-                                         verbose=False, random_seed=42, max_epochs=100, patience=5, batch_size=8)
+                                         verbose=False, random_seed=42, max_epochs=100, patience=5, batch_size=16)
             if os.path.exists(os.path.normpath(bert_handle)):
                 cls.PATH_TO_BERT = os.path.normpath(bert_handle)
             train_texts = labeled_texts[train_index]
@@ -130,7 +130,7 @@ def main():
             cls = ImpatialTextClassifier(bert_hub_module_handle=(None if os.path.exists(os.path.normpath(bert_handle))
                                                                  else bert_handle),
                                          filters_for_conv1=conv1_, filters_for_conv2=conv2_, filters_for_conv3=conv3_,
-                                         filters_for_conv4=conv4_, filters_for_conv5=conv5_, batch_size=8,
+                                         filters_for_conv4=conv4_, filters_for_conv5=conv5_, batch_size=16,
                                          gpu_memory_frac=gpu_memory_frac, num_monte_carlo=num_monte_carlo, verbose=True,
                                          random_seed=42, max_epochs=100, patience=5, multioutput=multioutput)
             if os.path.exists(os.path.normpath(bert_handle)):
@@ -253,7 +253,7 @@ def main():
         cls = ImpatialTextClassifier(bert_hub_module_handle=(None if os.path.exists(os.path.normpath(bert_handle))
                                                              else bert_handle),
                                      filters_for_conv1=conv1_, filters_for_conv2=conv2_, filters_for_conv3=conv3_,
-                                     filters_for_conv4=conv4_, filters_for_conv5=conv5_, batch_size=8,
+                                     filters_for_conv4=conv4_, filters_for_conv5=conv5_, batch_size=16,
                                      gpu_memory_frac=gpu_memory_frac, num_monte_carlo=num_monte_carlo, verbose=True,
                                      random_seed=42, max_epochs=100, patience=5, multioutput=multioutput)
         if os.path.exists(os.path.normpath(bert_handle)):
