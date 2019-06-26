@@ -57,11 +57,14 @@ def main():
         print('Filters number for different convolution kernels: ({0}, {1}, {2}, {3}, {4})'.format(
             conv1_, conv2_, conv3_, conv4_, conv5_))
         for fold_idx, (train_index, test_index) in enumerate(indices_for_cv):
-            cls = ImpatialTextClassifier(bert_hub_module_handle=bert_url,
+            cls = ImpatialTextClassifier(bert_hub_module_handle=(None if os.path.exists(os.path.normpath(bert_handle))
+                                                                 else bert_handle),
                                          filters_for_conv1=conv1_, filters_for_conv2=conv2_, filters_for_conv3=conv3_,
                                          filters_for_conv4=conv4_, filters_for_conv5=conv5_, multioutput=multioutput,
                                          gpu_memory_frac=gpu_memory_frac, num_monte_carlo=num_monte_carlo,
                                          verbose=False, random_seed=42, max_epochs=100, patience=5)
+            if os.path.exists(os.path.normpath(bert_handle)):
+                cls.PATH_TO_BERT = os.path.normpath(bert_handle)
             train_texts = labeled_texts[train_index]
             train_labels = labels[train_index]
             train_index_, val_index = cls.train_test_split(train_labels, 0.1)
@@ -124,12 +127,14 @@ def main():
             conv1_, conv2_, conv3_, conv4_, conv5_))
         print('')
         for train_index, test_index in indices_for_cv:
-            cls = ImpatialTextClassifier(bert_hub_module_handle=bert_url,
+            cls = ImpatialTextClassifier(bert_hub_module_handle=(None if os.path.exists(os.path.normpath(bert_handle))
+                                                                 else bert_handle),
                                          filters_for_conv1=conv1_, filters_for_conv2=conv2_, filters_for_conv3=conv3_,
                                          filters_for_conv4=conv4_, filters_for_conv5=conv5_,
                                          gpu_memory_frac=gpu_memory_frac, num_monte_carlo=num_monte_carlo, verbose=True,
                                          random_seed=42, max_epochs=100, patience=5, multioutput=multioutput)
-            train_index_, val_index = cls.train_test_split(labels[train_index], 0.1)
+            if os.path.exists(os.path.normpath(bert_handle)):
+                cls.PATH_TO_BERT = os.path.normpath(bert_handle)
             train_texts = labeled_texts[train_index]
             train_labels = labels[train_index]
             train_index_, val_index = cls.train_test_split(train_labels, 0.1)
@@ -245,11 +250,14 @@ def main():
             )
         val_texts = labeled_texts[val_index]
         val_labels = labels[val_index]
-        cls = ImpatialTextClassifier(bert_hub_module_handle=bert_url,
+        cls = ImpatialTextClassifier(bert_hub_module_handle=(None if os.path.exists(os.path.normpath(bert_handle))
+                                                             else bert_handle),
                                      filters_for_conv1=conv1_, filters_for_conv2=conv2_, filters_for_conv3=conv3_,
                                      filters_for_conv4=conv4_, filters_for_conv5=conv5_,
                                      gpu_memory_frac=gpu_memory_frac, num_monte_carlo=num_monte_carlo, verbose=True,
                                      random_seed=42, max_epochs=100, patience=5, multioutput=multioutput)
+        if os.path.exists(os.path.normpath(bert_handle)):
+            cls.PATH_TO_BERT = os.path.normpath(bert_handle)
         cls.fit(train_texts, train_labels, validation_data=(val_texts, val_labels))
         del train_texts, train_labels, val_texts, val_labels
         return cls
@@ -259,7 +267,7 @@ def main():
                         help='The binary file with the text classifier.')
     parser.add_argument('-b', '--bert', dest='bert', type=str, required=False,
                         default='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
-                        help='URL of used TF-Hub BERT model.')
+                        help='URL of used TF-Hub BERT model (or path to the BERT model in local drive).')
     parser.add_argument('-c', '--csv', dest='csv_data_file', type=str, required=True,
                         help='Path to the CSV file with labeled data.')
     parser.add_argument('-t', '--train', dest='train_file_name', type=str, required=False, default='',
@@ -278,7 +286,7 @@ def main():
 
     num_monte_carlo = cmd_args.num_monte_carlo
     gpu_memory_frac = cmd_args.gpu_memory_frac
-    bert_url = cmd_args.bert
+    bert_handle = cmd_args.bert
     model_name = os.path.normpath(cmd_args.model_name)
     labeled_data_name = os.path.normpath(cmd_args.csv_data_file)
     unlabeled_train_data_name = cmd_args.train_file_name.strip()

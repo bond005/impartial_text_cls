@@ -14,6 +14,7 @@ import tensorflow as tf
 import tensorflow_hub as tfhub
 import tensorflow_probability as tfp
 from bert.tokenization import FullTokenizer
+from bert.modeling import BertModel, BertConfig, get_assignment_map_from_checkpoint
 
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -21,6 +22,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
     MAX_SEQ_LENGTH = 512
+    PATH_TO_BERT = None
 
     def __init__(self,
                  bert_hub_module_handle: Union[str, None]='https://tfhub.dev/google/bert_uncased_L-12_H-768_A-12/1',
@@ -720,11 +722,29 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             input_mask=input_mask,
             segment_ids=segment_ids
         )
-        bert_module = tfhub.Module(self.bert_hub_module_handle, trainable=True, name='BERT_module')
-        bert_outputs = bert_module(bert_inputs, signature='tokens', as_dict=True)
-        sequence_output = tf.stop_gradient(bert_outputs['sequence_output'], name='BERT_SequenceOutput')
-        if self.verbose:
-            print('The BERT model has been loaded from the TF-Hub.')
+        if self.bert_hub_module_handle is None:
+            if self.PATH_TO_BERT is None:
+                raise ValueError('Path to the BERT model is not defined!')
+            path_to_bert = os.path.normpath(self.PATH_TO_BERT)
+            if not self.check_path_to_bert(path_to_bert):
+                raise ValueError('`path_to_bert` is wrong! There are no BERT files into the directory `{0}`.'.format(
+                    self.PATH_TO_BERT))
+            bert_config = BertConfig.from_json_file(os.path.join(path_to_bert, 'bert_config.json'))
+            bert_model = BertModel(config=bert_config, is_training=False, input_ids=input_ids, input_mask=input_mask,
+                                   token_type_ids=segment_ids, use_one_hot_embeddings=False)
+            sequence_output = bert_model.sequence_output
+            tvars = tf.trainable_variables()
+            init_checkpoint = os.path.join(self.PATH_TO_BERT, 'bert_model.ckpt')
+            (assignment_map, initialized_variable_names) = get_assignment_map_from_checkpoint(tvars, init_checkpoint)
+            tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
+            if self.verbose:
+                print('The BERT model has been loaded from a local drive.')
+        else:
+            bert_module = tfhub.Module(self.bert_hub_module_handle, trainable=True, name='BERT_module')
+            bert_outputs = bert_module(bert_inputs, signature='tokens', as_dict=True)
+            sequence_output = tf.stop_gradient(bert_outputs['sequence_output'], name='BERT_SequenceOutput')
+            if self.verbose:
+                print('The BERT model has been loaded from the TF-Hub.')
         conv_layers = []
         if self.bayesian:
             feature_vector_size = sequence_output.shape[-1].value
@@ -857,20 +877,41 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         saver.restore(self.sess_, file_name)
 
     def initialize_bert_tokenizer(self) -> FullTokenizer:
-        config = tf.ConfigProto()
-        config.gpu_options.per_process_gpu_memory_fraction = self.gpu_memory_frac
-        self.sess_ = tf.Session(config=config)
-        bert_module = tfhub.Module(self.bert_hub_module_handle, trainable=True)
-        tokenization_info = bert_module(signature='tokenization_info', as_dict=True)
-        vocab_file, do_lower_case = self.sess_.run([tokenization_info['vocab_file'],
-                                                    tokenization_info['do_lower_case']])
-        tokenizer_ = FullTokenizer(vocab_file=vocab_file, do_lower_case=do_lower_case)
-        if hasattr(self, 'sess_'):
-            for k in list(self.sess_.graph.get_all_collection_keys()):
-                self.sess_.graph.clear_collection(k)
-            self.sess_.close()
-            del self.sess_
-        tf.reset_default_graph()
+        if self.bert_hub_module_handle is None:
+            if self.PATH_TO_BERT is None:
+                raise ValueError('Path to the BERT model is not defined!')
+            path_to_bert = os.path.normpath(self.PATH_TO_BERT)
+            if not self.check_path_to_bert(path_to_bert):
+                raise ValueError('`path_to_bert` is wrong! There are no BERT files into the directory `{0}`.'.format(
+                    self.PATH_TO_BERT))
+            if (os.path.basename(path_to_bert).find('_uncased_') >= 0) or \
+                    (os.path.basename(path_to_bert).find('uncased_') >= 0):
+                do_lower_case = True
+            else:
+                if os.path.basename(path_to_bert).find('_cased_') >= 0 or \
+                        os.path.basename(path_to_bert).startswith('cased_'):
+                    do_lower_case = False
+                else:
+                    do_lower_case = None
+            if do_lower_case is None:
+                raise ValueError('`{0}` is bad path to the BERT model, because a tokenization mode (lower case or no) '
+                                 'cannot be detected.'.format(path_to_bert))
+            tokenizer_ = FullTokenizer(vocab_file=os.path.join(path_to_bert, 'vocab.txt'), do_lower_case=do_lower_case)
+        else:
+            config = tf.ConfigProto()
+            config.gpu_options.per_process_gpu_memory_fraction = self.gpu_memory_frac
+            self.sess_ = tf.Session(config=config)
+            bert_module = tfhub.Module(self.bert_hub_module_handle, trainable=True)
+            tokenization_info = bert_module(signature='tokenization_info', as_dict=True)
+            vocab_file, do_lower_case = self.sess_.run([tokenization_info['vocab_file'],
+                                                        tokenization_info['do_lower_case']])
+            tokenizer_ = FullTokenizer(vocab_file=vocab_file, do_lower_case=do_lower_case)
+            if hasattr(self, 'sess_'):
+                for k in list(self.sess_.graph.get_all_collection_keys()):
+                    self.sess_.graph.clear_collection(k)
+                self.sess_.close()
+                del self.sess_
+            tf.reset_default_graph()
         return tokenizer_
 
     def __copy__(self):
@@ -1349,3 +1390,19 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         res = np.power(2.0, res)
         return (res - np.power(2.0, -1.0)) / (np.power(2.0, float(-n_epochs)) - np.power(2.0, -1.0)) * \
                (fin_value - init_value) + init_value
+
+    @staticmethod
+    def check_path_to_bert(dir_name: str) -> bool:
+        if not os.path.isdir(dir_name):
+            return False
+        if not os.path.isfile(os.path.join(dir_name, 'vocab.txt')):
+            return False
+        if not os.path.isfile(os.path.join(dir_name, 'bert_model.ckpt.data-00000-of-00001')):
+            return False
+        if not os.path.isfile(os.path.join(dir_name, 'bert_model.ckpt.index')):
+            return False
+        if not os.path.isfile(os.path.join(dir_name, 'bert_model.ckpt.meta')):
+            return False
+        if not os.path.isfile(os.path.join(dir_name, 'bert_config.json')):
+            return False
+        return True
