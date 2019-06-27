@@ -166,7 +166,6 @@ def main():
                 y_true.append(np.full(shape=(len(unlabeled_texts_for_testing),), fill_value=-1, dtype=np.int32))
             y_pred.append(cls.predict(labeled_texts[test_index]))
             y_true.append(labels[test_index])
-            y_pred = cls.predict(labeled_texts[test_index])
             del cls
         y_pred = np.concatenate(y_pred)
         y_true = np.concatenate(y_true)
