@@ -6,7 +6,7 @@ import sys
 from typing import List
 
 import numpy as np
-from sklearn.metrics import f1_score
+from sklearn.metrics import classification_report
 from skopt import gp_minimize
 from skopt.space import Integer
 
@@ -62,7 +62,8 @@ def main():
                                          filters_for_conv1=conv1_, filters_for_conv2=conv2_, filters_for_conv3=conv3_,
                                          filters_for_conv4=conv4_, filters_for_conv5=conv5_, multioutput=multioutput,
                                          gpu_memory_frac=gpu_memory_frac, num_monte_carlo=num_monte_carlo,
-                                         verbose=False, random_seed=42, max_epochs=100, patience=5, batch_size=16)
+                                         verbose=False, random_seed=42, max_epochs=100, patience=5, batch_size=16,
+                                         bayesian=(nn_type == 'bayesian'))
             if os.path.exists(os.path.normpath(bert_handle)):
                 cls.PATH_TO_BERT = os.path.normpath(bert_handle)
             train_texts = labeled_texts[train_index]
@@ -119,20 +120,20 @@ def main():
         conv3_ = int(args[2])
         conv4_ = int(args[3])
         conv5_ = int(args[4])
-        total_quality = 0.0
-        quality_by_classes = [0.0 for _ in range(len(classes_list))]
-        n = [0 for _ in range(len(classes_list))]
-        n_total = 0
         print('Optimal filters number for different convolution kernels: ({0}, {1}, {2}, {3}, {4})'.format(
             conv1_, conv2_, conv3_, conv4_, conv5_))
         print('')
+        y_pred = []
+        y_true = []
+        unlabeled_is_added = False
         for train_index, test_index in indices_for_cv:
             cls = ImpatialTextClassifier(bert_hub_module_handle=(None if os.path.exists(os.path.normpath(bert_handle))
                                                                  else bert_handle),
                                          filters_for_conv1=conv1_, filters_for_conv2=conv2_, filters_for_conv3=conv3_,
                                          filters_for_conv4=conv4_, filters_for_conv5=conv5_, batch_size=16,
                                          gpu_memory_frac=gpu_memory_frac, num_monte_carlo=num_monte_carlo, verbose=True,
-                                         random_seed=42, max_epochs=100, patience=5, multioutput=multioutput)
+                                         random_seed=42, max_epochs=100, patience=5, multioutput=multioutput,
+                                         bayesian=(nn_type == 'bayesian'))
             if os.path.exists(os.path.normpath(bert_handle)):
                 cls.PATH_TO_BERT = os.path.normpath(bert_handle)
             train_texts = labeled_texts[train_index]
@@ -159,71 +160,41 @@ def main():
             cls.fit(train_texts, train_labels, validation_data=(val_texts, val_labels))
             print('')
             del train_texts, train_labels, val_texts, val_labels, train_index_, val_index
-            if unlabeled_texts_for_testing is None:
-                texts_for_final_testing = labeled_texts[test_index]
-                labels_for_final_testing = labels[test_index]
-            else:
-                texts_for_final_testing = np.concatenate(
-                    (
-                        labeled_texts[test_index],
-                        unlabeled_texts_for_testing
-                    )
-                )
-                labels_for_final_testing = np.concatenate(
-                    (
-                        labels[test_index],
-                        np.full(shape=(len(unlabeled_texts_for_testing),), fill_value=-1, dtype=np.int32)
-                    )
-                )
-            y_pred = cls.predict(texts_for_final_testing)
-            instant_quality_by_classes = []
-            if multioutput:
-                for class_idx in range(len(classes_list)):
-                    y_true_ = []
-                    y_pred_ = []
-                    for sample_idx in range(len(labels_for_final_testing)):
-                        if isinstance(labels_for_final_testing[sample_idx], set):
-                            if class_idx in labels_for_final_testing[sample_idx]:
-                                y_true_.append(1)
-                            else:
-                                y_true_.append(0)
-                        else:
-                            y_true_.append(1 if class_idx == labels_for_final_testing[sample_idx] else 0)
-                        if isinstance(y_pred[sample_idx], set):
-                            if class_idx in y_pred[sample_idx]:
-                                y_pred_.append(1)
-                            else:
-                                y_pred_.append(0)
-                        else:
-                            y_pred_.append(1 if class_idx == y_pred[sample_idx] else 0)
-                    if any(map(lambda it: it > 0, y_true_)) or any(map(lambda it: it > 0, y_pred_)):
-                        instant_quality_by_classes.append(f1_score(y_true_, y_pred_, average='binary'))
-                        quality_by_classes[class_idx] += instant_quality_by_classes[-1]
-                        n[class_idx] += 1
-                if len(instant_quality_by_classes) > 0:
-                    total_quality += (sum(instant_quality_by_classes) / float(len(instant_quality_by_classes)))
-                    n_total += 1
-            else:
-                for class_idx in range(len(classes_list)):
-                    if any(map(lambda it: it == class_idx, labels_for_final_testing)) or \
-                            any(map(lambda it: it == class_idx, y_pred)):
-                        instant_quality_by_classes.append(f1_score(labels_for_final_testing == class_idx,
-                                                                   y_pred == class_idx, average='binary'))
-                        quality_by_classes[class_idx] += instant_quality_by_classes[-1]
-                        n[class_idx] += 1
-                if len(instant_quality_by_classes) > 0:
-                    total_quality += (sum(instant_quality_by_classes) / float(len(instant_quality_by_classes)))
-                    n_total += 1
-            del cls, texts_for_final_testing, labels_for_final_testing
-        if n_total == 0:
-            raise ValueError('Model cannot be evaluated!')
-        print('Total F1 score: {0:.6f}.'.format(total_quality / float(n_total)))
-        print('F1 score by classes:')
-        name_width = max([len(cur) for cur in classes_list])
-        for class_idx in range(len(classes_list)):
-            if n[class_idx] > 0:
-                print('  {0:>{1}} {2:.6f}'.format(classes_list[class_idx], name_width, quality_by_classes[class_idx]))
+            if (not unlabeled_is_added) and (unlabeled_texts_for_testing is not None):
+                y_pred.append(cls.predict(unlabeled_texts_for_testing))
+                unlabeled_is_added = True
+                y_true.append(np.full(shape=(len(unlabeled_texts_for_testing),), fill_value=-1, dtype=np.int32))
+            y_pred.append(cls.predict(labeled_texts[test_index]))
+            y_true.append(labels[test_index])
+            y_pred = cls.predict(labeled_texts[test_index])
+            del cls
+        y_pred = np.concatenate(y_pred)
+        y_true = np.concatenate(y_true)
         print('')
+        if multioutput:
+            for class_idx in range(len(classes_list)):
+                y_true_ = np.zeros((len(y_true),), dtype=np.int32)
+                y_pred_ = np.zeros((len(y_pred),), dtype=np.int32)
+                for sample_idx in range(len(y_true)):
+                    if isinstance(y_true[sample_idx], set):
+                        if class_idx in y_true[sample_idx]:
+                            y_true_[sample_idx] = 1
+                    elif class_idx == y_true[sample_idx]:
+                        y_true_[sample_idx] = 1
+                    if isinstance(y_pred[sample_idx], set):
+                        if class_idx in y_pred[sample_idx]:
+                            y_pred_[sample_idx] = 1
+                    elif class_idx == y_pred[sample_idx]:
+                        y_pred_[sample_idx] = 1
+                print(classification_report(y_true, y_pred, target_names=['OTHER', classes_list[class_idx]]))
+        else:
+            for sample_idx in range(len(y_true)):
+                if y_true[sample_idx] < 0:
+                    y_true[sample_idx] = len(classes_list)
+                if y_pred[sample_idx] < 0:
+                    y_pred[sample_idx] = len(classes_list)
+            print(classification_report(y_true, y_pred, target_names=classes_list + ['UNKNOWN']))
+            print('')
 
     def train(args) -> ImpatialTextClassifier:
         conv1_ = int(args[0])
@@ -255,7 +226,8 @@ def main():
                                      filters_for_conv1=conv1_, filters_for_conv2=conv2_, filters_for_conv3=conv3_,
                                      filters_for_conv4=conv4_, filters_for_conv5=conv5_, batch_size=16,
                                      gpu_memory_frac=gpu_memory_frac, num_monte_carlo=num_monte_carlo, verbose=True,
-                                     random_seed=42, max_epochs=100, patience=5, multioutput=multioutput)
+                                     random_seed=42, max_epochs=100, patience=5, multioutput=multioutput,
+                                     bayesian=(nn_type == 'bayesian'))
         if os.path.exists(os.path.normpath(bert_handle)):
             cls.PATH_TO_BERT = os.path.normpath(bert_handle)
         cls.fit(train_texts, train_labels, validation_data=(val_texts, val_labels))
@@ -276,17 +248,30 @@ def main():
                         help='Path to the text file with unlabeled data for evaluation.')
     parser.add_argument('--gpu_frac', dest='gpu_memory_frac', type=float, required=False, default=0.9,
                         help='Allocable part of the GPU memory for the classifier.')
-    parser.add_argument('--nn_type', dest='nn_type', type=str, choices=['bayesian', 'usual', 'additional_class'],
-                        required=False, default='bayesian',
-                        help='Neural network type: `bayesian`, `usual` or `additional_class` (it is same as `usual` '
-                             'but unlabeled samples are modeled as additional class).')
+    parser.add_argument('--nn_type', dest='nn_type', type=str, choices=['bayesian', 'usual'], required=False,
+                        default='bayesian', help='Neural network type: `bayesian`, `usual` or `additional_class` (it '
+                                                 'is same as `usual` but unlabeled samples are modeled as additional '
+                                                 'class).')
     parser.add_argument('--num_monte_carlo', dest='num_monte_carlo', type=int, required=False, default=100,
                         help='Number of generated Monte Carlo samples for each data sample.')
+    parser.add_argument('--conv1', dest='size_of_conv1', type=int, required=False, default=20,
+                        help='Size of the Bayesian convolution layer with kernel size 1.')
+    parser.add_argument('--conv2', dest='size_of_conv2', type=int, required=False, default=20,
+                        help='Size of the Bayesian convolution layer with kernel size 2.')
+    parser.add_argument('--conv3', dest='size_of_conv3', type=int, required=False, default=20,
+                        help='Size of the Bayesian convolution layer with kernel size 3.')
+    parser.add_argument('--conv4', dest='size_of_conv4', type=int, required=False, default=20,
+                        help='Size of the Bayesian convolution layer with kernel size 4.')
+    parser.add_argument('--conv5', dest='size_of_conv5', type=int, required=False, default=20,
+                        help='Size of the Bayesian convolution layer with kernel size 5.')
+    parser.add_argument('--search', dest='search_hyperparameters', required=False, action='store_true',
+                        default=False, help='Will be hyperparameters found by the Bayesian optimization?')
     cmd_args = parser.parse_args()
 
     num_monte_carlo = cmd_args.num_monte_carlo
     gpu_memory_frac = cmd_args.gpu_memory_frac
     bert_handle = cmd_args.bert
+    nn_type = cmd_args.nn_type
     model_name = os.path.normpath(cmd_args.model_name)
     labeled_data_name = os.path.normpath(cmd_args.csv_data_file)
     unlabeled_train_data_name = cmd_args.train_file_name.strip()
@@ -315,15 +300,20 @@ def main():
     print_classes_distribution(labels, classes_list)
     np.random.seed(42)
     indices_for_cv = ImpatialTextClassifier.cv_split(labels, 5)
-    optimal_res = gp_minimize(
-        func,
-        dimensions=[Integer(0, 200), Integer(0, 200), Integer(0, 200), Integer(0, 200), Integer(0, 200)],
-        n_calls=20, n_random_starts=5, random_state=42, verbose=False, n_jobs=1
-    )
-    print('')
-    score(optimal_res.x)
+    if cmd_args.search_hyperparameters:
+        optimal_res = gp_minimize(
+            func,
+            dimensions=[Integer(0, 200), Integer(0, 200), Integer(0, 200), Integer(0, 200), Integer(0, 200)],
+            n_calls=20, n_random_starts=5, random_state=42, verbose=False, n_jobs=1
+        )
+        print('')
+        hyperparameters = optimal_res.x
+    else:
+        hyperparameters = [cmd_args.size_of_conv1, cmd_args.size_of_conv2, cmd_args.size_of_conv3,
+                           cmd_args.size_of_conv4, cmd_args.size_of_conv5]
+    score(hyperparameters)
     with open(model_name, 'rb') as fp:
-        pickle.dump(train(optimal_res.x), fp)
+        pickle.dump(train(hyperparameters), fp)
 
 
 if __name__ == '__main__':
