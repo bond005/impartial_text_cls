@@ -311,7 +311,7 @@ def main():
         hyperparameters = [cmd_args.size_of_conv1, cmd_args.size_of_conv2, cmd_args.size_of_conv3,
                            cmd_args.size_of_conv4, cmd_args.size_of_conv5]
     score(hyperparameters)
-    with open(model_name, 'rb') as fp:
+    with open(model_name, 'wb') as fp:
         pickle.dump(train(hyperparameters), fp)
 
 
