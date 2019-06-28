@@ -554,7 +554,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             ph: x for ph, x in zip(['input_ids:0', 'input_mask:0', 'segment_ids:0'], X)
         }
         if y is not None:
-            feed_dict['y_ph:0'] = y
+            feed_dict['y_ph:0'] = np.asarray(y, dtype=np.float32) if self.multioutput else y
         if (pi_variable is not None) and (pi_value is not None):
             feed_dict[pi_variable] = pi_value
         return feed_dict
@@ -714,7 +714,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         input_mask = tf.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32, name='input_mask')
         segment_ids = tf.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32, name='segment_ids')
         if self.multioutput:
-            y_ph = tf.placeholder(shape=(self.batch_size, self.n_classes_), dtype=tf.int32, name='y_ph')
+            y_ph = tf.placeholder(shape=(self.batch_size, self.n_classes_), dtype=tf.float32, name='y_ph')
         else:
             y_ph = tf.placeholder(shape=(self.batch_size,), dtype=tf.int32, name='y_ph')
         bert_inputs = dict(
