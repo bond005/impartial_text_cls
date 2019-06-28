@@ -751,7 +751,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             input_sequence_layer = tf.keras.Input((self.MAX_SEQ_LENGTH, feature_vector_size), name='InputForConv')
             if self.filters_for_conv1 > 0:
                 conv_layer_1 = tfp.layers.Convolution1DFlipout(
-                    filters=self.filters_for_conv1, kernel_size=2, name='Conv1', padding='valid',
+                    filters=self.filters_for_conv1, kernel_size=1, name='Conv1', padding='valid',
                     activation=tf.nn.tanh,
                     seed=self.random_seed
                 )(input_sequence_layer)
@@ -808,7 +808,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             return train_op, elbo_loss, neg_log_likelihood, pi
         if self.filters_for_conv1 > 0:
             conv_layer_1 = tf.keras.layers.Conv1D(
-                filters=self.filters_for_conv1, kernel_size=2, name='Conv1', padding='valid', activation=tf.nn.tanh,
+                filters=self.filters_for_conv1, kernel_size=1, name='Conv1', padding='valid', activation=tf.nn.tanh,
                 kernel_initializer=tf.keras.initializers.glorot_uniform(seed=self.random_seed)
             )(sequence_output)
             conv_layer_1 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling1')(conv_layer_1)
