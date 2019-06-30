@@ -111,7 +111,7 @@ def main():
     print('Total accuracy: {0:6.2%}'.format(total_accuracy))
     print('By classes:')
     for class_idx in sorted(list(accuracy_by_classes.keys())):
-        print('  {0:<{1}} {2:6.2%}'.format(test_classes[class_idx], name_width, accuracy_by_classes))
+        print('  {0:<{1}} {2:6.2%}'.format(test_classes[class_idx], name_width, accuracy_by_classes[class_idx]))
 
 
 if __name__ == '__main__':
