@@ -3,6 +3,8 @@ import os
 import pickle
 import sys
 
+import numpy as np
+
 
 try:
     from impatial_text_cls.impatial_text_cls import ImpatialTextClassifier
@@ -70,21 +72,48 @@ def main():
     print('')
     print('Number of samples for final testing is {0}.'.format(len(test_texts)))
     y_pred = nn.predict(test_texts)
-    n_errors = 0
-    n_total = 0
-    for sample_idx in range(len(test_labels)):
-        if isinstance(test_labels[sample_idx], set):
-            true_classes = test_labels[sample_idx]
-        else:
-            true_classes = {test_labels[sample_idx]}
-        if isinstance(y_pred[sample_idx], set):
-            pred_classes = y_pred[sample_idx]
-        else:
-            pred_classes = {y_pred[sample_idx]}
-        n_errors += len((true_classes | pred_classes) - (true_classes & pred_classes))
-        n_total += len(true_classes)
-    accuracy = 1.0 - float(n_errors) / float(n_total)
-    print('Test accuracy is {0:.2%}.'.format(accuracy))
+    accuracy_by_classes = dict()
+    for class_idx in range(nn.n_classes_):
+        n_total = 0
+        n_correct = 0
+        for sample_idx in range(len(test_texts)):
+            if isinstance(test_labels[sample_idx], set):
+                if class_idx in test_labels[sample_idx]:
+                    y_true_ = 1
+                else:
+                    y_true_ = 0
+            else:
+                if class_idx == test_labels[sample_idx]:
+                    y_true_ = 1
+                else:
+                    y_true_ = 0
+            if isinstance(y_pred[sample_idx], set):
+                if class_idx in y_pred[sample_idx]:
+                    y_pred_ = 1
+                else:
+                    y_pred_ = 0
+            else:
+                if class_idx == y_pred[sample_idx]:
+                    y_pred_ = 1
+                else:
+                    y_pred_ = 0
+            if y_true_ == y_pred_:
+                n_correct += 1
+            if y_true_ > 0:
+                n_total += 1
+        if n_total > 0:
+            accuracy_by_classes[class_idx] = float(n_correct) / float(len(test_texts))
+    total_accuracy = 0.0
+    name_width = 0
+    for class_idx in accuracy_by_classes.keys():
+        total_accuracy += accuracy_by_classes[class_idx]
+        if len(test_classes[class_idx]) > name_width:
+            name_width = len(test_classes[class_idx])
+    total_accuracy /= float(len(accuracy_by_classes))
+    print('Total accuracy: {0:6.2%}'.format(total_accuracy))
+    print('By classes:')
+    for class_idx in sorted(list(accuracy_by_classes.keys())):
+        print('  {0:<{1}} {2:6.2%}'.format(test_classes[class_idx], name_width, accuracy_by_classes))
 
 
 if __name__ == '__main__':
