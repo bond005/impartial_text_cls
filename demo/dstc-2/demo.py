@@ -3,8 +3,6 @@ import os
 import pickle
 import sys
 
-import numpy as np
-
 
 try:
     from impatial_text_cls.impatial_text_cls import ImpatialTextClassifier
