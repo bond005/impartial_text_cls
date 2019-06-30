@@ -1386,7 +1386,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         else:
                             classes_distr[cv_idx].add(y[idx])
             if not all(map(lambda it: it == classes_distr[0], classes_distr[1:])):
-                raise ValueError('Source data cannot be splitted by {0} parts!'.format(cv))
+                warnings.warn('Source data cannot be splitted by {0} parts!'.format(cv))
             cv_indices = []
             for cv_idx in range(cv):
                 test_index = indices[bounds[cv_idx][0]:bounds[cv_idx][1]]
