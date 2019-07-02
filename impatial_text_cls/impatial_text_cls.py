@@ -790,7 +790,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 )(input_sequence_layer)
                 conv_layer_5 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling5')(conv_layer_5)
                 conv_layers.append(conv_layer_5)
-            concat_layer = tf.keras.layers.Concatenate(name='Concat')(conv_layers)
+            if len(conv_layers) > 1:
+                concat_layer = tf.keras.layers.Concatenate(name='Concat')(conv_layers)
+            else:
+                concat_layer = conv_layers[0]
             output_layer = tfp.layers.DenseFlipout(self.n_classes_, seed=self.random_seed, name='OutputLayer')(
                 concat_layer)
             model = tf.keras.Model(input_sequence_layer, output_layer, name='BayesianNetworkModel')
@@ -842,7 +845,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             )(sequence_output)
             conv_layer_5 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling5')(conv_layer_5)
             conv_layers.append(conv_layer_5)
-        concat_layer = tf.keras.layers.Concatenate(name='Concat')(conv_layers)
+        if len(conv_layers) > 1:
+            concat_layer = tf.keras.layers.Concatenate(name='Concat')(conv_layers)
+        else:
+            concat_layer = conv_layers[0]
         glorot_init = tf.keras.initializers.glorot_uniform(seed=self.random_seed)
         logits = tf.layers.dense(concat_layer, self.n_classes_, kernel_initializer=glorot_init, name='Logits',
                                  activation=(tf.nn.sigmoid if self.multioutput else tf.nn.softmax))

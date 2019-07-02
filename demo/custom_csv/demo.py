@@ -56,6 +56,8 @@ def main():
         quality = 0.0
         print('Filters number for different convolution kernels: ({0}, {1}, {2}, {3}, {4})'.format(
             conv1_, conv2_, conv3_, conv4_, conv5_))
+        if sum(args) == 0:
+            return 1.0
         for fold_idx, (train_index, test_index) in enumerate(indices_for_cv):
             cls = ImpatialTextClassifier(bert_hub_module_handle=(None if os.path.exists(os.path.normpath(bert_handle))
                                                                  else bert_handle),
