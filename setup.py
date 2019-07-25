@@ -4,7 +4,7 @@ import impatial_text_cls
 
 long_description = '''
 Impartial Text Classifier
-============
+=========================
 Text classifier, based on the BERT and a Bayesian neural network, which
 can train on small labeled texts and doubt its decision.
 
