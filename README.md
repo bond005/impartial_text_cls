@@ -1,5 +1,5 @@
 # impartial_text_cls
-**Impartial Text Classifier**: text classifier, based on the BERT and a Bayesian neural network, which can train on small labeled texts and doubt its decision
+**Impartial Text Classifier**: text classifier, based on the BERT and a Bayesian neural network, which can train on small labeled texts and doubt its decision.
 
 The goal of this project is developing of simple and power text classifier based on transfer learning and bayesian neural networks. Important subtask of text classification is user's intent classification for chat-bots, information retrieval etc. And intent classification task has two nuances:
 
