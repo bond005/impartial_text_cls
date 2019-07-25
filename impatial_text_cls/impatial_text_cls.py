@@ -869,7 +869,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 self.sess_.graph.clear_collection(k)
             self.sess_.close()
             del self.sess_
-        tf.reset_default_graph()
+            tf.reset_default_graph()
 
     def save_model(self, file_name: str):
         saver = tf.train.Saver()
