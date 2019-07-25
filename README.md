@@ -1,13 +1,13 @@
 # impartial_text_cls
 **Impartial Text Classifier**: text classifier, based on the BERT and a Bayesian neural network, which can train on small labeled texts and doubt its decision.
 
-The goal of this project is developing of simple and power text classifier based on transfer learning and bayesian neural networks. Important subtask of text classification is user's intent classification for chat-bots, information retrieval etc. And intent classification task has two nuances:
+The goal of this project is developing of simple and power text classifier based on transfer learning and Bayesian neural networks. Important subtask of text classification is user's intent classification for chat-bots, information retrieval etc. And intent classification task has two nuances:
 
 1. If we solve a sentiment analysis task, then we always can attribute any input text to one of sentiment classes.If we solve a sentiment analysis task, then we always can attribute any input text to one of sentiment classes.  But at intent classification most part of all input texts isn't related to any intent, and such texts are "foreign", or some "background noise" (for example, questions about eastern philosophy istead of finance, deposits and ATMs to a bank chat-bot, or trolling attempts of a virtual assistant, and so on). Thus, capabilities of intent classifier for uncertainty and rejecting at recognition are very important.
 
 2. Intents are very specific for each chat-bot development task. So, set of recognizable user intents in chat-bot for pizza delivery service will be differ from analogous set of user intents in bank chat-bot. Intents are not standard objects for recognition in contrast to sentiments. Therefore we cannot build a large standard corpus of user intents, and size of any practical dataset, annotated by set of user intents, will be small.
 
-A transfer learning (particulary, well-known BERT) and bayesian neural networks help to account these nuances.
+A transfer learning (particulary, well-known BERT) and Bayesian neural networks help to account these nuances.
 
 [BERT](https://arxiv.org/abs/1810.04805) (**B**idirectional **E**ncoder **R**epresentations from **T**ransformers) generates special contextual embeddings for text tokens, which provide a better discrimination ability in feature space, than classical word embeddings. Therefore we can use smaller labeled data for training of final classifier.
 
