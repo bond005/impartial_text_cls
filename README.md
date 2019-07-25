@@ -101,9 +101,9 @@ We realized three experiments:
 
 2. With usual neural network and rejecting at recognition for non-intents by probability threshold
 
-3. With usual neural networks and modeling of non-intents as yet another class (i.e. we trained neural network to recognize 8 classes instead of 7 ones)
+3. With usual neural network and modeling of non-intents as yet another class (i.e. we trained neural network to recognize 8 classes instead of 7 ones)
 
-We used F1 measure as quality criterion for final testing, at that we accounted non-intents as additional class. Results of final testing with micro- and macro-averaging are described in following table.
+We used F1 measure as quality criterion for final testing, at that we accounted non-intents as additional class. The results of final testing with micro- and macro-averaging are described in following table.
 
 | Algorithm name | F1-micro | F1-macro |
 | -------------- | -------: | -------: |
