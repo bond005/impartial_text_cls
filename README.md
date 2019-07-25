@@ -111,13 +111,7 @@ We used F1 measure as quality criterion for final testing, at that we accounted 
 | Usual neural network with rejecting at recognition | 0.98 | 0.89 |
 | Usual neural network with yet another class for non-intents | 0.97 | 0.86 |
 
-Also you can see more detailed results by separate classes in second table.
-
-| Algorithm name | F1 for _AddToPlaylist_ | F1 for _BookRestaurant_ | F1 for _GetWeather_ | F1 for _PlayMusic_ | F1 for _RateBook_ | F1 for _SearchCreativeWork_ | F1 for _SearchScreeningEvent_ | F1 for FOREIGN |
-| -------------- | ---------------------: | --------------------- : | ------------------: | -----------------: | ----------------: | --------------------------: | ----------------------------: | -------------: |
-| Bayesian neural network with rejecting at recognition | 0.95 | 0.81 | 0.97 | 0.77 | 0.98 | 0.75 | 0.79 | 0.99 |
-| Usual neural network with rejecting at recognition | 0.99 | 0.91 | 0.96 | 0.65 | 0.97 | 0.73 | 0.93 | 0.99 |
-| Usual neural network with yet another class for non-intents | 0.97 | 0.98 | 0.58 | 0.48 | 1.00 | 0.97 | 0.91 | 0.98 |
+Also you can see more detailed results by separate classes:
 
 | F1 by intents | Bayesian neural network with rejecting at recognition | Usual neural network with rejecting at recognition | Usual neural network with yet another class for non-intents |
 | ------------- | ----------------------------------------------------: | -------------------------------------------------: | ----------------------------------------------------------: |
