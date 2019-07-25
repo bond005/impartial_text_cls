@@ -17,7 +17,7 @@ Installing
 ----------
 
 
-For installation you need to Python 3.6 or later. To install this project on your local machine, you should run the following commands in the Terminal:
+For installation you need to use Python 3.6 or later. To install this project on your local machine, you should run the following commands in the Terminal:
 
 ```
 git clone https://github.com/bond005/impartial_text_cls.git
@@ -76,7 +76,7 @@ with open('bert_bayesian_for_20newsgroups.pkl', 'wb') as fp:
     pickle.dump(cls, fp)
 ``````
 
-In this example we create classifier with special pre-trained BERT for English language from the **TensorFlow Hub**, and we specify path to this BERT in the `bert_hub_module_handle` parameter of constructor.
+In this example we created classifier with special pre-trained BERT for English language from the **TensorFlow Hub**, and we specified path to this BERT in the `bert_hub_module_handle` parameter of constructor.
 
 BERT is used as generator of token embeddings, therefore we add convolutional neural network in [Yoon Kim's style](https://arxiv.org/abs/1408.5882) after this BERT. First and only convolutional layer of this network contains feature maps with multiple filter widths from 1 to 5. Feature map quanity for each filter width is specified by the `filters_for_conv1` ... `filters_for_conv5` paramaters. Besides, boolean parameter `bayesian` specifies kind of all weights in the above described convolutional network: if `bayesian` is True, then these weights are bayesian, i.e. stohastic, else they are usual.
 
