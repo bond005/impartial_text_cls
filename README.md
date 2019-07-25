@@ -113,11 +113,22 @@ We used F1 measure as quality criterion for final testing, at that we accounted 
 
 Also you can see more detailed results by separate classes in second table.
 
-| Algorithm name                                              | F1 for _AddToPlaylist_ | F1 for _BookRestaurant_ | F1 for _GetWeather_ | F1 for _PlayMusic_ | F1 for _RateBook_ | F1 for _SearchCreativeWork_ | F1 for _SearchScreeningEvent_ | F1 for FOREIGN |
-| ----------------------------------------------------------- | ---------------------: | --------------------- : | ------------------: | -----------------: | ----------------: | --------------------------: | ----------------------------: | -------------: |
-| Bayesian neural network with rejecting at recognition       | 0.95 | 0.81 | 0.97 | 0.77 | 0.98 | 0.75 | 0.79 | 0.99 |
-| Usual neural network with rejecting at recognition          | 0.99 | 0.91 | 0.96 | 0.65 | 0.97 | 0.73 | 0.93 | 0.99 |
+| Algorithm name | F1 for _AddToPlaylist_ | F1 for _BookRestaurant_ | F1 for _GetWeather_ | F1 for _PlayMusic_ | F1 for _RateBook_ | F1 for _SearchCreativeWork_ | F1 for _SearchScreeningEvent_ | F1 for FOREIGN |
+| -------------- | ---------------------: | --------------------- : | ------------------: | -----------------: | ----------------: | --------------------------: | ----------------------------: | -------------: |
+| Bayesian neural network with rejecting at recognition | 0.95 | 0.81 | 0.97 | 0.77 | 0.98 | 0.75 | 0.79 | 0.99 |
+| Usual neural network with rejecting at recognition | 0.99 | 0.91 | 0.96 | 0.65 | 0.97 | 0.73 | 0.93 | 0.99 |
 | Usual neural network with yet another class for non-intents | 0.97 | 0.98 | 0.58 | 0.48 | 1.00 | 0.97 | 0.91 | 0.98 |
+
+| F1 by intents | Bayesian neural network with rejecting at recognition | Usual neural network with rejecting at recognition | Usual neural network with yet another class for non-intents |
+| ------------- | ----------------------------------------------------: | -------------------------------------------------: | ----------------------------------------------------------: |
+| _AddToPlaylist_ | 0.95 | 0.99 | 0.97 |
+| _BookRestaurant_ | 0.81 | 0.91 | 0.98 |
+| _GetWeather_ | 0.97 | 0.96 | 0.58 |
+| _PlayMusic_ | 0.77 | 0.65 | 0.48 |
+| _RateBook_ | 0.98 | 0.97 | 1.00 |
+| _SearchCreativeWork_ | 0.75 | 0.73 | 0.97 |
+| _SearchScreeningEvent_ | 0.79 | 0.93 | 0.91 |
+| FOREIGN (non-intent) | 0.99 | 0.99 | 0.98 |   
 
 
 As you see, rejecting at recognition by probability of recognized class is better than modeling of foreign data as additional class in training set. Results of Bayesian and usual neural networks with rejecting at recognition are like, but, as is well known, micro-averaging of F1-measure is more significant in case of class imbalance. Our dataset for final testing is sufficiently imbalanced, because it includes 100 test samples per each intent and more than 10000 unlabeled test samples from the Genesis corpus considered as non-intents. So, there is reason to suppose that described experiments corroborate initial hypothesis about effectiveness of the Bayesian neural network.
