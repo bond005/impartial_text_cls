@@ -382,8 +382,15 @@ class TestClassifier(unittest.TestCase):
             'Most of Northern European Russia and Siberia has a subarctic climate'
         ]
         y = [0, 0, 1, 1, 2, 2, 3, -1, -1, -1]
-        true_classes = [0, 1, 2, 3]
-        self.assertEqual(true_classes, ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train'))
+        true_classes_dict = {0: 0, 1: 1, 2: 2, 3: 3}
+        true_classes_reverse = [0, 1, 2, 3]
+        res = ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train')
+        self.assertIsInstance(res, tuple)
+        self.assertEqual(len(res), 2)
+        self.assertIsInstance(res[0], dict)
+        self.assertIsInstance(res[1], list)
+        self.assertEqual(true_classes_dict, res[0])
+        self.assertEqual(true_classes_reverse, res[1])
 
     def test_check_Xy_positive_02(self):
         X = [
@@ -399,8 +406,64 @@ class TestClassifier(unittest.TestCase):
             'Most of Northern European Russia and Siberia has a subarctic climate'
         ]
         y = [0, 0, 1, 1, 2, {2, 3}, 3, -1, -1, -1]
-        true_classes = [0, 1, 2, 3]
-        self.assertEqual(true_classes, ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train', True))
+        true_classes_dict = {0: 0, 1: 1, 2: 2, 3: 3}
+        true_classes_reverse = [0, 1, 2, 3]
+        res = ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train')
+        self.assertIsInstance(res, tuple)
+        self.assertEqual(len(res), 2)
+        self.assertIsInstance(res[0], dict)
+        self.assertIsInstance(res[1], list)
+        self.assertEqual(true_classes_dict, res[0])
+        self.assertEqual(true_classes_reverse, res[1])
+
+    def test_check_Xy_positive_03(self):
+        X = [
+            "I'd like to have this track onto my Classical Relaxations playlist.",
+            'Add the album to my Flow Español playlist.',
+            'Book a reservation for my babies and I',
+            'need a table somewhere in Quarryville 14 hours from now',
+            'what is the weather here',
+            'What kind of weather is forecast in MS now?',
+            'Please play something catchy on Youtube',
+            'The East Slavs emerged as a recognizable group in Europe between the 3rd and 8th centuries AD.',
+            'The Soviet Union played a decisive role in the Allied victory in World War II.',
+            'Most of Northern European Russia and Siberia has a subarctic climate'
+        ]
+        y = ['First Intent', 'First Intent', 1, 1, 'Third Intent', 'Third Intent', 'Fourth Intent', -1, '', -1]
+        true_classes_dict = {'First Intent': 0, 1: 1, 'Third Intent': 2, 'Fourth Intent': 3}
+        true_classes_reverse = ['First Intent', 1, 'Third Intent', 'Fourth Intent']
+        res = ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train')
+        self.assertIsInstance(res, tuple)
+        self.assertEqual(len(res), 2)
+        self.assertIsInstance(res[0], dict)
+        self.assertIsInstance(res[1], list)
+        self.assertEqual(true_classes_dict, res[0])
+        self.assertEqual(true_classes_reverse, res[1])
+
+    def test_check_Xy_positive_04(self):
+        X = [
+            "I'd like to have this track onto my Classical Relaxations playlist.",
+            'Add the album to my Flow Español playlist.',
+            'Book a reservation for my babies and I',
+            'need a table somewhere in Quarryville 14 hours from now',
+            'what is the weather here',
+            'What kind of weather is forecast in MS now?',
+            'Please play something catchy on Youtube',
+            'The East Slavs emerged as a recognizable group in Europe between the 3rd and 8th centuries AD.',
+            'The Soviet Union played a decisive role in the Allied victory in World War II.',
+            'Most of Northern European Russia and Siberia has a subarctic climate'
+        ]
+        y = ['First Intent', 'First Intent', 1, 1, 'Third Intent', {'Third Intent', 'Fourth Intent'}, 'Fourth Intent',
+             -1, -1, '']
+        true_classes_dict = {'First Intent': 0, 1: 1, 'Third Intent': 2, 'Fourth Intent': 3}
+        true_classes_reverse = ['First Intent', 1, 'Third Intent', 'Fourth Intent']
+        res = ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train')
+        self.assertIsInstance(res, tuple)
+        self.assertEqual(len(res), 2)
+        self.assertIsInstance(res[0], dict)
+        self.assertIsInstance(res[1], list)
+        self.assertEqual(true_classes_dict, res[0])
+        self.assertEqual(true_classes_reverse, res[1])
 
     def test_check_Xy_negative_01(self):
         true_err_msg = re.escape('`X_train` is wrong, because it is not a list-like object!')
@@ -493,8 +556,8 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train')
 
     def test_check_Xy_negative_06(self):
-        true_err_msg = re.escape('Item 3 of `y_train` is wrong, because `{0}` is inadmissible type for class '
-                                 'label.'.format(type(1.5)))
+        true_err_msg = re.escape('Item 3 of `y_train` is wrong, because {0} is inadmissible value for class '
+                                 'label.'.format(1.5))
         X = [
             "I'd like to have this track onto my Classical Relaxations playlist.",
             'Add the album to my Flow Español playlist.',
@@ -530,8 +593,8 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train')
 
     def test_check_Xy_negative_08(self):
-        true_err_msg = re.escape('Item 3 of `y_train` is wrong, because `{0}` is inadmissible type for class '
-                                 'label.'.format(type('2.3')))
+        true_err_msg = re.escape('Item 3 of `y_train` is wrong, because {0} is inadmissible value for class '
+                                 'label.'.format(2.3))
         X = [
             "I'd like to have this track onto my Classical Relaxations playlist.",
             'Add the album to my Flow Español playlist.',
@@ -544,7 +607,7 @@ class TestClassifier(unittest.TestCase):
             'The Soviet Union played a decisive role in the Allied victory in World War II.',
             'Most of Northern European Russia and Siberia has a subarctic climate'
         ]
-        y = [0, 0, 1, {1, '2.3'}, 2, 2, 3, -1, -1, -1]
+        y = [0, 0, 1, {1, 2.3}, 2, 2, 3, -1, -1, -1]
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train', True)
 
@@ -566,6 +629,46 @@ class TestClassifier(unittest.TestCase):
         y = [0, 0, 1, {1, -1}, 2, 2, 3, -1, -1, -1]
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train', True)
+
+    def test_check_Xy_negative_10(self):
+        true_err_msg = re.escape('Item 3 of `y_train` is wrong, because set of labels cannot contains undefined '
+                                 '(negative) class labels.')
+        X = [
+            "I'd like to have this track onto my Classical Relaxations playlist.",
+            'Add the album to my Flow Español playlist.',
+            'Book a reservation for my babies and I',
+            'need a table somewhere in Quarryville 14 hours from now',
+            'what is the weather here',
+            'What kind of weather is forecast in MS now?',
+            'Please play something catchy on Youtube',
+            'The East Slavs emerged as a recognizable group in Europe between the 3rd and 8th centuries AD.',
+            'The Soviet Union played a decisive role in the Allied victory in World War II.',
+            'Most of Northern European Russia and Siberia has a subarctic climate'
+        ]
+        y = [0, 0, 1, {1, ''}, 2, 2, 3, -1, -1, -1]
+        with self.assertRaisesRegex(ValueError, true_err_msg):
+            ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train', True)
+
+    def test_prepare_y_positive_01(self):
+        y_src = ['a', '1', 2, {'a', 3}, 5, '', -1, 0, {5, '3'}]
+        y_true = ['a', 1, 2, {'a', 3}, 5, -1, -1, 0, {3, 5}]
+        y_calc = ImpatialTextClassifier.prepare_y(y_src)
+        self.assertIsInstance(y_calc, list)
+        self.assertEqual(y_true, y_calc)
+
+    def test_prepare_y_positive_02(self):
+        y_src = ('a', '1', 2, {'a', 3}, 5, '', -1, 0, {5, '3'})
+        y_true = ('a', 1, 2, {'a', 3}, 5, -1, -1, 0, {3, 5})
+        y_calc = ImpatialTextClassifier.prepare_y(y_src)
+        self.assertIsInstance(y_calc, tuple)
+        self.assertEqual(y_true, y_calc)
+
+    def test_prepare_y_positive_03(self):
+        y_src = np.array(['a', '1', 2, {'a', 3}, 5, '', -1, 0, {5, '3'}], dtype=object)
+        y_true = ['a', 1, 2, {'a', 3}, 5, -1, -1, 0, {3, 5}]
+        y_calc = ImpatialTextClassifier.prepare_y(y_src)
+        self.assertIsInstance(y_calc, np.ndarray)
+        self.assertEqual(y_true, y_calc.tolist())
 
     def test_serialize_positive01(self):
         self.cls = ImpatialTextClassifier(random_seed=31)
