@@ -154,7 +154,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             train_op, elbo_loss_, val_loss_, pi_ = self.build_model()
         if not self.bayesian:
             val_loss_ = elbo_loss_
-        init = tf.group(tf.compat.v1.global_variables_initializer(), tf.local_variables_initializer())
+        init = tf.group(tf.compat.v1.global_variables_initializer(), tf.compat.v1.local_variables_initializer())
         init.run(session=self.sess_)
         tmp_model_name = self.get_temp_model_name()
         if self.verbose:
