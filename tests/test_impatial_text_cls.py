@@ -408,7 +408,7 @@ class TestClassifier(unittest.TestCase):
         y = [0, 0, 1, 1, 2, {2, 3}, 3, -1, -1, -1]
         true_classes_dict = {0: 0, 1: 1, 2: 2, 3: 3}
         true_classes_reverse = [0, 1, 2, 3]
-        res = ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train')
+        res = ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train', multioutput=True)
         self.assertIsInstance(res, tuple)
         self.assertEqual(len(res), 2)
         self.assertIsInstance(res[0], dict)
@@ -457,7 +457,7 @@ class TestClassifier(unittest.TestCase):
              -1, -1, '']
         true_classes_dict = {'First Intent': 0, 1: 1, 'Third Intent': 2, 'Fourth Intent': 3}
         true_classes_reverse = ['First Intent', 1, 'Third Intent', 'Fourth Intent']
-        res = ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train')
+        res = ImpatialTextClassifier.check_Xy(X, 'X_train', y, 'y_train', multioutput=True)
         self.assertIsInstance(res, tuple)
         self.assertEqual(len(res), 2)
         self.assertIsInstance(res[0], dict)
@@ -861,16 +861,19 @@ class TestClassifier(unittest.TestCase):
         self.assertEqual(self.cls.bayesian, old_bayesian)
         self.assertEqual(self.cls.random_seed, old_random_seed)
         self.assertTrue(hasattr(self.cls, 'tokenizer_'))
-        self.assertTrue(hasattr(self.cls, 'n_classes_'))
+        self.assertTrue(hasattr(self.cls, 'classes_'))
+        self.assertTrue(hasattr(self.cls, 'classes_reverse_index_'))
         self.assertTrue(hasattr(self.cls, 'sess_'))
         self.assertTrue(hasattr(self.cls, 'certainty_threshold_'))
         self.assertIsInstance(self.cls.tokenizer_, FullTokenizer)
-        self.assertIsInstance(self.cls.n_classes_, int)
+        self.assertIsInstance(self.cls.classes_, dict)
+        self.assertIsInstance(self.cls.classes_reverse_index_, list)
         self.assertIsInstance(self.cls.certainty_threshold_, float)
         self.assertGreaterEqual(self.cls.certainty_threshold_, 0.0)
         self.assertLessEqual(self.cls.certainty_threshold_, 1.0)
         self.assertAlmostEqual(self.cls.certainty_threshold_, old_certainty_threshold, places=6)
-        self.assertEqual(self.cls.n_classes_, 7)
+        self.assertEqual(len(self.cls.classes_), 7)
+        self.assertEqual(len(self.cls.classes_reverse_index_), 7)
         new_y = self.cls.predict(valid_texts)
         self.assertIsInstance(new_y, np.ndarray)
         self.assertEqual(len(new_y.shape), 1)
@@ -1005,7 +1008,8 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.another_cls, 'multioutput'))
         self.assertTrue(hasattr(self.another_cls, 'bayesian'))
         self.assertTrue(hasattr(self.another_cls, 'tokenizer_'))
-        self.assertTrue(hasattr(self.another_cls, 'n_classes_'))
+        self.assertTrue(hasattr(self.another_cls, 'classes_'))
+        self.assertTrue(hasattr(self.another_cls, 'classes_reverse_index_'))
         self.assertTrue(hasattr(self.another_cls, 'sess_'))
         self.assertTrue(hasattr(self.another_cls, 'certainty_threshold_'))
         self.assertEqual(self.cls.batch_size, self.another_cls.batch_size)
@@ -1025,7 +1029,8 @@ class TestClassifier(unittest.TestCase):
         self.assertEqual(self.cls.multioutput, self.another_cls.multioutput)
         self.assertEqual(self.cls.bayesian, self.another_cls.bayesian)
         self.assertAlmostEqual(self.cls.certainty_threshold_, self.another_cls.certainty_threshold_, places=9)
-        self.assertEqual(self.cls.n_classes_, self.another_cls.n_classes_)
+        self.assertEqual(self.cls.classes_, self.another_cls.classes_)
+        self.assertEqual(self.cls.classes_reverse_index_, self.another_cls.classes_reverse_index_)
         y_pred = self.cls.predict(valid_texts)
         y_pred_another = self.another_cls.predict(valid_texts)
         self.assertIsInstance(y_pred, np.ndarray)
@@ -1137,15 +1142,18 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.bayesian, bool)
         self.assertIsInstance(res.num_monte_carlo, int)
         self.assertTrue(hasattr(res, 'tokenizer_'))
-        self.assertTrue(hasattr(res, 'n_classes_'))
+        self.assertTrue(hasattr(res, 'classes_'))
+        self.assertTrue(hasattr(res, 'classes_reverse_index_'))
         self.assertTrue(hasattr(res, 'sess_'))
         self.assertTrue(hasattr(res, 'certainty_threshold_'))
         self.assertIsInstance(res.tokenizer_, FullTokenizer)
-        self.assertIsInstance(res.n_classes_, int)
+        self.assertIsInstance(res.classes_, dict)
+        self.assertIsInstance(res.classes_reverse_index_, list)
         self.assertIsInstance(res.certainty_threshold_, float)
         self.assertGreaterEqual(res.certainty_threshold_, 0.0)
         self.assertLessEqual(res.certainty_threshold_, 1.0)
-        self.assertEqual(res.n_classes_, 7)
+        self.assertEqual(len(res.classes_), 7)
+        self.assertEqual(len(res.classes_reverse_index_), 7)
         y_pred = res.predict(valid_texts)
         self.assertIsInstance(y_pred, np.ndarray)
         self.assertEqual(len(y_pred.shape), 1)
@@ -1161,10 +1169,10 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(probabilities, np.ndarray)
         self.assertEqual(len(probabilities.shape), 2)
         self.assertEqual(probabilities.shape[0], len(valid_labels))
-        self.assertEqual(probabilities.shape[1], res.n_classes_)
+        self.assertEqual(probabilities.shape[1], len(res.classes_))
         for sample_idx in range(len(valid_labels)):
             prob_sum = 0.0
-            for class_idx in range(res.n_classes_):
+            for class_idx in range(len(res.classes_)):
                 self.assertGreater(probabilities[sample_idx][class_idx], 0.0,
                                    msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
                 self.assertLess(probabilities[sample_idx][class_idx], 1.0,
@@ -1175,7 +1183,7 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(log_probabilities, np.ndarray)
         self.assertEqual(len(log_probabilities.shape), 2)
         self.assertEqual(log_probabilities.shape[0], len(valid_labels))
-        self.assertEqual(log_probabilities.shape[1], res.n_classes_)
+        self.assertEqual(log_probabilities.shape[1], len(res.classes_))
 
     def test_fit_predict_positive02(self):
         train_texts = np.array(
@@ -1290,15 +1298,17 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.multioutput, bool)
         self.assertIsInstance(res.num_monte_carlo, int)
         self.assertTrue(hasattr(res, 'tokenizer_'))
-        self.assertTrue(hasattr(res, 'n_classes_'))
+        self.assertTrue(hasattr(res, 'classes_'))
+        self.assertTrue(hasattr(res, 'classes_reverse_index_'))
         self.assertTrue(hasattr(res, 'sess_'))
         self.assertTrue(hasattr(res, 'certainty_threshold_'))
         self.assertIsInstance(res.tokenizer_, FullTokenizer)
-        self.assertIsInstance(res.n_classes_, int)
+        self.assertIsInstance(res.classes_, dict)
+        self.assertIsInstance(res.classes_reverse_index_, list)
         self.assertIsInstance(res.certainty_threshold_, float)
         self.assertGreaterEqual(res.certainty_threshold_, 0.0)
         self.assertLessEqual(res.certainty_threshold_, 1.0)
-        self.assertEqual(res.n_classes_, 7)
+        self.assertEqual(len(res.classes_), 7)
         y_pred = res.predict(valid_texts)
         self.assertIsInstance(y_pred, np.ndarray)
         self.assertEqual(len(y_pred.shape), 1)
@@ -1314,10 +1324,10 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(probabilities, np.ndarray)
         self.assertEqual(len(probabilities.shape), 2)
         self.assertEqual(probabilities.shape[0], len(valid_labels))
-        self.assertEqual(probabilities.shape[1], res.n_classes_)
+        self.assertEqual(probabilities.shape[1], len(res.classes_))
         for sample_idx in range(len(valid_labels)):
             prob_sum = 0.0
-            for class_idx in range(res.n_classes_):
+            for class_idx in range(len(res.classes_)):
                 self.assertGreater(probabilities[sample_idx][class_idx], 0.0,
                                    msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
                 self.assertLess(probabilities[sample_idx][class_idx], 1.0,
@@ -1328,7 +1338,7 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(log_probabilities, np.ndarray)
         self.assertEqual(len(log_probabilities.shape), 2)
         self.assertEqual(log_probabilities.shape[0], len(valid_labels))
-        self.assertEqual(log_probabilities.shape[1], res.n_classes_)
+        self.assertEqual(log_probabilities.shape[1], len(res.classes_))
 
     def test_fit_predict_positive03(self):
         train_texts = [
@@ -1434,15 +1444,18 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.bayesian, bool)
         self.assertIsInstance(res.num_monte_carlo, int)
         self.assertTrue(hasattr(res, 'tokenizer_'))
-        self.assertTrue(hasattr(res, 'n_classes_'))
+        self.assertTrue(hasattr(res, 'classes_'))
+        self.assertTrue(hasattr(res, 'classes_reverse_index_'))
         self.assertTrue(hasattr(res, 'sess_'))
         self.assertTrue(hasattr(res, 'certainty_threshold_'))
         self.assertIsInstance(res.tokenizer_, FullTokenizer)
-        self.assertIsInstance(res.n_classes_, int)
+        self.assertIsInstance(res.classes_, dict)
+        self.assertIsInstance(res.classes_reverse_index_, list)
         self.assertIsInstance(res.certainty_threshold_, np.ndarray)
-        self.assertEqual(res.n_classes_, 7)
-        self.assertEqual(res.certainty_threshold_.shape, (res.n_classes_,))
-        for class_idx in range(res.n_classes_):
+        self.assertEqual(len(res.classes_), 7)
+        self.assertEqual(len(res.classes_reverse_index_), 7)
+        self.assertEqual(res.certainty_threshold_.shape, (len(res.classes_),))
+        for class_idx in range(len(res.classes_)):
             self.assertGreaterEqual(res.certainty_threshold_[class_idx], 0.0)
             self.assertLessEqual(res.certainty_threshold_[class_idx], 1.0)
         y_pred = res.predict(valid_texts)
@@ -1457,9 +1470,9 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(probabilities, np.ndarray)
         self.assertEqual(len(probabilities.shape), 2)
         self.assertEqual(probabilities.shape[0], len(valid_labels))
-        self.assertEqual(probabilities.shape[1], res.n_classes_)
+        self.assertEqual(probabilities.shape[1], len(res.classes_))
         for sample_idx in range(len(valid_labels)):
-            for class_idx in range(res.n_classes_):
+            for class_idx in range(len(res.classes_)):
                 self.assertGreater(probabilities[sample_idx][class_idx], 0.0,
                                    msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
                 self.assertLess(probabilities[sample_idx][class_idx], 1.0,
@@ -1468,7 +1481,7 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(log_probabilities, np.ndarray)
         self.assertEqual(len(log_probabilities.shape), 2)
         self.assertEqual(log_probabilities.shape[0], len(valid_labels))
-        self.assertEqual(log_probabilities.shape[1], res.n_classes_)
+        self.assertEqual(log_probabilities.shape[1], len(res.classes_))
 
     def test_fit_negative_01(self):
         n_classes = 4
