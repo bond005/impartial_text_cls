@@ -154,7 +154,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             train_op, elbo_loss_, val_loss_, pi_ = self.build_model()
         if not self.bayesian:
             val_loss_ = elbo_loss_
-        init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
+        init = tf.group(tf.compat.v1.global_variables_initializer(), tf.local_variables_initializer())
         init.run(session=self.sess_)
         tmp_model_name = self.get_temp_model_name()
         if self.verbose:
@@ -307,7 +307,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         self.sess_.graph.clear_collection(k)
                     self.sess_.close()
                     del self.sess_
-                tf.reset_default_graph()
+                tf.compat.v1.reset_default_graph()
                 self.load_model(tmp_model_name)
         finally:
             for cur_name in self.find_all_model_files(tmp_model_name):
@@ -545,7 +545,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             self.random_seed = int(round(time.time()))
         random.seed(self.random_seed)
         np.random.seed(self.random_seed)
-        tf.random.set_random_seed(self.random_seed)
+        tf.compat.v1.random.set_random_seed(self.random_seed)
 
     def is_fitted(self):
         check_is_fitted(self, ['classes_', 'classes_reverse_index_', 'tokenizer_', 'sess_', 'certainty_threshold_'])
@@ -713,16 +713,19 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         return self
 
     def build_model(self):
-        config = tf.ConfigProto()
+        config = tf.compat.v1.ConfigProto()
         config.gpu_options.per_process_gpu_memory_fraction = self.gpu_memory_frac
-        self.sess_ = tf.Session(config=config)
-        input_ids = tf.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32, name='input_ids')
-        input_mask = tf.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32, name='input_mask')
-        segment_ids = tf.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32, name='segment_ids')
+        self.sess_ = tf.compat.v1.Session(config=config)
+        input_ids = tf.compat.v1.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32,
+                                             name='input_ids')
+        input_mask = tf.compat.v1.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32,
+                                              name='input_mask')
+        segment_ids = tf.compat.v1.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32,
+                                               name='segment_ids')
         if self.multioutput:
-            y_ph = tf.placeholder(shape=(self.batch_size, len(self.classes_)), dtype=tf.float32, name='y_ph')
+            y_ph = tf.compat.v1.placeholder(shape=(self.batch_size, len(self.classes_)), dtype=tf.float32, name='y_ph')
         else:
-            y_ph = tf.placeholder(shape=(self.batch_size,), dtype=tf.int32, name='y_ph')
+            y_ph = tf.compat.v1.placeholder(shape=(self.batch_size,), dtype=tf.int32, name='y_ph')
         bert_inputs = dict(
             input_ids=input_ids,
             input_mask=input_mask,
@@ -812,7 +815,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             kl = sum(model.losses)
             elbo_loss = neg_log_likelihood + pi * kl
             with tf.name_scope('train'):
-                optimizer = tf.train.AdamOptimizer()
+                optimizer = tf.compat.v1.train.AdamOptimizer()
                 train_op = optimizer.minimize(elbo_loss)
             return train_op, elbo_loss, neg_log_likelihood, pi
         if self.filters_for_conv1 > 0:
@@ -864,7 +867,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y_ph, logits=logits)
             loss = tf.reduce_sum(loss, name='loss')
         with tf.name_scope('train'):
-            optimizer = tf.train.AdamOptimizer()
+            optimizer = tf.compat.v1.train.AdamOptimizer()
             train_op = optimizer.minimize(loss)
         return train_op, loss, None, None
 
@@ -874,17 +877,17 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 self.sess_.graph.clear_collection(k)
             self.sess_.close()
             del self.sess_
-            tf.reset_default_graph()
+            tf.compat.v1.reset_default_graph()
 
     def save_model(self, file_name: str):
-        saver = tf.train.Saver()
+        saver = tf.compat.v1.train.Saver()
         saver.save(self.sess_, file_name)
 
     def load_model(self, file_name: str):
         if not hasattr(self, 'sess_'):
-            config = tf.ConfigProto()
+            config = tf.compat.v1.ConfigProto()
             config.gpu_options.per_process_gpu_memory_fraction = self.gpu_memory_frac
-            self.sess_ = tf.Session(config=config)
+            self.sess_ = tf.compat.v1.Session(config=config)
         saver = tf.train.import_meta_graph(file_name + '.meta', clear_devices=True)
         saver.restore(self.sess_, file_name)
 
@@ -910,9 +913,9 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                                  'cannot be detected.'.format(path_to_bert))
             tokenizer_ = FullTokenizer(vocab_file=os.path.join(path_to_bert, 'vocab.txt'), do_lower_case=do_lower_case)
         else:
-            config = tf.ConfigProto()
+            config = tf.compat.v1.ConfigProto()
             config.gpu_options.per_process_gpu_memory_fraction = self.gpu_memory_frac
-            self.sess_ = tf.Session(config=config)
+            self.sess_ = tf.compat.v1.Session(config=config)
             bert_module = tfhub.Module(self.bert_hub_module_handle, trainable=True)
             tokenization_info = bert_module(signature='tokenization_info', as_dict=True)
             vocab_file, do_lower_case = self.sess_.run([tokenization_info['vocab_file'],
@@ -923,7 +926,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     self.sess_.graph.clear_collection(k)
                 self.sess_.close()
                 del self.sess_
-            tf.reset_default_graph()
+            tf.compat.v1.reset_default_graph()
         return tokenizer_
 
     def __copy__(self):
@@ -1295,12 +1298,14 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                                      'label.'.format(idx, y_name, y[idx]))
                 if isinstance(class_value, int):
                     if class_value >= 0:
-                        classed_dict[class_value] = len(classes_dict_reverse)
-                        classes_dict_reverse.append(class_value)
+                        if class_value not in classed_dict:
+                            classed_dict[class_value] = len(classes_dict_reverse)
+                            classes_dict_reverse.append(class_value)
                 else:
                     if len(class_value) > 0:
-                        classed_dict[class_value] = len(classes_dict_reverse)
-                        classes_dict_reverse.append(class_value)
+                        if class_value not in classed_dict:
+                            classed_dict[class_value] = len(classes_dict_reverse)
+                            classes_dict_reverse.append(class_value)
         if len(classed_dict) < 2:
             raise ValueError('`{0}` is wrong! There are too few classes in the `{0}`.'.format(y_name))
         return classed_dict, classes_dict_reverse
