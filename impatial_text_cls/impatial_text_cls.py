@@ -84,7 +84,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             classes_dict_, classes_reverse_list_ = self.check_Xy(validation_data[0], 'X_val', validation_data[1],
                                                                  'y_val', self.multioutput)
             if not (set(classes_dict_.keys()) <= set(classes_dict.keys())):
-                unknown_classes = sorted(list(set(classes_dict_.keys()) - set(classes_dict_.keys())))
+                unknown_classes = sorted(list(set(classes_dict_.keys()) - set(classes_dict.keys())))
                 if len(unknown_classes) == 1:
                     raise ValueError('`y_val` is wrong. Class {0} is unknown.'.format(unknown_classes[0]))
                 else:
@@ -474,7 +474,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
     def predict_log_proba(self, X: Union[list, tuple, np.ndarray]) -> np.ndarray:
         return np.log(self.predict_proba(X) + 1e-9)
 
-    def predict(self, X: Union[list, tuple, np.ndarray]) -> np.ndarray:
+    def predict(self, X: Union[list, tuple, np.ndarray]) -> list:
         probabilities = self.predict_proba(X)
         if self.multioutput:
             recognized_classes = list()
@@ -499,7 +499,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 else:
                     recognized_classes.append(self.classes_reverse_index_[recognized_classes_[idx]])
             del probabilities
-        return np.array(recognized_classes, dtype=object)
+        return recognized_classes
 
     def fit_predict(self, X: Union[list, tuple, np.ndarray], y: Union[list, tuple, np.ndarray], **kwargs):
         return self.fit(X, y).predict(X)
@@ -525,7 +525,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         y_pred = self.predict(X)
         if self.multioutput:
             quality = 0.0
-            for class_name in range(self.classes_.keys()):
+            for class_name in sorted(list(self.classes_.keys())):
                 y_true_ = list(map(lambda cur: class_name in cur if isinstance(cur, set) else class_name == cur,
                                    self.prepare_y(y)))
                 y_pred_ = list(map(lambda cur: class_name in cur if isinstance(cur, set) else class_name == cur,
@@ -636,10 +636,23 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             indices_of_labeled_samples = []
             indices_of_unlabeled_samples = []
             for sample_idx in range(n_samples):
-                if isinstance(y[sample_idx], set) or (y[sample_idx] >= 0):
+                if isinstance(y[sample_idx], set):
                     indices_of_labeled_samples.append(sample_idx)
                 else:
-                    indices_of_unlabeled_samples.append(sample_idx)
+                    try:
+                        is_unlabeled = (y[sample_idx] < 0)
+                    except:
+                        if hasattr(y[sample_idx], 'split') and hasattr(y[sample_idx], 'strip'):
+                            try:
+                                is_unlabeled = (int(y[sample_idx]) < 0)
+                            except:
+                                is_unlabeled = len(y[sample_idx].strip()) == 0
+                        else:
+                            raise ValueError('`{0}` is wrong value of class label!'.format(y[sample_idx]))
+                    if is_unlabeled:
+                        indices_of_unlabeled_samples.append(sample_idx)
+                    else:
+                        indices_of_labeled_samples.append(sample_idx)
             if len(indices_of_labeled_samples) == 0:
                 raise ValueError('There are no labeled data samples!')
             if self.multioutput:
