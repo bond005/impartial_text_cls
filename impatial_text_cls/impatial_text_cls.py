@@ -244,8 +244,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                                 if text_width > max_text_width:
                                     max_text_width = text_width
                             for class_name in sorted(list(quality_by_classes.keys())):
-                                print('    ROC-AUC for {0:>{1}}: {2:>6.4f}'.format(class_name, max_text_width,
-                                                                                   quality_by_classes[class_name]))
+                                print('    ROC-AUC for {0:<{1}} {2:>6.4f}'.format(
+                                    str(class_name) + ':', max_text_width + 1, quality_by_classes[class_name]))
                     else:
                         precision_test = 0.0
                         recall_test = 0.0
@@ -260,14 +260,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                             print('  Val. quality for all entities:')
                             print('    F1={0:>6.4f}, P={1:>6.4f}, R={2:>6.4f}'.format(
                                 quality_test, precision_test, recall_test))
-                            max_text_width = 0
-                            for class_name in quality_by_classes.keys():
-                                text_width = len(class_name if (hasattr(class_name, 'split') and
-                                                                hasattr(class_name, 'strip')) else str(class_name))
-                                if text_width > max_text_width:
-                                    max_text_width = text_width
                             for class_name in sorted(list(quality_by_classes.keys())):
-                                print('      Val. quality for {0:>{1}}:'.format(class_name, max_text_width))
+                                print('      Val. quality for {0}:'.format(class_name))
                                 print('        F1={0:>6.4f}, P={1:>6.4f}, R={2:>6.4f}'.format(
                                     quality_by_classes[class_name][2], quality_by_classes[class_name][0],
                                     quality_by_classes[class_name][1])
@@ -525,15 +519,25 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         y_pred = self.predict(X)
         if self.multioutput:
             quality = 0.0
+            n = 0
             for class_name in sorted(list(self.classes_.keys())):
-                y_true_ = list(map(lambda cur: class_name in cur if isinstance(cur, set) else class_name == cur,
-                                   self.prepare_y(y)))
-                y_pred_ = list(map(lambda cur: class_name in cur if isinstance(cur, set) else class_name == cur,
-                                   y_pred))
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    quality = f1_score(y_true=np.array(y_true_, dtype=np.int32),
-                                       y_pred=np.array(y_pred_, dtype=np.int32))
+                y_true_ = np.array(
+                    list(map(lambda cur: (class_name in cur) if isinstance(cur, set) else (class_name == cur),
+                             self.prepare_y(y))),
+                    dtype=np.int32
+                )
+                y_pred_ = np.array(
+                    list(map(lambda cur: class_name in cur if isinstance(cur, set) else class_name == cur, y_pred)),
+                    dtype=np.int32
+                )
+                if (y_true_.max() > 0) or (y_pred_.max() > 0):
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        quality += f1_score(y_true=np.array(y_true_, dtype=np.int32),
+                                            y_pred=np.array(y_pred_, dtype=np.int32))
+                    n += 1
+            if n > 0:
+                quality /= float(n)
         else:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")

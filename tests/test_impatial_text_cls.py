@@ -1637,6 +1637,155 @@ class TestClassifier(unittest.TestCase):
         self.assertEqual(log_probabilities.shape[0], len(valid_labels))
         self.assertEqual(log_probabilities.shape[1], len(res.classes_))
 
+    def test_fit_predict_positive05(self):
+        train_texts = [
+            'add Stani, stani Ibar vodo songs in my playlist música libre',
+            'add this album to my Blues playlist',
+            'Add the tune to the Rage Radio playlist.',
+            'Add WC Handy to my Sax and the City playlist',
+            'Add BSlade to women of k-pop playlist',
+            'Book a reservation for seven people at a bakery in Osage City',
+            'Book spot for three at Maid-Rite Sandwich Shop in Antigua and Barbuda',
+            'I need a table for breakfast in MI at the pizzeria',
+            'Book a restaurant reservation for me and my child for 2 Pm in Faysville',
+            'I want to book a highly rated churrascaria ten months from now.',
+            'How\'s the weather in Munchique National Natural Park',
+            'Tell me the weather forecast for France',
+            'Will there be wind in Hornitos DC?',
+            'Is it warm here now?',
+            'what is the forecast for Roulo for foggy conditions on February the eighteenth, 2018',
+            'I\'d like to hear music that\'s popular from Trick-trick on the Slacker service',
+            'Play Making Out by Alexander Rosenbaum off Google Music.',
+            'I want to hear Pamela Jintana Racine from 1986 on Lastfm',
+            'is there something new you can play by Lola Monroe',
+            'I want to hear something from Post-punk Revival',
+            'Rate All That Remains a five Give this album 4 points',
+            'Give The Best Mysteries of Isaac Asimov four stars out of 6.',
+            'Rate this current novel 1 out of 6 points.',
+            'Give this textbook 5 points',
+            'Give this series 0 out of 6 stars',
+            'Please help me find the Bloom: Remix Album song.',
+            'Find me the soundtrack called Enter the Chicken',
+            'Can you please search Ellington at Newport?',
+            'Please find me the Youth Against Fascism television show.',
+            'Find me the book called Suffer',
+            'Find movie times for Landmark Theatres.',
+            'What are the movie times for Amco Entertainment',
+            'what films are showing at Bow Tie Cinemas',
+            'Show me the movies close by',
+            'I want to see The Da Vinci Code',
+            'Paleo-Indians migrated from Siberia to the North American mainland at least 12,000 years ago.',
+            'Hello, world!',
+            'Originating in U.S. defense networks, the Internet spread to international academic networks',
+            'The WHO is a member of the United Nations Development Group.',
+            'In 443, Geneva was taken by Burgundy.',
+            'How are you?',
+            'Don\'t mention it!',
+            'I communicate a lot with advertising and media agencies.',
+            'Hey, good morning, peasant!',
+            'Neural networks can actually escalate or amplify the intensity of the initial signal.',
+            'I was an artist.',
+            'He\'s a con artist…among other things.',
+            'Application area: growth factors study, cell biology.',
+            'Have you taken physical chemistry?',
+            'London is the capital of Great Britain'
+        ]
+        train_labels = ['AddToPlaylist', 'AddToPlaylist', 'AddToPlaylist', 'AddToPlaylist', 'AddToPlaylist',
+                        'BookRestaurant', 'BookRestaurant', 'BookRestaurant', 'BookRestaurant', 'BookRestaurant',
+                        'GetWeather', 'GetWeather', 'GetWeather', 'GetWeather', 'GetWeather', 'PlayMusic', 'PlayMusic',
+                        'PlayMusic', 'PlayMusic', 'PlayMusic', 'RateBook', 'RateBook', 'RateBook', 'RateBook',
+                        'RateBook', 'SearchCreativeWork', 'SearchCreativeWork', 'SearchCreativeWork',
+                        'SearchCreativeWork', 'SearchCreativeWork', 'SearchScreeningEvent', 'SearchScreeningEvent',
+                        'SearchScreeningEvent', 'SearchScreeningEvent', 'SearchScreeningEvent', '', '', '', -1, '', -1,
+                        '', '', '', '', '', -1, -1, -1, -1]
+        valid_texts = [
+            "I'd like to have this track onto my Classical Relaxations playlist.",
+            'Add the album to my Flow Español playlist.',
+            'Book a reservation for my babies and I',
+            'need a table somewhere in Quarryville 14 hours from now',
+            'what is the weather here',
+            'What kind of weather is forecast in MS now?',
+            'Please play something catchy on Youtube',
+            'The East Slavs emerged as a recognizable group in Europe between the 3rd and 8th centuries AD.',
+            'The Soviet Union played a decisive role in the Allied victory in World War II.',
+            'Most of Northern European Russia and Siberia has a subarctic climate'
+        ]
+        valid_labels = ['AddToPlaylist', 'AddToPlaylist', 'BookRestaurant', 'BookRestaurant', 'GetWeather',
+                        'GetWeather', {'PlayMusic', 'RateBook'}, -1, -1, -1]
+        self.cls = ImpatialTextClassifier(batch_size=4, verbose=True, multioutput=True)
+        res = self.cls.fit(train_texts, train_labels, validation_data=(valid_texts, valid_labels))
+        self.assertIsInstance(res, ImpatialTextClassifier)
+        self.assertTrue(hasattr(res, 'filters_for_conv1'))
+        self.assertTrue(hasattr(res, 'filters_for_conv2'))
+        self.assertTrue(hasattr(res, 'filters_for_conv3'))
+        self.assertTrue(hasattr(res, 'filters_for_conv4'))
+        self.assertTrue(hasattr(res, 'filters_for_conv5'))
+        self.assertTrue(hasattr(res, 'batch_size'))
+        self.assertTrue(hasattr(res, 'bert_hub_module_handle'))
+        self.assertTrue(hasattr(res, 'max_epochs'))
+        self.assertTrue(hasattr(res, 'patience'))
+        self.assertTrue(hasattr(res, 'random_seed'))
+        self.assertTrue(hasattr(res, 'gpu_memory_frac'))
+        self.assertTrue(hasattr(res, 'validation_fraction'))
+        self.assertTrue(hasattr(res, 'verbose'))
+        self.assertTrue(hasattr(res, 'multioutput'))
+        self.assertTrue(hasattr(res, 'bayesian'))
+        self.assertTrue(hasattr(res, 'num_monte_carlo'))
+        self.assertIsInstance(res.filters_for_conv1, int)
+        self.assertIsInstance(res.filters_for_conv2, int)
+        self.assertIsInstance(res.filters_for_conv3, int)
+        self.assertIsInstance(res.filters_for_conv4, int)
+        self.assertIsInstance(res.filters_for_conv5, int)
+        self.assertIsInstance(res.batch_size, int)
+        self.assertIsInstance(res.bert_hub_module_handle, str)
+        self.assertIsInstance(res.max_epochs, int)
+        self.assertIsInstance(res.patience, int)
+        self.assertIsNotNone(res.random_seed)
+        self.assertIsInstance(res.gpu_memory_frac, float)
+        self.assertIsInstance(res.validation_fraction, float)
+        self.assertIsInstance(res.verbose, bool)
+        self.assertIsInstance(res.multioutput, bool)
+        self.assertIsInstance(res.bayesian, bool)
+        self.assertIsInstance(res.num_monte_carlo, int)
+        self.assertTrue(hasattr(res, 'tokenizer_'))
+        self.assertTrue(hasattr(res, 'classes_'))
+        self.assertTrue(hasattr(res, 'classes_reverse_index_'))
+        self.assertTrue(hasattr(res, 'sess_'))
+        self.assertTrue(hasattr(res, 'certainty_threshold_'))
+        self.assertIsInstance(res.tokenizer_, FullTokenizer)
+        self.assertIsInstance(res.classes_, dict)
+        self.assertIsInstance(res.classes_reverse_index_, list)
+        self.assertIsInstance(res.certainty_threshold_, np.ndarray)
+        self.assertEqual(len(res.classes_), 7)
+        self.assertEqual(len(res.classes_reverse_index_), 7)
+        self.assertEqual(res.certainty_threshold_.shape, (len(res.classes_),))
+        for class_idx in range(len(res.classes_)):
+            self.assertGreaterEqual(res.certainty_threshold_[class_idx], 0.0)
+            self.assertLessEqual(res.certainty_threshold_[class_idx], 1.0)
+        y_pred = res.predict(valid_texts)
+        self.assertIsInstance(y_pred, list)
+        self.assertEqual(len(y_pred), len(valid_labels))
+        f1 = res.score(valid_texts, valid_labels)
+        self.assertIsInstance(f1, float)
+        self.assertGreaterEqual(f1, 0.0)
+        self.assertLessEqual(f1, 1.0)
+        probabilities = res.predict_proba(valid_texts)
+        self.assertIsInstance(probabilities, np.ndarray)
+        self.assertEqual(len(probabilities.shape), 2)
+        self.assertEqual(probabilities.shape[0], len(valid_labels))
+        self.assertEqual(probabilities.shape[1], len(res.classes_))
+        for sample_idx in range(len(valid_labels)):
+            for class_idx in range(len(res.classes_)):
+                self.assertGreater(probabilities[sample_idx][class_idx], 0.0,
+                                   msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
+                self.assertLess(probabilities[sample_idx][class_idx], 1.0,
+                                msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
+        log_probabilities = res.predict_log_proba(valid_texts)
+        self.assertIsInstance(log_probabilities, np.ndarray)
+        self.assertEqual(len(log_probabilities.shape), 2)
+        self.assertEqual(log_probabilities.shape[0], len(valid_labels))
+        self.assertEqual(log_probabilities.shape[1], len(res.classes_))
+
     def test_fit_negative01(self):
         train_texts = np.array(
             [
