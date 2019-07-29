@@ -111,9 +111,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             print('Maximal length of text (in BPE): {0}'.format(max(lengths_of_texts)))
             print('Mean length of text (in BPE): {0}'.format(mean_length))
             print('Median length of text (in BPE): {0}'.format(lengths_of_texts[len(lengths_of_texts) // 2]))
+            print('')
+            print('Number of known texts for training is {0}.'.format(len(y_train_tokenized)))
         X_train_tokenized, y_train_tokenized = self.extend_Xy(X_train_tokenized, y_train_tokenized, shuffle=True)
         if (X_val_ is not None) and (y_val_ is not None):
             X_val_tokenized, y_val_tokenized, X_unlabeled_tokenized_ = self.tokenize_all(X_val_, y_val_)
+            if self.verbose:
+                print('Number of known texts for validation is {0}.'.format(len(y_val_tokenized)))
             X_val_tokenized, y_val_tokenized = self.extend_Xy(X_val_tokenized, y_val_tokenized, shuffle=False)
             if (X_unlabeled_tokenized_ is not None) or (X_unlabeled_tokenized is not None):
                 if X_unlabeled_tokenized is None:
@@ -134,6 +138,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             y_val_tokenized = None
             if X_unlabeled_tokenized is not None:
                 X_unlabeled_tokenized = self.extend_Xy(X_unlabeled_tokenized, shuffle=False)
+        if self.verbose:
+            if X_unlabeled_tokenized is not None:
+                print('Number of unknown (foreign) texts is {0}.'.format(len(X_unlabeled_tokenized)))
+            print('')
         n_batches = int(np.ceil(X_train_tokenized[0].shape[0] / float(self.batch_size)))
         bounds_of_batches_for_training = []
         for iteration in range(n_batches):
