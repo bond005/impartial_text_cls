@@ -140,7 +140,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 X_unlabeled_tokenized = self.extend_Xy(X_unlabeled_tokenized, shuffle=False)
         if self.verbose:
             if X_unlabeled_tokenized is not None:
-                print('Number of unknown (foreign) texts is {0}.'.format(len(X_unlabeled_tokenized)))
+                print('Number of unknown (foreign) texts is {0}.'.format(len(X_unlabeled_tokenized[0])))
             print('')
         n_batches = int(np.ceil(X_train_tokenized[0].shape[0] / float(self.batch_size)))
         bounds_of_batches_for_training = []
@@ -651,15 +651,18 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 if isinstance(y[sample_idx], set):
                     indices_of_labeled_samples.append(sample_idx)
                 else:
-                    try:
-                        is_unlabeled = (y[sample_idx] < 0)
-                    except:
-                        if hasattr(y[sample_idx], 'split') and hasattr(y[sample_idx], 'strip'):
+                    if hasattr(y[sample_idx], 'split') and hasattr(y[sample_idx], 'strip'):
+                        if len(y[sample_idx].strip()) == 0:
+                            is_unlabeled = True
+                        else:
                             try:
                                 is_unlabeled = (int(y[sample_idx]) < 0)
                             except:
-                                is_unlabeled = len(y[sample_idx].strip()) == 0
-                        else:
+                                is_unlabeled = False
+                    else:
+                        try:
+                            is_unlabeled = (y[sample_idx] < 0)
+                        except:
                             raise ValueError('`{0}` is wrong value of class label!'.format(y[sample_idx]))
                     if is_unlabeled:
                         indices_of_unlabeled_samples.append(sample_idx)
