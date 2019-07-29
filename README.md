@@ -138,7 +138,7 @@ Breaking Changes
 **Breaking changes in version 0.0.2**
 - logging become more pretty: particulary, full class names may be printed instead of class indices in the training process (if you specify `y` as sequence of text labels).
 
-**Breaking changes in version 0.0.1!**
+**Breaking changes in version 0.0.1**
 - initial (alpha) version of the Impartial Text Classifier has been released.
  
 License
