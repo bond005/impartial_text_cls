@@ -1,3 +1,6 @@
+[![License Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/bond005/impartial_text_cls/blob/master/LICENSE)
+![Python 3.6, 3.7](https://img.shields.io/badge/python-3.6%20%7C%203.7-green.svg)
+
 # impartial_text_cls
 **Impartial Text Classifier**: text classifier, based on the BERT and a Bayesian neural network, which can train on small labeled texts and doubt its decision.
 
@@ -128,6 +131,20 @@ Also you can see more detailed results by separate classes:
 As you see, rejecting at recognition by probability of recognized class is better than modeling of foreign data as additional class in training set. Results of Bayesian and usual neural networks with rejecting at recognition are like, but, as is well known, micro-averaging of F1-measure is more significant in case of class imbalance. Our dataset for final testing is sufficiently imbalanced, because it includes 100 test samples per each intent and more than 10000 unlabeled test samples from the Genesis corpus considered as non-intents. So, there is reason to suppose that described experiments corroborate initial hypothesis about effectiveness of the Bayesian neural network.
 
 All aforecited experiments organize as special Python script which is available in the `demo/snips2017` subdirectory. Also, in the `demo` subdirectory there are several another demo-scripts, which may be helpful for various experiments and for better understanding of working with the **Impartial Text Classifier**.
+
+Breaking Changes
+-----
+
+**Breaking changes in version 0.0.2**
+- logging become more pretty: particulary, full class names may be printed instead of class indices in the training process (if you specify `y` as sequence of text labels).
+
+**Breaking changes in version 0.0.1!**
+- initial (alpha) version of the Impartial Text Classifier has been released.
+ 
+License
+-----
+
+The **Impartial Text Classifier** (`impartial-text-cls`) is Apache 2.0 - licensed.
 
 Acknowledgment
 -----

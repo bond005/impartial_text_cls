@@ -1,3 +1,17 @@
+# Copyright 2019 Ivan Bondarenko
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import copy
 import os
 import random
@@ -56,12 +70,9 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
 
     def fit(self, X: Union[list, tuple, np.ndarray], y: Union[list, tuple, np.ndarray],
             validation_data: Union[None, Tuple[Union[list, tuple, np.ndarray], Union[list, tuple, np.ndarray]]]=None):
-        classes_in_dataset = self.check_Xy(X, 'X', y, 'y', self.multioutput)
-        if (classes_in_dataset[0] != 0) or (classes_in_dataset[-1] != (len(classes_in_dataset) - 1)):
-            raise ValueError('`y` is wrong! Labels of classes are not ordered. '
-                             'Expected a `{0}`, but got a `{1}`.'.format(
-                list(range(len(classes_in_dataset))), classes_in_dataset))
-        self.n_classes_ = len(classes_in_dataset)
+        classes_dict, classes_reverse_list = self.check_Xy(X, 'X', y, 'y', self.multioutput)
+        self.classes_ = classes_dict
+        self.classes_reverse_index_ = classes_reverse_list
         if hasattr(self, 'tokenizer_'):
             del self.tokenizer_
         self.finalize_model()
@@ -70,13 +81,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             if self.validation_fraction > 0.0:
                 train_index, test_index = self.train_test_split(y, self.validation_fraction)
                 X_train_ = [X[idx] for idx in train_index]
-                y_train_ = [y[idx] for idx in train_index]
+                y_train_ = self.prepare_y([y[idx] for idx in train_index])
                 X_val_ = [X[idx] for idx in test_index]
-                y_val_ = [y[idx] for idx in test_index]
+                y_val_ = self.prepare_y([y[idx] for idx in test_index])
                 del train_index, test_index
             else:
                 X_train_ = X
-                y_train_ = y
+                y_train_ = self.prepare_y(y)
                 X_val_ = None
                 y_val_ = None
         else:
@@ -84,18 +95,18 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 raise ValueError('')
             if len(validation_data) != 2:
                 raise ValueError('')
-            classes_for_validation = self.check_Xy(validation_data[0], 'X_val', validation_data[1], 'y_val',
-                                                   self.multioutput)
-            if not (set(classes_for_validation) <= set(range(self.n_classes_))):
-                unknown_classes = sorted(list(set(classes_for_validation) - set(range(self.n_classes_))))
+            classes_dict_, classes_reverse_list_ = self.check_Xy(validation_data[0], 'X_val', validation_data[1],
+                                                                 'y_val', self.multioutput)
+            if not (set(classes_dict_.keys()) <= set(classes_dict.keys())):
+                unknown_classes = sorted(list(set(classes_dict_.keys()) - set(classes_dict.keys())))
                 if len(unknown_classes) == 1:
                     raise ValueError('`y_val` is wrong. Class {0} is unknown.'.format(unknown_classes[0]))
                 else:
                     raise ValueError('`y_val` is wrong. Classes {0} are unknown.'.format(unknown_classes))
             X_train_ = X
-            y_train_ = y
+            y_train_ = self.prepare_y(y)
             X_val_ = validation_data[0]
-            y_val_ = validation_data[1]
+            y_val_ = self.prepare_y(validation_data[1])
         self.tokenizer_ = self.initialize_bert_tokenizer()
         X_train_tokenized, y_train_tokenized, X_unlabeled_tokenized = self.tokenize_all(X_train_, y_train_)
         if self.verbose:
@@ -114,9 +125,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             print('Maximal length of text (in BPE): {0}'.format(max(lengths_of_texts)))
             print('Mean length of text (in BPE): {0}'.format(mean_length))
             print('Median length of text (in BPE): {0}'.format(lengths_of_texts[len(lengths_of_texts) // 2]))
+            print('')
+            print('Number of known texts for training is {0}.'.format(len(y_train_tokenized)))
         X_train_tokenized, y_train_tokenized = self.extend_Xy(X_train_tokenized, y_train_tokenized, shuffle=True)
         if (X_val_ is not None) and (y_val_ is not None):
             X_val_tokenized, y_val_tokenized, X_unlabeled_tokenized_ = self.tokenize_all(X_val_, y_val_)
+            if self.verbose:
+                print('Number of known texts for validation is {0}.'.format(len(y_val_tokenized)))
             X_val_tokenized, y_val_tokenized = self.extend_Xy(X_val_tokenized, y_val_tokenized, shuffle=False)
             if (X_unlabeled_tokenized_ is not None) or (X_unlabeled_tokenized is not None):
                 if X_unlabeled_tokenized is None:
@@ -137,6 +152,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             y_val_tokenized = None
             if X_unlabeled_tokenized is not None:
                 X_unlabeled_tokenized = self.extend_Xy(X_unlabeled_tokenized, shuffle=False)
+        if self.verbose:
+            if X_unlabeled_tokenized is not None:
+                print('Number of unknown (foreign) texts is {0}.'.format(len(X_unlabeled_tokenized[0])))
+            print('')
         n_batches = int(np.ceil(X_train_tokenized[0].shape[0] / float(self.batch_size)))
         bounds_of_batches_for_training = []
         for iteration in range(n_batches):
@@ -157,7 +176,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             train_op, elbo_loss_, val_loss_, pi_ = self.build_model()
         if not self.bayesian:
             val_loss_ = elbo_loss_
-        init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
+        init = tf.group(tf.compat.v1.global_variables_initializer(), tf.compat.v1.local_variables_initializer())
         init.run(session=self.sess_)
         tmp_model_name = self.get_temp_model_name()
         if self.verbose:
@@ -235,26 +254,27 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     quality_by_classes = self.calculate_quality(y_val_tokenized, y_pred[0:len(y_val_tokenized)])
                     quality_test = 0.0
                     if self.multioutput:
-                        for class_idx in quality_by_classes.keys():
-                            quality_test += quality_by_classes[class_idx]
+                        for class_name in quality_by_classes.keys():
+                            quality_test += quality_by_classes[class_name]
                         quality_test /= float(len(quality_by_classes))
                         if self.verbose:
                             print('  Val. ROC-AUC for all entities: {0:>6.4f}'.format(quality_test))
                             max_text_width = 0
-                            for class_idx in quality_by_classes.keys():
-                                text_width = len(str(class_idx))
+                            for class_name in quality_by_classes.keys():
+                                text_width = len(class_name if (hasattr(class_name, 'split') and
+                                                                hasattr(class_name, 'strip')) else str(class_name))
                                 if text_width > max_text_width:
                                     max_text_width = text_width
-                            for class_idx in sorted(list(quality_by_classes.keys())):
-                                print('    ROC-AUC for {0:>{1}}: {2:>6.4f}'.format(class_idx, max_text_width,
-                                                                                   quality_by_classes[class_idx]))
+                            for class_name in sorted(list(quality_by_classes.keys())):
+                                print('    ROC-AUC for {0:<{1}} {2:>6.4f}'.format(
+                                    str(class_name) + ':', max_text_width + 1, quality_by_classes[class_name]))
                     else:
                         precision_test = 0.0
                         recall_test = 0.0
-                        for class_idx in quality_by_classes.keys():
-                            precision_test += quality_by_classes[class_idx][0]
-                            recall_test += quality_by_classes[class_idx][1]
-                            quality_test += quality_by_classes[class_idx][2]
+                        for class_name in quality_by_classes.keys():
+                            precision_test += quality_by_classes[class_name][0]
+                            recall_test += quality_by_classes[class_name][1]
+                            quality_test += quality_by_classes[class_name][2]
                         precision_test /= float(len(quality_by_classes))
                         recall_test /= float(len(quality_by_classes))
                         quality_test /= float(len(quality_by_classes))
@@ -262,16 +282,11 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                             print('  Val. quality for all entities:')
                             print('    F1={0:>6.4f}, P={1:>6.4f}, R={2:>6.4f}'.format(
                                 quality_test, precision_test, recall_test))
-                            max_text_width = 0
-                            for class_idx in quality_by_classes.keys():
-                                text_width = len(str(class_idx))
-                                if text_width > max_text_width:
-                                    max_text_width = text_width
-                            for class_idx in sorted(list(quality_by_classes.keys())):
-                                print('      Val. quality for {0:>{1}}:'.format(class_idx, max_text_width))
+                            for class_name in sorted(list(quality_by_classes.keys())):
+                                print('      Val. quality for {0}:'.format(class_name))
                                 print('        F1={0:>6.4f}, P={1:>6.4f}, R={2:>6.4f}'.format(
-                                    quality_by_classes[class_idx][2], quality_by_classes[class_idx][0],
-                                    quality_by_classes[class_idx][1])
+                                    quality_by_classes[class_name][2], quality_by_classes[class_name][0],
+                                    quality_by_classes[class_name][1])
                                 )
                     if best_acc is None:
                         best_acc = quality_test
@@ -308,7 +323,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         self.sess_.graph.clear_collection(k)
                     self.sess_.close()
                     del self.sess_
-                tf.reset_default_graph()
+                tf.compat.v1.reset_default_graph()
                 self.load_model(tmp_model_name)
         finally:
             for cur_name in self.find_all_model_files(tmp_model_name):
@@ -319,7 +334,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
 
     def _calculate_probabilities(self, X: List[np.ndarray]) -> np.ndarray:
         n_batches = int(np.ceil(X[0].shape[0] / float(self.batch_size)))
-        probabilities = np.zeros((X[0].shape[0], self.n_classes_), dtype=np.float32)
+        probabilities = np.zeros((X[0].shape[0], len(self.classes_)), dtype=np.float32)
         for iteration in range(n_batches):
             batch_start = iteration * self.batch_size
             batch_end = min(batch_start + self.batch_size, X[0].shape[0])
@@ -385,11 +400,11 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 y_true = np.vstack(
                     (
                         y_true,
-                        np.zeros((X_unlabeled[0].shape[0], self.n_classes_))
+                        np.zeros((X_unlabeled[0].shape[0], len(self.classes_)))
                     )
                 )
-            self.certainty_threshold_ = np.full((self.n_classes_,), 1e-3)
-            for class_idx in range(self.n_classes_):
+            self.certainty_threshold_ = np.full((len(self.classes_),), 1e-3)
+            for class_idx in range(len(self.classes_)):
                 if any(map(lambda it: it > 0, y_true[:, class_idx])):
                     with warnings.catch_warnings():
                         warnings.simplefilter("ignore")
@@ -475,7 +490,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
     def predict_log_proba(self, X: Union[list, tuple, np.ndarray]) -> np.ndarray:
         return np.log(self.predict_proba(X) + 1e-9)
 
-    def predict(self, X: Union[list, tuple, np.ndarray]) -> np.ndarray:
+    def predict(self, X: Union[list, tuple, np.ndarray]) -> list:
         probabilities = self.predict_proba(X)
         if self.multioutput:
             recognized_classes = list()
@@ -483,7 +498,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 set_of_classes = set()
                 for class_idx in range(probabilities.shape[1]):
                     if probabilities[sample_idx][class_idx] >= self.certainty_threshold_[class_idx]:
-                        set_of_classes.add(class_idx)
+                        set_of_classes.add(self.classes_reverse_index_[class_idx])
                 if len(set_of_classes) == 0:
                     recognized_classes.append(-1)
                 elif len(set_of_classes) == 1:
@@ -491,12 +506,14 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 else:
                     recognized_classes.append(copy.copy(set_of_classes))
                 del set_of_classes
-            recognized_classes = np.array(recognized_classes, dtype=object)
         else:
-            recognized_classes = probabilities.argmax(axis=-1)
-            for idx in range(len(recognized_classes)):
-                if probabilities[idx][recognized_classes[idx]] < self.certainty_threshold_:
-                    recognized_classes[idx] = -1
+            recognized_classes = []
+            recognized_classes_ = probabilities.argmax(axis=-1)
+            for idx in range(len(recognized_classes_)):
+                if probabilities[idx][recognized_classes_[idx]] < self.certainty_threshold_:
+                    recognized_classes.append(-1)
+                else:
+                    recognized_classes.append(self.classes_reverse_index_[recognized_classes_[idx]])
             del probabilities
         return recognized_classes
 
@@ -514,9 +531,9 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             multioutput=self.multioutput, bayesian=self.bayesian
         )
         self.is_fitted()
-        classes_list = self.check_Xy(X, 'X', y, 'y', self.multioutput)
-        if not (set(classes_list) <= set(range(self.n_classes_))):
-            unknown_classes = sorted(list(set(classes_list) - set(range(self.n_classes_))))
+        classes_dict, classes_reverse_index = self.check_Xy(X, 'X', y, 'y', self.multioutput)
+        if not (set(classes_dict.keys()) <= set(self.classes_.keys())):
+            unknown_classes = sorted(list(set(classes_dict.keys()) - set(self.classes_.keys())))
             if len(unknown_classes) == 1:
                 raise ValueError('`y` is wrong. Class {0} is unknown.'.format(unknown_classes[0]))
             else:
@@ -524,13 +541,25 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         y_pred = self.predict(X)
         if self.multioutput:
             quality = 0.0
-            for class_idx in range(self.n_classes_):
-                y_true_ = list(map(lambda cur: class_idx in cur if isinstance(cur, set) else class_idx == cur, y))
-                y_pred_ = list(map(lambda cur: class_idx in cur if isinstance(cur, set) else class_idx == cur, y_pred))
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    quality = f1_score(y_true=np.array(y_true_, dtype=np.int32),
-                                       y_pred=np.array(y_pred_, dtype=np.int32))
+            n = 0
+            for class_name in sorted(list(self.classes_.keys())):
+                y_true_ = np.array(
+                    list(map(lambda cur: (class_name in cur) if isinstance(cur, set) else (class_name == cur),
+                             self.prepare_y(y))),
+                    dtype=np.int32
+                )
+                y_pred_ = np.array(
+                    list(map(lambda cur: class_name in cur if isinstance(cur, set) else class_name == cur, y_pred)),
+                    dtype=np.int32
+                )
+                if (y_true_.max() > 0) or (y_pred_.max() > 0):
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        quality += f1_score(y_true=np.array(y_true_, dtype=np.int32),
+                                            y_pred=np.array(y_pred_, dtype=np.int32))
+                    n += 1
+            if n > 0:
+                quality /= float(n)
         else:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
@@ -542,10 +571,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             self.random_seed = int(round(time.time()))
         random.seed(self.random_seed)
         np.random.seed(self.random_seed)
-        tf.random.set_random_seed(self.random_seed)
+        tf.compat.v1.random.set_random_seed(self.random_seed)
 
     def is_fitted(self):
-        check_is_fitted(self, ['n_classes_', 'tokenizer_', 'sess_', 'certainty_threshold_'])
+        check_is_fitted(self, ['classes_', 'classes_reverse_index_', 'tokenizer_', 'sess_', 'certainty_threshold_'])
 
     def fill_feed_dict(self, X: List[np.ndarray], y: np.ndarray = None,
                        pi_variable: tf.Variable=None, pi_value: float=None) -> dict:
@@ -592,7 +621,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             y_ext = np.concatenate(
                 (
                     y,
-                    np.full(shape=(n_extend, self.n_classes_), fill_value=y[-1], dtype=y.dtype)
+                    np.full(shape=(n_extend, len(self.classes_)), fill_value=y[-1], dtype=y.dtype)
                 )
             )
         else:
@@ -633,25 +662,41 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             indices_of_labeled_samples = []
             indices_of_unlabeled_samples = []
             for sample_idx in range(n_samples):
-                if isinstance(y[sample_idx], set) or (y[sample_idx] >= 0):
+                if isinstance(y[sample_idx], set):
                     indices_of_labeled_samples.append(sample_idx)
                 else:
-                    indices_of_unlabeled_samples.append(sample_idx)
+                    if hasattr(y[sample_idx], 'split') and hasattr(y[sample_idx], 'strip'):
+                        if len(y[sample_idx].strip()) == 0:
+                            is_unlabeled = True
+                        else:
+                            try:
+                                is_unlabeled = (int(y[sample_idx]) < 0)
+                            except:
+                                is_unlabeled = False
+                    else:
+                        try:
+                            is_unlabeled = (y[sample_idx] < 0)
+                        except:
+                            raise ValueError('`{0}` is wrong value of class label!'.format(y[sample_idx]))
+                    if is_unlabeled:
+                        indices_of_unlabeled_samples.append(sample_idx)
+                    else:
+                        indices_of_labeled_samples.append(sample_idx)
             if len(indices_of_labeled_samples) == 0:
                 raise ValueError('There are no labeled data samples!')
             if self.multioutput:
-                y_tokenized = np.zeros((len(indices_of_labeled_samples), self.n_classes_), dtype=np.int32)
+                y_tokenized = np.zeros((len(indices_of_labeled_samples), len(self.classes_)), dtype=np.int32)
                 for idx, sample_idx in enumerate(indices_of_labeled_samples):
                     if isinstance(y[sample_idx], set):
-                        for class_idx in y[sample_idx]:
+                        for class_idx in map(lambda it: self.classes_[it], y[sample_idx]):
                             y_tokenized[idx, class_idx] = 1
                     else:
-                        class_idx = y[sample_idx]
+                        class_idx = self.classes_[y[sample_idx]]
                         y_tokenized[idx, class_idx] = 1
             else:
                 y_tokenized = np.empty((len(indices_of_labeled_samples),), dtype=np.int32)
                 for idx, sample_idx in enumerate(indices_of_labeled_samples):
-                    y_tokenized[idx] = y[sample_idx]
+                    y_tokenized[idx] = self.classes_[y[sample_idx]]
             if len(indices_of_unlabeled_samples) == 0:
                 X_tokenized_unlabeled = None
             else:
@@ -669,28 +714,30 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             return X_tokenized
         return X_tokenized, y_tokenized, X_tokenized_unlabeled
 
-    def calculate_quality(self, y_true: np.ndarray, y_pred: np.ndarray) -> Dict[int, Union[float,
-                                                                                           Tuple[float, float, float]]]:
+    def calculate_quality(self, y_true: np.ndarray, y_pred: np.ndarray) -> \
+            Dict[Union[int, str], Union[float, Tuple[float, float, float]]]:
         res = dict()
-        for class_idx in range(self.n_classes_):
+        for class_idx in range(len(self.classes_reverse_index_)):
             if self.multioutput:
                 y_true_ = np.asarray(y_true[:, class_idx] > 0, dtype=np.int32)
                 if any(map(lambda it: it > 0, y_true_)):
                     y_pred_ = y_pred[:, class_idx]
-                    with warnings.catch_warnings():
-                        warnings.simplefilter("ignore")
-                        res[class_idx] = roc_auc_score(y_true_, y_pred_)
+                    if (y_true_.max() > 0) or (y_pred_.max() > 1e-9):
+                        with warnings.catch_warnings():
+                            warnings.simplefilter("ignore")
+                            res[self.classes_reverse_index_[class_idx]] = roc_auc_score(y_true_, y_pred_)
             else:
                 y_true_ = np.asarray(y_true == class_idx, dtype=np.int32)
                 if any(map(lambda it: it > 0, y_true_)):
                     y_pred_ = np.asarray(y_pred == class_idx, dtype=np.int32)
-                    with warnings.catch_warnings():
-                        warnings.simplefilter("ignore")
-                        res[class_idx] = (
-                            precision_score(y_true=y_true_, y_pred=y_pred_),
-                            recall_score(y_true=y_true_, y_pred=y_pred_),
-                            f1_score(y_true=y_true_, y_pred=y_pred_)
-                        )
+                    if (y_true_.max() > 0) or (y_pred_.max() > 0):
+                        with warnings.catch_warnings():
+                            warnings.simplefilter("ignore")
+                            res[self.classes_reverse_index_[class_idx]] = (
+                                precision_score(y_true=y_true_, y_pred=y_pred_),
+                                recall_score(y_true=y_true_, y_pred=y_pred_),
+                                f1_score(y_true=y_true_, y_pred=y_pred_)
+                            )
         return res
 
     def get_params(self, deep=True) -> dict:
@@ -708,16 +755,19 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         return self
 
     def build_model(self):
-        config = tf.ConfigProto()
+        config = tf.compat.v1.ConfigProto()
         config.gpu_options.per_process_gpu_memory_fraction = self.gpu_memory_frac
-        self.sess_ = tf.Session(config=config)
-        input_ids = tf.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32, name='input_ids')
-        input_mask = tf.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32, name='input_mask')
-        segment_ids = tf.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32, name='segment_ids')
+        self.sess_ = tf.compat.v1.Session(config=config)
+        input_ids = tf.compat.v1.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32,
+                                             name='input_ids')
+        input_mask = tf.compat.v1.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32,
+                                              name='input_mask')
+        segment_ids = tf.compat.v1.placeholder(shape=(self.batch_size, self.MAX_SEQ_LENGTH), dtype=tf.int32,
+                                               name='segment_ids')
         if self.multioutput:
-            y_ph = tf.placeholder(shape=(self.batch_size, self.n_classes_), dtype=tf.float32, name='y_ph')
+            y_ph = tf.compat.v1.placeholder(shape=(self.batch_size, len(self.classes_)), dtype=tf.float32, name='y_ph')
         else:
-            y_ph = tf.placeholder(shape=(self.batch_size,), dtype=tf.int32, name='y_ph')
+            y_ph = tf.compat.v1.placeholder(shape=(self.batch_size,), dtype=tf.int32, name='y_ph')
         bert_inputs = dict(
             input_ids=input_ids,
             input_mask=input_mask,
@@ -794,7 +844,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 concat_layer = tf.keras.layers.Concatenate(name='Concat')(conv_layers)
             else:
                 concat_layer = conv_layers[0]
-            output_layer = tfp.layers.DenseFlipout(self.n_classes_, seed=self.random_seed, name='OutputLayer')(
+            output_layer = tfp.layers.DenseFlipout(len(self.classes_), seed=self.random_seed, name='OutputLayer')(
                 concat_layer)
             model = tf.keras.Model(input_sequence_layer, output_layer, name='BayesianNetworkModel')
             logits = model(sequence_output)
@@ -807,7 +857,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             kl = sum(model.losses)
             elbo_loss = neg_log_likelihood + pi * kl
             with tf.name_scope('train'):
-                optimizer = tf.train.AdamOptimizer()
+                optimizer = tf.compat.v1.train.AdamOptimizer()
                 train_op = optimizer.minimize(elbo_loss)
             return train_op, elbo_loss, neg_log_likelihood, pi
         if self.filters_for_conv1 > 0:
@@ -850,7 +900,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         else:
             concat_layer = conv_layers[0]
         glorot_init = tf.keras.initializers.glorot_uniform(seed=self.random_seed)
-        logits = tf.layers.dense(concat_layer, self.n_classes_, kernel_initializer=glorot_init, name='Logits',
+        logits = tf.layers.dense(concat_layer, len(self.classes_), kernel_initializer=glorot_init, name='Logits',
                                  activation=(tf.nn.sigmoid if self.multioutput else tf.nn.softmax))
         with tf.name_scope('loss'):
             if self.multioutput:
@@ -859,7 +909,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y_ph, logits=logits)
             loss = tf.reduce_sum(loss, name='loss')
         with tf.name_scope('train'):
-            optimizer = tf.train.AdamOptimizer()
+            optimizer = tf.compat.v1.train.AdamOptimizer()
             train_op = optimizer.minimize(loss)
         return train_op, loss, None, None
 
@@ -869,17 +919,17 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 self.sess_.graph.clear_collection(k)
             self.sess_.close()
             del self.sess_
-            tf.reset_default_graph()
+            tf.compat.v1.reset_default_graph()
 
     def save_model(self, file_name: str):
-        saver = tf.train.Saver()
+        saver = tf.compat.v1.train.Saver()
         saver.save(self.sess_, file_name)
 
     def load_model(self, file_name: str):
         if not hasattr(self, 'sess_'):
-            config = tf.ConfigProto()
+            config = tf.compat.v1.ConfigProto()
             config.gpu_options.per_process_gpu_memory_fraction = self.gpu_memory_frac
-            self.sess_ = tf.Session(config=config)
+            self.sess_ = tf.compat.v1.Session(config=config)
         saver = tf.train.import_meta_graph(file_name + '.meta', clear_devices=True)
         saver.restore(self.sess_, file_name)
 
@@ -905,9 +955,9 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                                  'cannot be detected.'.format(path_to_bert))
             tokenizer_ = FullTokenizer(vocab_file=os.path.join(path_to_bert, 'vocab.txt'), do_lower_case=do_lower_case)
         else:
-            config = tf.ConfigProto()
+            config = tf.compat.v1.ConfigProto()
             config.gpu_options.per_process_gpu_memory_fraction = self.gpu_memory_frac
-            self.sess_ = tf.Session(config=config)
+            self.sess_ = tf.compat.v1.Session(config=config)
             bert_module = tfhub.Module(self.bert_hub_module_handle, trainable=True)
             tokenization_info = bert_module(signature='tokenization_info', as_dict=True)
             vocab_file, do_lower_case = self.sess_.run([tokenization_info['vocab_file'],
@@ -918,7 +968,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     self.sess_.graph.clear_collection(k)
                 self.sess_.close()
                 del self.sess_
-            tf.reset_default_graph()
+            tf.compat.v1.reset_default_graph()
         return tokenizer_
 
     def __copy__(self):
@@ -939,9 +989,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         except:
             is_fitted = False
         if is_fitted:
-            result.certainty_threshold_ = copy.copy(self.certainty_threshold_)
-            result.n_classes_ = self.n_classes_
-            result.tokenizer_ = self.tokenizer_
+            result.certainty_threshold_ = self.certainty_threshold_
+            result.classes_ = copy.copy(self.classes_)
+            result.classes_reverse_index_ = copy.copy(self.classes_reverse_index_)
+            result.tokenizer_ = copy.copy(self.tokenizer_)
             result.sess_ = self.sess_
         return result
 
@@ -963,9 +1014,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         except:
             is_fitted = False
         if is_fitted:
-            result.certainty_threshold_ = copy.copy(self.certainty_threshold_)
-            result.n_classes_ = self.n_classes_
-            result.tokenizer_ = self.tokenizer_
+            result.certainty_threshold_ = self.certainty_threshold_
+            result.classes_ = copy.deepcopy(self.classes_)
+            result.classes_reverse_index_ = copy.copy(self.classes_reverse_index_)
+            result.tokenizer_ = copy.deepcopy(self.tokenizer_)
             result.sess_ = self.sess_
         return result
 
@@ -983,8 +1035,9 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             is_fitted = False
         params = self.get_params(True)
         if is_fitted:
-            params['certainty_threshold_'] = copy.copy(self.certainty_threshold_)
-            params['n_classes_'] = self.n_classes_
+            params['certainty_threshold_'] = self.certainty_threshold_
+            params['classes_'] = copy.deepcopy(self.classes_)
+            params['classes_reverse_index_'] = copy.copy(self.classes_reverse_index_)
             params['tokenizer_'] = copy.deepcopy(self.tokenizer_)
             model_file_name = self.get_temp_model_name()
             try:
@@ -1007,7 +1060,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         if hasattr(self, 'tokenizer_'):
             del self.tokenizer_
         self.finalize_model()
-        is_fitted = ('n_classes_' in new_params) and  ('tokenizer_' in new_params) and ('model_name_' in new_params)
+        is_fitted = ('classes_' in new_params) and ('classes_reverse_index_' in new_params) and \
+                    ('tokenizer_' in new_params) and ('model_name_' in new_params)
         model_files = list(
             filter(
                 lambda it3: len(it3) > 0,
@@ -1029,8 +1083,9 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 if os.path.isfile(cur):
                     raise ValueError('File `{0}` exists, and so it cannot be used for data transmission!'.format(cur))
             self.set_params(**new_params)
-            self.n_classes_ = new_params['n_classes_']
-            self.certainty_threshold_ = copy.copy(new_params['certainty_threshold_'])
+            self.classes_ = copy.deepcopy(new_params['classes_'])
+            self.classes_reverse_index_ = copy.copy(new_params['classes_reverse_index_'])
+            self.certainty_threshold_ = new_params['certainty_threshold_']
             self.tokenizer_ = copy.deepcopy(new_params['tokenizer_'])
             self.update_random_seed()
             try:
@@ -1229,7 +1284,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
 
     @staticmethod
     def check_Xy(X: Union[list, tuple, np.ndarray], X_name: str,
-                 y: Union[list, tuple, np.ndarray], y_name: str, multioutput: bool=False) -> List[int]:
+                 y: Union[list, tuple, np.ndarray], y_name: str, multioutput: bool=False) -> Tuple[dict, list]:
         ImpatialTextClassifier.check_X(X, X_name)
         if (not hasattr(y, '__len__')) or (not hasattr(y, '__getitem__')):
             raise ValueError('`{0}` is wrong, because it is not a list-like object!'.format(y_name))
@@ -1240,43 +1295,67 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         if n != len(X):
             raise ValueError('Length of `{0}` does not correspond to length of `{1}`! {2} != {3}'.format(
                 X_name, y_name, len(X), len(y)))
-        classes_list = set()
+        classed_dict = dict()
+        classes_dict_reverse = list()
         for idx in range(n):
             if y[idx] is None:
                 raise ValueError('Item {0} of `{1}` is wrong, because it is `None`.'.format(idx, y_name))
             if isinstance(y[idx], set) and multioutput:
-                for class_idx_ in y[idx]:
+                for class_value_ in y[idx]:
                     try:
-                        class_idx = int(class_idx_)
-                        if class_idx != class_idx_:
-                            class_idx = None
+                        class_value = int(class_value_)
+                        if (not hasattr(class_value_, 'split')) or (not hasattr(class_value_, 'strip')):
+                            if class_value != class_value_:
+                                class_value = None
                     except:
-                        class_idx = None
-                    if class_idx is None:
-                        raise ValueError('Item {0} of `{1}` is wrong, because `{2}` is inadmissible type for class '
-                                         'label.'.format(idx, y_name, type(class_idx_)))
-                    if class_idx < 0:
+                        if (not hasattr(class_value_, 'split')) or (not hasattr(class_value_, 'strip')):
+                            class_value = None
+                        else:
+                            class_value = str(class_value_).strip()
+                    if class_value is None:
+                        raise ValueError('Item {0} of `{1}` is wrong, because {2} is inadmissible value for class '
+                                         'label.'.format(idx, y_name, class_value_))
+                    if isinstance(class_value, int) and (class_value < 0):
                         raise ValueError('Item {0} of `{1}` is wrong, because set of labels cannot contains undefined '
                                          '(negative) class labels.'.format(idx, y_name))
+                    elif isinstance(class_value, str) and (len(class_value) < 1):
+                        raise ValueError('Item {0} of `{1}` is wrong, because set of labels cannot contains undefined '
+                                         '(negative) class labels.'.format(idx, y_name))
+                    if class_value not in classed_dict:
+                        classed_dict[class_value] = len(classes_dict_reverse)
+                        classes_dict_reverse.append(class_value)
             else:
                 try:
-                    class_idx = int(y[idx])
-                    if class_idx != y[idx]:
-                        class_idx = None
+                    class_value = int(y[idx])
+                    if (not hasattr(y[idx], 'split')) or (not hasattr(y[idx], 'strip')):
+                        if class_value != y[idx]:
+                            class_value = None
                 except:
-                    class_idx = None
-                if class_idx is None:
-                    raise ValueError('Item {0} of `{1}` is wrong, because `{2}` is inadmissible type for class '
-                                     'label.'.format(idx, y_name, type(y[idx])))
-                if class_idx >= 0:
-                    classes_list.add(class_idx)
-        if len(classes_list) < 2:
+                    if (not hasattr(y[idx], 'split')) or (not hasattr(y[idx], 'strip')):
+                        class_value = None
+                    else:
+                        class_value = str(y[idx]).strip()
+                if class_value is None:
+                    raise ValueError('Item {0} of `{1}` is wrong, because {2} is inadmissible value for class '
+                                     'label.'.format(idx, y_name, y[idx]))
+                if isinstance(class_value, int):
+                    if class_value >= 0:
+                        if class_value not in classed_dict:
+                            classed_dict[class_value] = len(classes_dict_reverse)
+                            classes_dict_reverse.append(class_value)
+                else:
+                    if len(class_value) > 0:
+                        if class_value not in classed_dict:
+                            classed_dict[class_value] = len(classes_dict_reverse)
+                            classes_dict_reverse.append(class_value)
+        if len(classed_dict) < 2:
             raise ValueError('`{0}` is wrong! There are too few classes in the `{0}`.'.format(y_name))
-        return sorted(list(classes_list))
+        return classed_dict, classes_dict_reverse
 
     @staticmethod
     def train_test_split(y: Union[list, tuple, np.ndarray], test_part: float) -> Tuple[np.ndarray, np.ndarray]:
-        n = len(y)
+        y_prep = ImpatialTextClassifier.prepare_y(y)
+        n = len(y_prep)
         n_test = int(round(n * test_part))
         if n_test < 1:
             raise ValueError('{0} is too small for `test_part`!'.format(test_part))
@@ -1287,15 +1366,15 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         classes_for_training = set()
         classes_for_testing = set()
         for idx in indices[:n_test]:
-            if isinstance(y[idx], set):
-                classes_for_testing |= y[idx]
+            if isinstance(y_prep[idx], set):
+                classes_for_testing |= y_prep[idx]
             else:
-                classes_for_testing.add(y[idx])
+                classes_for_testing.add(y_prep[idx])
         for idx in indices[n_test:]:
-            if isinstance(y[idx], set):
-                classes_for_training |= y[idx]
+            if isinstance(y_prep[idx], set):
+                classes_for_training |= y_prep[idx]
             else:
-                classes_for_training.add(y[idx])
+                classes_for_training.add(y_prep[idx])
         for restart in range(10):
             if classes_for_training == classes_for_testing:
                 break
@@ -1303,15 +1382,15 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             classes_for_training = set()
             classes_for_testing = set()
             for idx in indices[:n_test]:
-                if isinstance(y[idx], set):
-                    classes_for_testing |= y[idx]
+                if isinstance(y_prep[idx], set):
+                    classes_for_testing |= y_prep[idx]
                 else:
-                    classes_for_testing.add(y[idx])
+                    classes_for_testing.add(y_prep[idx])
             for idx in indices[n_test:]:
-                if isinstance(y[idx], set):
-                    classes_for_training |= y[idx]
+                if isinstance(y_prep[idx], set):
+                    classes_for_training |= y_prep[idx]
                 else:
-                    classes_for_training.add(y[idx])
+                    classes_for_training.add(y_prep[idx])
         if classes_for_training != classes_for_testing:
             warnings.warn('Source data cannot be splitted by train and test parts!')
         if not (classes_for_testing <= classes_for_training):
@@ -1319,15 +1398,15 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             classes_for_training = set()
             classes_for_testing = set()
             for idx in indices[:n_test]:
-                if isinstance(y[idx], set):
-                    classes_for_testing |= y[idx]
+                if isinstance(y_prep[idx], set):
+                    classes_for_testing |= y_prep[idx]
                 else:
-                    classes_for_testing.add(y[idx])
+                    classes_for_testing.add(y_prep[idx])
             for idx in indices[n_test:]:
-                if isinstance(y[idx], set):
-                    classes_for_training |= y[idx]
+                if isinstance(y_prep[idx], set):
+                    classes_for_training |= y_prep[idx]
                 else:
-                    classes_for_training.add(y[idx])
+                    classes_for_training.add(y_prep[idx])
             for restart in range(10):
                 if classes_for_testing <= classes_for_training:
                     break
@@ -1335,15 +1414,15 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 classes_for_training = set()
                 classes_for_testing = set()
                 for idx in indices[:n_test]:
-                    if isinstance(y[idx], set):
-                        classes_for_testing |= y[idx]
+                    if isinstance(y_prep[idx], set):
+                        classes_for_testing |= y_prep[idx]
                     else:
-                        classes_for_testing.add(y[idx])
+                        classes_for_testing.add(y_prep[idx])
                 for idx in indices[n_test:]:
-                    if isinstance(y[idx], set):
-                        classes_for_training |= y[idx]
+                    if isinstance(y_prep[idx], set):
+                        classes_for_training |= y_prep[idx]
                     else:
-                        classes_for_training.add(y[idx])
+                        classes_for_training.add(y_prep[idx])
             if not (classes_for_testing <= classes_for_training):
                 raise ValueError('Source data cannot be splitted by train and test parts!')
         return indices[n_test:], indices[:n_test]
@@ -1353,18 +1432,20 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                  random_state: int=None) -> List[Tuple[np.ndarray, np.ndarray]]:
         if cv < 2:
             raise ValueError('{0} is too small for the CV parameter!'.format(cv))
+        y_prep = ImpatialTextClassifier.prepare_y(y)
         all_classes_list = set()
         is_multioutput = False
-        for cur in y:
+        for cur in y_prep:
             if isinstance(cur, set):
                 all_classes_list |= cur
                 is_multioutput = True
             else:
-                all_classes_list.add(cur)
+                all_classes_list.add(-1 if (hasattr(cur, 'split') and hasattr(cur, 'strip') and
+                                            (len(cur) == 0)) else cur)
         if is_multioutput:
             if random_state is not None:
                 np.random.seed(random_state)
-            n = len(y)
+            n = len(y_prep)
             n_test = n // cv
             if n_test < 1:
                 raise ValueError('{0} is too large for the CV parameter! Dataset size is {1}.'.format(cv, n))
@@ -1375,10 +1456,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             classes_distr = [set() for _ in range(cv)]
             for cv_idx in range(cv):
                 for idx in indices[bounds[cv_idx][0]:bounds[cv_idx][1]]:
-                    if isinstance(y[idx], set):
-                        classes_distr[cv_idx] |= y[idx]
+                    if isinstance(y_prep[idx], set):
+                        classes_distr[cv_idx] |= y_prep[idx]
                     else:
-                        classes_distr[cv_idx].add(y[idx])
+                        classes_distr[cv_idx].add(y_prep[idx])
             for restart in range(10):
                 if all(map(lambda it: it == classes_distr[0], classes_distr[1:])):
                     break
@@ -1387,10 +1468,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 classes_distr = [set() for _ in range(cv)]
                 for cv_idx in range(cv):
                     for idx in indices[bounds[cv_idx][0]:bounds[cv_idx][1]]:
-                        if isinstance(y[idx], set):
-                            classes_distr[cv_idx] |= y[idx]
+                        if isinstance(y_prep[idx], set):
+                            classes_distr[cv_idx] |= y_prep[idx]
                         else:
-                            classes_distr[cv_idx].add(y[idx])
+                            classes_distr[cv_idx].add(y_prep[idx])
             if not all(map(lambda it: it == classes_distr[0], classes_distr[1:])):
                 warnings.warn('Source data cannot be splitted by {0} parts!'.format(cv))
             cv_indices = []
@@ -1400,10 +1481,47 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 cv_indices.append((train_index, test_index))
         else:
             skf = StratifiedKFold(n_splits=cv, shuffle=True, random_state=random_state)
-            X = np.random.uniform(0.0, 1.0, (len(y), 3))
-            cv_indices = [(train_index, test_index) for train_index, test_index in skf.split(X, y)]
+            X = np.random.uniform(0.0, 1.0, (len(y_prep), 3))
+            cv_indices = [(train_index, test_index) for train_index, test_index in skf.split(X, y_prep)]
             del X, skf
         return cv_indices
+
+    @staticmethod
+    def prepare_y(y: Union[list, tuple, np.ndarray]) -> Union[list, tuple, np.ndarray]:
+        prep_y = []
+        for cur in y:
+            if isinstance(cur, set):
+                new_set = set()
+                for subitem in cur:
+                    if hasattr(subitem, 'split') and hasattr(subitem, 'strip'):
+                        if len(subitem) == 0:
+                            new_set.add(-1)
+                        else:
+                            try:
+                                new_val = int(subitem)
+                            except:
+                                new_val = subitem
+                            new_set.add(new_val)
+                    else:
+                        new_set.add(subitem)
+                prep_y.append(new_set)
+            else:
+                if hasattr(cur, 'split') and hasattr(cur, 'strip'):
+                    if len(cur) == 0:
+                        prep_y.append(-1)
+                    else:
+                        try:
+                            new_val = int(cur)
+                        except:
+                            new_val = cur
+                        prep_y.append(new_val)
+                else:
+                    prep_y.append(cur)
+        if isinstance(y, np.ndarray):
+            return np.array(prep_y, dtype=object)
+        if isinstance(y, tuple):
+            return tuple(prep_y)
+        return prep_y
 
     @staticmethod
     def calculate_pi_value(epoch: float, n_epochs: int, init_value: float, fin_value: float) -> float:
