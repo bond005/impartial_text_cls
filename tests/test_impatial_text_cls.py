@@ -751,6 +751,7 @@ class TestClassifier(unittest.TestCase):
         old_filters_for_conv3 = self.cls.filters_for_conv3
         old_filters_for_conv4 = self.cls.filters_for_conv4
         old_filters_for_conv5 = self.cls.filters_for_conv5
+        old_hidden_layer_size = self.cls.hidden_layer_size
         old_num_monte_carlo = self.cls.num_monte_carlo
         old_batch_size = self.cls.batch_size
         old_bert_hub_module_handle = self.cls.bert_hub_module_handle
@@ -784,6 +785,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.cls, 'filters_for_conv3'))
         self.assertTrue(hasattr(self.cls, 'filters_for_conv4'))
         self.assertTrue(hasattr(self.cls, 'filters_for_conv5'))
+        self.assertTrue(hasattr(self.cls, 'hidden_layer_size'))
         self.assertTrue(hasattr(self.cls, 'num_monte_carlo'))
         self.assertTrue(hasattr(self.cls, 'bayesian'))
         self.assertEqual(self.cls.batch_size, old_batch_size)
@@ -793,6 +795,7 @@ class TestClassifier(unittest.TestCase):
         self.assertAlmostEqual(self.cls.filters_for_conv3, old_filters_for_conv3)
         self.assertAlmostEqual(self.cls.filters_for_conv4, old_filters_for_conv4)
         self.assertAlmostEqual(self.cls.filters_for_conv5, old_filters_for_conv5)
+        self.assertAlmostEqual(self.cls.hidden_layer_size, old_hidden_layer_size)
         self.assertEqual(self.cls.bert_hub_module_handle, old_bert_hub_module_handle)
         self.assertEqual(self.cls.max_epochs, old_max_epochs)
         self.assertEqual(self.cls.patience, old_patience)
@@ -877,6 +880,7 @@ class TestClassifier(unittest.TestCase):
         old_filters_for_conv3 = self.cls.filters_for_conv3
         old_filters_for_conv4 = self.cls.filters_for_conv4
         old_filters_for_conv5 = self.cls.filters_for_conv5
+        old_hidden_layer_size = self.cls.hidden_layer_size
         old_num_monte_carlo = self.cls.num_monte_carlo
         old_batch_size = self.cls.batch_size
         old_bert_hub_module_handle = self.cls.bert_hub_module_handle
@@ -916,6 +920,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.cls, 'filters_for_conv3'))
         self.assertTrue(hasattr(self.cls, 'filters_for_conv4'))
         self.assertTrue(hasattr(self.cls, 'filters_for_conv5'))
+        self.assertTrue(hasattr(self.cls, 'hidden_layer_size'))
         self.assertTrue(hasattr(self.cls, 'num_monte_carlo'))
         self.assertEqual(self.cls.batch_size, old_batch_size)
         self.assertEqual(self.cls.num_monte_carlo, old_num_monte_carlo)
@@ -924,6 +929,7 @@ class TestClassifier(unittest.TestCase):
         self.assertAlmostEqual(self.cls.filters_for_conv3, old_filters_for_conv3)
         self.assertAlmostEqual(self.cls.filters_for_conv4, old_filters_for_conv4)
         self.assertAlmostEqual(self.cls.filters_for_conv5, old_filters_for_conv5)
+        self.assertAlmostEqual(self.cls.hidden_layer_size, old_hidden_layer_size)
         self.assertEqual(self.cls.bert_hub_module_handle, old_bert_hub_module_handle)
         self.assertEqual(self.cls.max_epochs, old_max_epochs)
         self.assertEqual(self.cls.patience, old_patience)
@@ -962,6 +968,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.another_cls, 'filters_for_conv3'))
         self.assertTrue(hasattr(self.another_cls, 'filters_for_conv4'))
         self.assertTrue(hasattr(self.another_cls, 'filters_for_conv5'))
+        self.assertTrue(hasattr(self.another_cls, 'hidden_layer_size'))
         self.assertTrue(hasattr(self.another_cls, 'num_monte_carlo'))
         self.assertTrue(hasattr(self.another_cls, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(self.another_cls, 'max_epochs'))
@@ -979,6 +986,7 @@ class TestClassifier(unittest.TestCase):
         self.assertAlmostEqual(self.cls.filters_for_conv3, self.another_cls.filters_for_conv3)
         self.assertAlmostEqual(self.cls.filters_for_conv4, self.another_cls.filters_for_conv4)
         self.assertAlmostEqual(self.cls.filters_for_conv5, self.another_cls.filters_for_conv5)
+        self.assertAlmostEqual(self.cls.hidden_layer_size, self.another_cls.hidden_layer_size)
         self.assertEqual(self.cls.bert_hub_module_handle, self.another_cls.bert_hub_module_handle)
         self.assertEqual(self.cls.max_epochs, self.another_cls.max_epochs)
         self.assertEqual(self.cls.patience, self.another_cls.patience)
@@ -1068,6 +1076,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.another_cls, 'filters_for_conv3'))
         self.assertTrue(hasattr(self.another_cls, 'filters_for_conv4'))
         self.assertTrue(hasattr(self.another_cls, 'filters_for_conv5'))
+        self.assertTrue(hasattr(self.another_cls, 'hidden_layer_size'))
         self.assertTrue(hasattr(self.another_cls, 'num_monte_carlo'))
         self.assertTrue(hasattr(self.another_cls, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(self.another_cls, 'max_epochs'))
@@ -1090,6 +1099,7 @@ class TestClassifier(unittest.TestCase):
         self.assertAlmostEqual(self.cls.filters_for_conv3, self.another_cls.filters_for_conv3)
         self.assertAlmostEqual(self.cls.filters_for_conv4, self.another_cls.filters_for_conv4)
         self.assertAlmostEqual(self.cls.filters_for_conv5, self.another_cls.filters_for_conv5)
+        self.assertAlmostEqual(self.cls.hidden_layer_size, self.another_cls.hidden_layer_size)
         self.assertEqual(self.cls.bert_hub_module_handle, self.another_cls.bert_hub_module_handle)
         self.assertEqual(self.cls.max_epochs, self.another_cls.max_epochs)
         self.assertEqual(self.cls.patience, self.another_cls.patience)
@@ -1184,6 +1194,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(res, 'filters_for_conv3'))
         self.assertTrue(hasattr(res, 'filters_for_conv4'))
         self.assertTrue(hasattr(res, 'filters_for_conv5'))
+        self.assertTrue(hasattr(res, 'hidden_layer_size'))
         self.assertTrue(hasattr(res, 'batch_size'))
         self.assertTrue(hasattr(res, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(res, 'max_epochs'))
@@ -1200,6 +1211,7 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.filters_for_conv3, int)
         self.assertIsInstance(res.filters_for_conv4, int)
         self.assertIsInstance(res.filters_for_conv5, int)
+        self.assertIsInstance(res.hidden_layer_size, int)
         self.assertIsInstance(res.batch_size, int)
         self.assertIsInstance(res.bert_hub_module_handle, str)
         self.assertIsInstance(res.max_epochs, int)
@@ -1339,6 +1351,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(res, 'filters_for_conv3'))
         self.assertTrue(hasattr(res, 'filters_for_conv4'))
         self.assertTrue(hasattr(res, 'filters_for_conv5'))
+        self.assertTrue(hasattr(res, 'hidden_layer_size'))
         self.assertTrue(hasattr(res, 'batch_size'))
         self.assertTrue(hasattr(res, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(res, 'max_epochs'))
@@ -1355,6 +1368,7 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.filters_for_conv3, int)
         self.assertIsInstance(res.filters_for_conv4, int)
         self.assertIsInstance(res.filters_for_conv5, int)
+        self.assertIsInstance(res.hidden_layer_size, int)
         self.assertIsInstance(res.batch_size, int)
         self.assertIsInstance(res.bert_hub_module_handle, str)
         self.assertIsInstance(res.max_epochs, int)
@@ -1484,6 +1498,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(res, 'filters_for_conv3'))
         self.assertTrue(hasattr(res, 'filters_for_conv4'))
         self.assertTrue(hasattr(res, 'filters_for_conv5'))
+        self.assertTrue(hasattr(res, 'hidden_layer_size'))
         self.assertTrue(hasattr(res, 'batch_size'))
         self.assertTrue(hasattr(res, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(res, 'max_epochs'))
@@ -1500,6 +1515,7 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.filters_for_conv3, int)
         self.assertIsInstance(res.filters_for_conv4, int)
         self.assertIsInstance(res.filters_for_conv5, int)
+        self.assertIsInstance(res.hidden_layer_size, int)
         self.assertIsInstance(res.batch_size, int)
         self.assertIsInstance(res.bert_hub_module_handle, str)
         self.assertIsInstance(res.max_epochs, int)
@@ -1642,6 +1658,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(res, 'filters_for_conv3'))
         self.assertTrue(hasattr(res, 'filters_for_conv4'))
         self.assertTrue(hasattr(res, 'filters_for_conv5'))
+        self.assertTrue(hasattr(res, 'hidden_layer_size'))
         self.assertTrue(hasattr(res, 'batch_size'))
         self.assertTrue(hasattr(res, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(res, 'max_epochs'))
@@ -1658,6 +1675,7 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.filters_for_conv3, int)
         self.assertIsInstance(res.filters_for_conv4, int)
         self.assertIsInstance(res.filters_for_conv5, int)
+        self.assertIsInstance(res.hidden_layer_size, int)
         self.assertIsInstance(res.batch_size, int)
         self.assertIsInstance(res.bert_hub_module_handle, str)
         self.assertIsInstance(res.max_epochs, int)
@@ -1794,6 +1812,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(res, 'filters_for_conv3'))
         self.assertTrue(hasattr(res, 'filters_for_conv4'))
         self.assertTrue(hasattr(res, 'filters_for_conv5'))
+        self.assertTrue(hasattr(res, 'hidden_layer_size'))
         self.assertTrue(hasattr(res, 'batch_size'))
         self.assertTrue(hasattr(res, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(res, 'max_epochs'))
@@ -1810,6 +1829,7 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.filters_for_conv3, int)
         self.assertIsInstance(res.filters_for_conv4, int)
         self.assertIsInstance(res.filters_for_conv5, int)
+        self.assertIsInstance(res.hidden_layer_size, int)
         self.assertIsInstance(res.batch_size, int)
         self.assertIsInstance(res.bert_hub_module_handle, str)
         self.assertIsInstance(res.max_epochs, int)
