@@ -42,7 +42,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
     def __init__(self,
                  bert_hub_module_handle: Union[str, None]='https://tfhub.dev/google/bert_uncased_L-12_H-768_A-12/1',
                  filters_for_conv1: int=100, filters_for_conv2: int=100, filters_for_conv3: int=100,
-                 filters_for_conv4: int=100, filters_for_conv5: int=100, batch_size: int=32,
+                 filters_for_conv4: int=100, filters_for_conv5: int=100, hidden_layer_size: int=500, batch_size: int=32,
                  validation_fraction: float=0.1, max_epochs: int=10, patience: int=3, num_monte_carlo: int=50,
                  gpu_memory_frac: float=1.0, verbose: bool=False, multioutput: bool=False, bayesian: bool=True,
                  random_seed: Union[int, None]=None):
@@ -52,6 +52,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         self.filters_for_conv3 = filters_for_conv3
         self.filters_for_conv4 = filters_for_conv4
         self.filters_for_conv5 = filters_for_conv5
+        self.hidden_layer_size = hidden_layer_size
         self.bert_hub_module_handle = bert_hub_module_handle
         self.max_epochs = max_epochs
         self.num_monte_carlo = num_monte_carlo
@@ -476,7 +477,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             num_monte_carlo=self.num_monte_carlo, filters_for_conv1=self.filters_for_conv1,
             filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
             filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
-            multioutput=self.multioutput, bayesian=self.bayesian
+            multioutput=self.multioutput, bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size
         )
         self.check_X(X, 'X')
         self.is_fitted()
@@ -528,7 +529,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             num_monte_carlo=self.num_monte_carlo, filters_for_conv1=self.filters_for_conv1,
             filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
             filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
-            multioutput=self.multioutput, bayesian=self.bayesian
+            multioutput=self.multioutput, bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size
         )
         self.is_fitted()
         classes_dict, classes_reverse_index = self.check_Xy(X, 'X', y, 'y', self.multioutput)
@@ -747,7 +748,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 'filters_for_conv4': self.filters_for_conv4, 'filters_for_conv5': self.filters_for_conv5,
                 'validation_fraction': self.validation_fraction, 'gpu_memory_frac': self.gpu_memory_frac,
                 'verbose': self.verbose, 'random_seed': self.random_seed, 'num_monte_carlo': self.num_monte_carlo,
-                'multioutput': self.multioutput, 'bayesian': self.bayesian}
+                'multioutput': self.multioutput, 'bayesian': self.bayesian, 'hidden_layer_size': self.hidden_layer_size}
 
     def set_params(self, **params):
         for parameter, value in params.items():
@@ -803,40 +804,35 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             if self.filters_for_conv1 > 0:
                 conv_layer_1 = tfp.layers.Convolution1DFlipout(
                     filters=self.filters_for_conv1, kernel_size=1, name='Conv1', padding='valid',
-                    activation=tf.nn.tanh,
-                    seed=self.random_seed
+                    activation=tf.nn.tanh, seed=self.random_seed
                 )(input_sequence_layer)
                 conv_layer_1 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling1')(conv_layer_1)
                 conv_layers.append(conv_layer_1)
             if self.filters_for_conv2 > 0:
                 conv_layer_2 = tfp.layers.Convolution1DFlipout(
                     filters=self.filters_for_conv2, kernel_size=2, name='Conv2', padding='valid',
-                    activation=tf.nn.tanh,
-                    seed=self.random_seed
+                    activation=tf.nn.tanh, seed=self.random_seed
                 )(input_sequence_layer)
                 conv_layer_2 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling2')(conv_layer_2)
                 conv_layers.append(conv_layer_2)
             if self.filters_for_conv3 > 0:
                 conv_layer_3 = tfp.layers.Convolution1DFlipout(
                     filters=self.filters_for_conv3, kernel_size=3, name='Conv3', padding='valid',
-                    activation=tf.nn.tanh,
-                    seed=self.random_seed
+                    activation=tf.nn.tanh, seed=self.random_seed
                 )(input_sequence_layer)
                 conv_layer_3 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling3')(conv_layer_3)
                 conv_layers.append(conv_layer_3)
             if self.filters_for_conv4 > 0:
                 conv_layer_4 = tfp.layers.Convolution1DFlipout(
                     filters=self.filters_for_conv4, kernel_size=4, name='Conv4', padding='valid',
-                    activation=tf.nn.tanh,
-                    seed=self.random_seed
+                    activation=tf.nn.tanh, seed=self.random_seed
                 )(input_sequence_layer)
                 conv_layer_4 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling4')(conv_layer_4)
                 conv_layers.append(conv_layer_4)
             if self.filters_for_conv5 > 0:
                 conv_layer_5 = tfp.layers.Convolution1DFlipout(
                     filters=self.filters_for_conv5, kernel_size=5, name='Conv5', padding='valid',
-                    activation=tf.nn.tanh,
-                    seed=self.random_seed
+                    activation=tf.nn.tanh, seed=self.random_seed
                 )(input_sequence_layer)
                 conv_layer_5 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling5')(conv_layer_5)
                 conv_layers.append(conv_layer_5)
@@ -844,8 +840,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 concat_layer = tf.keras.layers.Concatenate(name='Concat')(conv_layers)
             else:
                 concat_layer = conv_layers[0]
+            hidden_layer = tfp.layers.DenseFlipout(self.hidden_layer_size, seed=self.random_seed,
+                                                   name='HiddenLayer', activation=tf.nn.tanh)(concat_layer)
             output_layer = tfp.layers.DenseFlipout(len(self.classes_), seed=self.random_seed, name='OutputLayer')(
-                concat_layer)
+                hidden_layer)
             model = tf.keras.Model(input_sequence_layer, output_layer, name='BayesianNetworkModel')
             logits = model(sequence_output)
             if self.multioutput:
@@ -900,7 +898,9 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         else:
             concat_layer = conv_layers[0]
         glorot_init = tf.keras.initializers.glorot_uniform(seed=self.random_seed)
-        logits = tf.layers.dense(concat_layer, len(self.classes_), kernel_initializer=glorot_init, name='Logits',
+        hidden = tf.layers.dense(concat_layer, self.hidden_layer_size, kernel_initializer=glorot_init,
+                                 activation=(tf.nn.sigmoid if self.multioutput else tf.nn.softmax), name='HiddenLayer')
+        logits = tf.layers.dense(hidden, len(self.classes_), kernel_initializer=glorot_init, name='Logits',
                                  activation=(tf.nn.sigmoid if self.multioutput else tf.nn.softmax))
         with tf.name_scope('loss'):
             if self.multioutput:
@@ -1162,6 +1162,16 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         if kwargs['patience'] < 1:
             raise ValueError('`patience` is wrong! Expected a positive integer value, '
                              'but {0} is not positive.'.format(kwargs['patience']))
+        if 'hidden_layer_size' not in kwargs:
+            raise ValueError('`hidden_layer_size` is not specified!')
+        if (not isinstance(kwargs['hidden_layer_size'], int)) and \
+                (not isinstance(kwargs['hidden_layer_size'], np.int32)) and \
+                (not isinstance(kwargs['hidden_layer_size'], np.uint32)):
+            raise ValueError('`hidden_layer_size` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(3), type(kwargs['hidden_layer_size'])))
+        if kwargs['hidden_layer_size'] < 1:
+            raise ValueError('`hidden_layer_size` is wrong! Expected a positive integer value, '
+                             'but {0} is not positive.'.format(kwargs['hidden_layer_size']))
         if 'random_seed' not in kwargs:
             raise ValueError('`random_seed` is not specified!')
         if kwargs['random_seed'] is not None:

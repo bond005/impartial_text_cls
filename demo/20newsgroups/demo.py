@@ -54,6 +54,8 @@ def main():
                         help='Size of the Bayesian convolution layer with kernel size 4.')
     parser.add_argument('--conv5', dest='size_of_conv5', type=int, required=False, default=20,
                         help='Size of the Bayesian convolution layer with kernel size 5.')
+    parser.add_argument('--hidden', dest='hidden_layer_size', type=int, required=False, default=100,
+                        help='Hidden layer size.')
     parser.add_argument('--num_monte_carlo', dest='num_monte_carlo', type=int, required=False, default=10,
                         help='Number of generated Monte Carlo samples for each data sample.')
     parser.add_argument('--batch_size', dest='batch_size', type=int, required=False, default=16,
@@ -73,10 +75,11 @@ def main():
         print('Number of samples for training is {0}.'.format(len(train_texts)))
         nn = ImpatialTextClassifier(filters_for_conv1=args.size_of_conv1, filters_for_conv2=args.size_of_conv2,
                                     filters_for_conv3=args.size_of_conv3, filters_for_conv4=args.size_of_conv4,
-                                    filters_for_conv5=args.size_of_conv5, batch_size=args.batch_size,
-                                    num_monte_carlo=args.num_monte_carlo, gpu_memory_frac=args.gpu_memory_frac,
-                                    verbose=True, multioutput=False, random_seed=42, validation_fraction=0.15,
-                                    max_epochs=100, patience=5, bayesian=(args.nn_type == 'bayesian'))
+                                    filters_for_conv5=args.size_of_conv5, hidden_layer_size=args.hidden_layer_size,
+                                    batch_size=args.batch_size, num_monte_carlo=args.num_monte_carlo,
+                                    gpu_memory_frac=args.gpu_memory_frac, verbose=True, multioutput=False,
+                                    random_seed=42, validation_fraction=0.15, max_epochs=100, patience=5,
+                                    bayesian=(args.nn_type == 'bayesian'))
         nn.fit(train_texts, train_labels)
         print('')
         with open(model_name, 'wb') as fp:

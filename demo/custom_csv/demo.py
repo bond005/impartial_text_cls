@@ -67,6 +67,7 @@ def main():
         conv3_ = int(args[2])
         conv4_ = int(args[3])
         conv5_ = int(args[4])
+        hidden_ = int(args[5])
         quality = 0.0
         print('Filters number for different convolution kernels: ({0}, {1}, {2}, {3}, {4})'.format(
             conv1_, conv2_, conv3_, conv4_, conv5_))
@@ -76,10 +77,10 @@ def main():
             cls = ImpatialTextClassifier(bert_hub_module_handle=(None if os.path.exists(os.path.normpath(bert_handle))
                                                                  else bert_handle),
                                          filters_for_conv1=conv1_, filters_for_conv2=conv2_, filters_for_conv3=conv3_,
-                                         filters_for_conv4=conv4_, filters_for_conv5=conv5_, multioutput=multioutput,
-                                         gpu_memory_frac=gpu_memory_frac, num_monte_carlo=num_monte_carlo,
-                                         verbose=False, random_seed=42, max_epochs=100, patience=5, batch_size=16,
-                                         bayesian=(nn_type == 'bayesian'))
+                                         filters_for_conv4=conv4_, filters_for_conv5=conv5_, hidden_layer_size=hidden_,
+                                         multioutput=multioutput, gpu_memory_frac=gpu_memory_frac,
+                                         num_monte_carlo=num_monte_carlo, verbose=False, random_seed=42, max_epochs=100,
+                                         patience=5, batch_size=16, bayesian=(nn_type == 'bayesian'))
             if os.path.exists(os.path.normpath(bert_handle)):
                 cls.PATH_TO_BERT = os.path.normpath(bert_handle)
             train_texts = labeled_texts[train_index]
@@ -136,6 +137,7 @@ def main():
         conv3_ = int(args[2])
         conv4_ = int(args[3])
         conv5_ = int(args[4])
+        hidden_ = int(args[5])
         print('Optimal filters number for different convolution kernels: ({0}, {1}, {2}, {3}, {4})'.format(
             conv1_, conv2_, conv3_, conv4_, conv5_))
         print('')
@@ -146,10 +148,10 @@ def main():
             cls = ImpatialTextClassifier(bert_hub_module_handle=(None if os.path.exists(os.path.normpath(bert_handle))
                                                                  else bert_handle),
                                          filters_for_conv1=conv1_, filters_for_conv2=conv2_, filters_for_conv3=conv3_,
-                                         filters_for_conv4=conv4_, filters_for_conv5=conv5_, batch_size=16,
-                                         gpu_memory_frac=gpu_memory_frac, num_monte_carlo=num_monte_carlo, verbose=True,
-                                         random_seed=42, max_epochs=100, patience=5, multioutput=multioutput,
-                                         bayesian=(nn_type == 'bayesian'))
+                                         filters_for_conv4=conv4_, filters_for_conv5=conv5_, hidden_layer_size=hidden_,
+                                         batch_size=16, gpu_memory_frac=gpu_memory_frac, verbose=True, random_seed=42,
+                                         num_monte_carlo=num_monte_carlo, max_epochs=100, patience=5,
+                                         multioutput=multioutput, bayesian=(nn_type == 'bayesian'))
             if os.path.exists(os.path.normpath(bert_handle)):
                 cls.PATH_TO_BERT = os.path.normpath(bert_handle)
             train_texts = labeled_texts[train_index]
@@ -217,6 +219,7 @@ def main():
         conv3_ = int(args[2])
         conv4_ = int(args[3])
         conv5_ = int(args[4])
+        hidden_ = int(args[5])
         train_index, val_index = ImpatialTextClassifier.train_test_split(labels, 0.1)
         if unlabeled_texts_for_training is None:
             train_texts = labeled_texts[train_index]
@@ -239,9 +242,9 @@ def main():
         cls = ImpatialTextClassifier(bert_hub_module_handle=(None if os.path.exists(os.path.normpath(bert_handle))
                                                              else bert_handle),
                                      filters_for_conv1=conv1_, filters_for_conv2=conv2_, filters_for_conv3=conv3_,
-                                     filters_for_conv4=conv4_, filters_for_conv5=conv5_, batch_size=16,
-                                     gpu_memory_frac=gpu_memory_frac, num_monte_carlo=num_monte_carlo, verbose=True,
-                                     random_seed=42, max_epochs=100, patience=5, multioutput=multioutput,
+                                     filters_for_conv4=conv4_, filters_for_conv5=conv5_, hidden_layer_size=hidden_,
+                                     batch_size=16, gpu_memory_frac=gpu_memory_frac, num_monte_carlo=num_monte_carlo,
+                                     verbose=True, random_seed=42, max_epochs=100, patience=5, multioutput=multioutput,
                                      bayesian=(nn_type == 'bayesian'))
         if os.path.exists(os.path.normpath(bert_handle)):
             cls.PATH_TO_BERT = os.path.normpath(bert_handle)
@@ -279,6 +282,8 @@ def main():
                         help='Size of the Bayesian convolution layer with kernel size 4.')
     parser.add_argument('--conv5', dest='size_of_conv5', type=int, required=False, default=20,
                         help='Size of the Bayesian convolution layer with kernel size 5.')
+    parser.add_argument('--hidden', dest='hidden_layer_size', type=int, required=False, default=500,
+                        help='Hidden layer size.')
     parser.add_argument('--search', dest='search_hyperparameters', required=False, action='store_true',
                         default=False, help='Will be hyperparameters found by the Bayesian optimization?')
     cmd_args = parser.parse_args()
@@ -318,14 +323,15 @@ def main():
     if cmd_args.search_hyperparameters:
         optimal_res = gp_minimize(
             func,
-            dimensions=[Integer(0, 200), Integer(0, 200), Integer(0, 200), Integer(0, 200), Integer(0, 200)],
-            n_calls=20, n_random_starts=5, random_state=42, verbose=False, n_jobs=1
+            dimensions=[Integer(0, 200), Integer(0, 200), Integer(0, 200), Integer(0, 200), Integer(0, 200),
+                        Integer(100, 1000)],
+            n_calls=50, n_random_starts=5, random_state=42, verbose=False, n_jobs=1
         )
         print('')
         hyperparameters = optimal_res.x
     else:
         hyperparameters = [cmd_args.size_of_conv1, cmd_args.size_of_conv2, cmd_args.size_of_conv3,
-                           cmd_args.size_of_conv4, cmd_args.size_of_conv5]
+                           cmd_args.size_of_conv4, cmd_args.size_of_conv5, cmd_args.hidden_layer_size]
     score(hyperparameters)
     with open(model_name, 'wb') as fp:
         pickle.dump(train(hyperparameters), fp)
