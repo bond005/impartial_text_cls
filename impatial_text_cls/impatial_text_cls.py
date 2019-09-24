@@ -981,7 +981,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size, multioutput=self.multioutput,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
             gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
-            bayesian=self.bayesian
+            bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size
         )
         try:
             self.is_fitted()
@@ -1006,7 +1006,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size, multioutput=self.multioutput,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
             gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
-            bayesian=self.bayesian
+            bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size
         )
         try:
             self.is_fitted()
