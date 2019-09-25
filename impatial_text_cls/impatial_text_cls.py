@@ -21,6 +21,7 @@ from typing import Dict, List, Tuple, Union
 import warnings
 
 import numpy as np
+from scipy.stats import geom
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
 from sklearn.model_selection import StratifiedKFold
@@ -200,11 +201,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     if self.bayesian:
                         feed_dict_for_batch = self.fill_feed_dict(
                             X_batch, y_batch, pi_variable=pi_,
-                            pi_value=self.calculate_pi_value(
-                                epoch + float(batch_counter + 1) / float(len(bounds_of_batches_for_training)),
-                                max(2, self.patience - 1),
-                                1e-1, 1e-5
-                            )
+                            pi_value=self.calculate_pi_value(batch_counter + 1, len(bounds_of_batches_for_training))
                         )
                     else:
                         feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
@@ -851,7 +848,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             else:
                 labels_distribution = tfp.distributions.Categorical(logits=logits, name='LabelsDistribution')
             neg_log_likelihood = -tf.reduce_sum(input_tensor=labels_distribution.log_prob(y_ph))
-            pi = tf.Variable(0.0, trainable=False, name='Pi_for_ELBO_loss', dtype=tf.float32)
+            pi = tf.Variable(0.5, trainable=False, name='Pi_for_ELBO_loss', dtype=tf.float32)
             kl = sum(model.losses)
             elbo_loss = neg_log_likelihood + pi * kl
             with tf.name_scope('train'):
@@ -1534,14 +1531,9 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         return prep_y
 
     @staticmethod
-    def calculate_pi_value(epoch: float, n_epochs: int, init_value: float, fin_value: float) -> float:
-        if epoch > n_epochs:
-            res = -float(n_epochs)
-        else:
-            res = -epoch
-        res = np.power(2.0, res)
-        return (res - np.power(2.0, -1.0)) / (np.power(2.0, float(-n_epochs)) - np.power(2.0, -1.0)) * \
-               (fin_value - init_value) + init_value
+    def calculate_pi_value(batch: int, n_batches: int) -> float:
+        sum_prob = sum(geom.pmf([(idx + 1) for idx in range(n_batches)], 0.5))
+        return geom.pmf(float(batch), 0.5) / sum_prob
 
     @staticmethod
     def check_path_to_bert(dir_name: str) -> bool:
