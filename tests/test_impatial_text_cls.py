@@ -2266,17 +2266,18 @@ class TestClassifier(unittest.TestCase):
                 classes_for_testing.add(y[idx])
         self.assertEqual(classes_for_training, classes_for_testing)
 
+
     def test_calculate_pi_value_positive01(self):
-        self.assertAlmostEqual(0.025604697, ImpatialTextClassifier.calculate_pi_value(3, 10, 0.1, 0.001), places=6)
+        self.assertAlmostEqual(0.12512218963831867, ImpatialTextClassifier.calculate_pi_value(3, 10), places=6)
 
     def test_calculate_pi_value_positive02(self):
-        self.assertAlmostEqual(0.007005871, ImpatialTextClassifier.calculate_pi_value(5, 10, 0.1, 0.001), places=6)
+        self.assertAlmostEqual(0.03128054740957967, ImpatialTextClassifier.calculate_pi_value(5, 10), places=6)
 
     def test_calculate_pi_value_positive03(self):
-        self.assertAlmostEqual(0.001, ImpatialTextClassifier.calculate_pi_value(10, 10, 0.1, 0.001), places=6)
+        self.assertAlmostEqual(0.0009775171065493646, ImpatialTextClassifier.calculate_pi_value(10, 10), places=6)
 
     def test_calculate_pi_value_positive04(self):
-        self.assertAlmostEqual(0.001, ImpatialTextClassifier.calculate_pi_value(13, 10, 0.1, 0.001), places=6)
+        self.assertAlmostEqual(0.5004887585532747, ImpatialTextClassifier.calculate_pi_value(1, 10), places=6)
 
     def test_cv_split(self):
         y = np.array([0, 1, 2, {0, 2}, 2, {1, 2}, 1, 1, 0, 1, 0, 0, 2, {1, 2}, 2, 2, 0, 1, {1, 2}, 0, 0, 1, 2, {0, 2},
