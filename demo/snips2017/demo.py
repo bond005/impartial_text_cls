@@ -194,7 +194,7 @@ def main():
                     y_pred.append(y_pred_[sample_idx])
     end_time = time.time()
     print('Duration of testing is {0:.3f} seconds.'.format(end_time - start_time))
-    print('Mean duration of a single test sample recognition is {0:.3f}.'.format(
+    print('Mean duration of a single test sample recognition is {0:.3f} seconds.'.format(
         (end_time - start_time) / float(len(test_texts))))
     print('Results of {0}:'.format(
         'bayesian neural network' if args.nn_type == 'bayesian' else
