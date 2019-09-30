@@ -70,6 +70,10 @@ def load_genesis_corpus() -> np.ndarray:
     )
 
 
+def is_string(value):
+    return hasattr(value, 'split') and hasattr(value, 'strip')
+
+
 def main():
     parser = ArgumentParser()
     parser.add_argument('-m', '--model', dest='model_name', type=str, required=True,
@@ -158,26 +162,36 @@ def main():
                                     gpu_memory_frac=args.gpu_memory_frac, verbose=True, multioutput=False,
                                     random_seed=42, validation_fraction=0.15, max_epochs=100, patience=5,
                                     bayesian=(args.nn_type == 'bayesian'))
-        nn.fit(train_texts, train_labels, validation_data=(val_texts, val_labels))
+        nn.fit(
+            train_texts,
+            [(classes_list[idx1] if idx1 >= 0 else ('UNKNOWN' if args.nn_type == 'additional_class' else -1))
+             for idx1 in train_labels],
+            validation_data=(
+                val_texts,
+                [(classes_list[idx2] if idx2 >= 0 else ('UNKNOWN' if args.nn_type == 'additional_class' else -1))
+                 for idx2 in val_labels]
+            )
+        )
         print('')
         with open(model_name, 'wb') as fp:
             pickle.dump(nn, fp)
     test_texts = np.concatenate((test_data[0], unlabeled_texts_for_testing))
-    test_labels = np.concatenate(
-        (
-            test_data[1],
-            np.full(shape=(len(unlabeled_texts_for_testing),),
-                    fill_value=len(classes_list), dtype=np.int32)
-        )
-    )
+    test_labels = [(classes_list[idx] if idx >= 0 else 'UNKNOWN') for idx in test_data[1]]
+    test_labels += ['UNKNOWN' for _ in range(len(unlabeled_texts_for_testing))]
     start_time = time.time()
     if args.nn_type == 'additional_class':
-        y_pred = nn.predict_proba(test_texts).argmax(axis=1)
-    else:
         y_pred = nn.predict(test_texts)
-    for sample_idx in range(len(y_pred)):
-        if y_pred[sample_idx] < 0:
-            y_pred[sample_idx] = len(classes_list)
+    else:
+        y_pred_ = nn.predict(test_texts)
+        y_pred = []
+        for sample_idx in range(len(y_pred_)):
+            if is_string(y_pred_[sample_idx]):
+                y_pred.append(y_pred_[sample_idx])
+            else:
+                if y_pred_[sample_idx] < 0:
+                    y_pred.append('UNKNOWN')
+                else:
+                    y_pred.append(y_pred_[sample_idx])
     end_time = time.time()
     print('Duration of testing is {0:.3f} seconds.'.format(end_time - start_time))
     print('Mean duration of a single test sample recognition is {0:.3f}.'.format(
@@ -186,7 +200,7 @@ def main():
         'bayesian neural network' if args.nn_type == 'bayesian' else
         ('usual neural network' if args.nn_type == 'usual' else 'usual neural network with additional class')
     ))
-    print(classification_report(test_labels, y_pred, target_names=classes_list + ['UNKNOWN']))
+    print(classification_report(test_labels, y_pred))
 
 
 if __name__ == '__main__':
