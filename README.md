@@ -53,8 +53,9 @@ from impatial_text_cls.impatial_text_cls import ImpatialTextClassifier  # import
 cls = ImpatialTextClassifier(
     bert_hub_module_handle='https://tfhub.dev/google/bert_uncased_L-12_H-768_A-12/1',
     filters_for_conv2=50, filters_for_conv3=50, filters_for_conv4=50, filters_for_conv5=50,
-    batch_size=16, num_monte_carlo=100, gpu_memory_frac=0.95, verbose=True, multioutput=False,
-    random_seed=42, validation_fraction=0.15, max_epochs=100, patience=5, bayesian=True
+    hidden_layer_size=100, batch_size=16, num_monte_carlo=100, gpu_memory_frac=0.95,
+    bayesian=True, multioutput=False, random_seed=42, validation_fraction=0.15,
+    max_epochs=100, patience=5, verbose=True
 )
 
 # Load and prepare dataset for training
@@ -134,6 +135,9 @@ All aforecited experiments organize as special Python script which is available 
 
 Breaking Changes
 -----
+
+**Breaking changes in version 0.0.3**
+- a hidden layer has been added (but its size can be zero, and in this case structure of neural network come same as previous version).
 
 **Breaking changes in version 0.0.2**
 - logging become more pretty: particulary, full class names may be printed instead of class indices in the training process (if you specify `y` as sequence of text labels).
