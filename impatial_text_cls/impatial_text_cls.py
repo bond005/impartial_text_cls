@@ -861,7 +861,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 labels_distribution = tfp.distributions.Bernoulli(logits=logits, name='LabelsDistribution')
             else:
                 labels_distribution = tfp.distributions.Categorical(logits=logits, name='LabelsDistribution')
-            neg_log_likelihood = -tf.reduce_sum(input_tensor=labels_distribution.log_prob(y_ph))
+            neg_log_likelihood = -tf.reduce_mean(input_tensor=labels_distribution.log_prob(y_ph))
             kl = sum(model.losses)
             if self.adaptive_kl_loss:
                 pi = tf.Variable(0.5, trainable=False, name='Pi_for_ELBO_loss', dtype=tf.float32)
@@ -926,7 +926,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=y_ph, logits=logits)
             else:
                 loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y_ph, logits=logits)
-            loss = tf.reduce_sum(loss, name='loss')
+            loss = tf.reduce_mean(loss, name='loss')
         with tf.name_scope('train'):
             optimizer = tf.compat.v1.train.AdamOptimizer()
             train_op = optimizer.minimize(loss)
