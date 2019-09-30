@@ -63,6 +63,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.cls, 'multioutput'))
         self.assertTrue(hasattr(self.cls, 'num_monte_carlo'))
         self.assertTrue(hasattr(self.cls, 'bayesian'))
+        self.assertTrue(hasattr(self.cls, 'adaptive_kl_loss'))
         self.assertIsInstance(self.cls.filters_for_conv1, int)
         self.assertIsInstance(self.cls.filters_for_conv2, int)
         self.assertIsInstance(self.cls.filters_for_conv3, int)
@@ -80,6 +81,7 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(self.cls.multioutput, bool)
         self.assertIsInstance(self.cls.num_monte_carlo, int)
         self.assertIsInstance(self.cls.bayesian, bool)
+        self.assertIsInstance(self.cls.adaptive_kl_loss, bool)
 
     def test_check_params_positive(self):
         ImpatialTextClassifier.check_params(
@@ -87,7 +89,7 @@ class TestClassifier(unittest.TestCase):
             filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
             filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
             patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
-            hidden_layer_size=50
+            adaptive_kl_loss=False, hidden_layer_size=50
         )
         self.assertTrue(True)
 
@@ -98,7 +100,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
                 patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative002(self):
@@ -110,7 +112,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
                 patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative003(self):
@@ -121,7 +123,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, validation_fraction=0.0, max_epochs=10, patience=3,
                 gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative004(self):
@@ -133,7 +135,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size='32', validation_fraction=0.0, max_epochs=10,
                 patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative005(self):
@@ -144,7 +146,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=-3, validation_fraction=0.0, max_epochs=10,
                 patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative006(self):
@@ -155,7 +157,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, patience=3,
                 gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative007(self):
@@ -167,7 +169,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs='10',
                 patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative008(self):
@@ -178,7 +180,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10, filters_for_conv5=10,
                 num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=-3, patience=3,
                 gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative009(self):
@@ -189,7 +191,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
                 gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative010(self):
@@ -201,7 +203,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
                 patience='3', gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative011(self):
@@ -212,7 +214,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
                 patience=-3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative012(self):
@@ -223,7 +225,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, batch_size=32, validation_fraction=0.0, max_epochs=10, patience=3,
                 gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative013(self):
@@ -235,7 +237,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo='100', batch_size=32, validation_fraction=0.0, max_epochs=10,
                 patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative014(self):
@@ -247,7 +249,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=0, batch_size=32, validation_fraction=0.0, max_epochs=10,
                 patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative015(self):
@@ -258,7 +260,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, max_epochs=10, patience=3,
                 gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative016(self):
@@ -270,7 +272,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction='0.1', max_epochs=10,
                 patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative017(self):
@@ -282,7 +284,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=-0.1, max_epochs=10,
                 patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative018(self):
@@ -294,7 +296,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=1.1, max_epochs=10,
                 patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative019(self):
@@ -304,8 +306,8 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
-                patience=3, verbose=False, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                patience=3, verbose=False, random_seed=42, multioutput=False, bayesian=True, hidden_layer_size=50,
+                adaptive_kl_loss=False
             )
 
     def test_check_params_negative020(self):
@@ -317,7 +319,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
                 patience=3, gpu_memory_frac='1.0', verbose=False, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative021(self):
@@ -329,7 +331,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
                 patience=3, gpu_memory_frac=-1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative022(self):
@@ -341,7 +343,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
                 patience=3, gpu_memory_frac=1.3, verbose=False, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative023(self):
@@ -352,7 +354,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
                 patience=3, gpu_memory_frac=1.0, random_seed=42, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative024(self):
@@ -362,7 +364,8 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
-                patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, bayesian=True, hidden_layer_size=50
+                patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, bayesian=True, hidden_layer_size=50,
+                adaptive_kl_loss=False
             )
 
     def test_check_params_negative025(self):
@@ -373,7 +376,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=0, filters_for_conv2=0, filters_for_conv3=0, filters_for_conv4=0,
                 filters_for_conv5=0, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
                 patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=False, bayesian=True,
-                hidden_layer_size=50
+                hidden_layer_size=50, adaptive_kl_loss=False
             )
 
     def test_check_params_negative026(self):
@@ -383,7 +386,8 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
-                patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=True, hidden_layer_size=50
+                patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=True, hidden_layer_size=50,
+                adaptive_kl_loss=False
             )
 
     def test_check_params_negative027(self):
@@ -393,7 +397,8 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
-                patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=True, bayesian=True
+                patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=True, bayesian=True,
+                adaptive_kl_loss=False
             )
 
     def test_check_params_negative028(self):
@@ -405,7 +410,7 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
                 patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=True, bayesian=True,
-                hidden_layer_size=-1
+                hidden_layer_size=-1, adaptive_kl_loss=False
             )
 
     def test_check_params_negative029(self):
@@ -416,7 +421,18 @@ class TestClassifier(unittest.TestCase):
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
                 patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=True, bayesian=True,
-                hidden_layer_size=50.3
+                hidden_layer_size=50.3, adaptive_kl_loss=False
+            )
+
+    def test_check_params_negative030(self):
+        true_err_msg = re.escape('`adaptive_kl_loss` is not specified!')
+        with self.assertRaisesRegex(ValueError, true_err_msg):
+            ImpatialTextClassifier.check_params(
+                bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
+                filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_epochs=10,
+                patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=True, hidden_layer_size=50,
+                bayesian=False
             )
 
     def test_check_X_positive(self):
@@ -763,6 +779,7 @@ class TestClassifier(unittest.TestCase):
         old_verbose = self.cls.verbose
         old_multioutput = self.cls.multioutput
         old_bayesian = self.cls.bayesian
+        old_adaptive_kl_loss = self.cls.adaptive_kl_loss
         self.temp_file_name = tempfile.NamedTemporaryFile().name
         with open(self.temp_file_name, mode='wb') as fp:
             pickle.dump(self.cls, fp)
@@ -788,6 +805,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.cls, 'hidden_layer_size'))
         self.assertTrue(hasattr(self.cls, 'num_monte_carlo'))
         self.assertTrue(hasattr(self.cls, 'bayesian'))
+        self.assertTrue(hasattr(self.cls, 'adaptive_kl_loss'))
         self.assertEqual(self.cls.batch_size, old_batch_size)
         self.assertEqual(self.cls.num_monte_carlo, old_num_monte_carlo)
         self.assertAlmostEqual(self.cls.filters_for_conv1, old_filters_for_conv1)
@@ -804,6 +822,7 @@ class TestClassifier(unittest.TestCase):
         self.assertEqual(self.cls.verbose, old_verbose)
         self.assertEqual(self.cls.multioutput, old_multioutput)
         self.assertEqual(self.cls.bayesian, old_bayesian)
+        self.assertEqual(self.cls.adaptive_kl_loss, old_adaptive_kl_loss)
         self.assertEqual(self.cls.random_seed, old_random_seed)
 
     def test_serialize_positive02(self):
@@ -892,6 +911,7 @@ class TestClassifier(unittest.TestCase):
         old_verbose = self.cls.verbose
         old_multioutput = self.cls.multioutput
         old_bayesian = self.cls.bayesian
+        old_adaptive_kl_loss = self.cls.adaptive_kl_loss
         self.cls.fit(train_texts, train_labels)
         old_certainty_threshold = self.cls.certainty_threshold_
         old_y = self.cls.predict(valid_texts)
@@ -915,6 +935,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.cls, 'verbose'))
         self.assertTrue(hasattr(self.cls, 'multioutput'))
         self.assertTrue(hasattr(self.cls, 'bayesian'))
+        self.assertTrue(hasattr(self.cls, 'adaptive_kl_loss'))
         self.assertTrue(hasattr(self.cls, 'filters_for_conv1'))
         self.assertTrue(hasattr(self.cls, 'filters_for_conv2'))
         self.assertTrue(hasattr(self.cls, 'filters_for_conv3'))
@@ -938,6 +959,7 @@ class TestClassifier(unittest.TestCase):
         self.assertEqual(self.cls.verbose, old_verbose)
         self.assertEqual(self.cls.multioutput, old_multioutput)
         self.assertEqual(self.cls.bayesian, old_bayesian)
+        self.assertEqual(self.cls.adaptive_kl_loss, old_adaptive_kl_loss)
         self.assertEqual(self.cls.random_seed, old_random_seed)
         self.assertTrue(hasattr(self.cls, 'tokenizer_'))
         self.assertTrue(hasattr(self.cls, 'classes_'))
@@ -979,6 +1001,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.another_cls, 'verbose'))
         self.assertTrue(hasattr(self.another_cls, 'multioutput'))
         self.assertTrue(hasattr(self.another_cls, 'bayesian'))
+        self.assertTrue(hasattr(self.another_cls, 'adaptive_kl_loss'))
         self.assertEqual(self.cls.batch_size, self.another_cls.batch_size)
         self.assertEqual(self.cls.num_monte_carlo, self.another_cls.num_monte_carlo)
         self.assertAlmostEqual(self.cls.filters_for_conv1, self.another_cls.filters_for_conv1)
@@ -996,6 +1019,7 @@ class TestClassifier(unittest.TestCase):
         self.assertEqual(self.cls.verbose, self.another_cls.verbose)
         self.assertEqual(self.cls.multioutput, self.another_cls.multioutput)
         self.assertEqual(self.cls.bayesian, self.another_cls.bayesian)
+        self.assertEqual(self.cls.adaptive_kl_loss, self.another_cls.adaptive_kl_loss)
 
     def test_copy_positive02(self):
         train_texts = [
@@ -1087,6 +1111,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.another_cls, 'verbose'))
         self.assertTrue(hasattr(self.another_cls, 'multioutput'))
         self.assertTrue(hasattr(self.another_cls, 'bayesian'))
+        self.assertTrue(hasattr(self.another_cls, 'adaptive_kl_loss'))
         self.assertTrue(hasattr(self.another_cls, 'tokenizer_'))
         self.assertTrue(hasattr(self.another_cls, 'classes_'))
         self.assertTrue(hasattr(self.another_cls, 'classes_reverse_index_'))
@@ -1109,6 +1134,7 @@ class TestClassifier(unittest.TestCase):
         self.assertEqual(self.cls.verbose, self.another_cls.verbose)
         self.assertEqual(self.cls.multioutput, self.another_cls.multioutput)
         self.assertEqual(self.cls.bayesian, self.another_cls.bayesian)
+        self.assertEqual(self.cls.adaptive_kl_loss, self.another_cls.adaptive_kl_loss)
         self.assertAlmostEqual(self.cls.certainty_threshold_, self.another_cls.certainty_threshold_, places=9)
         self.assertEqual(self.cls.classes_, self.another_cls.classes_)
         self.assertEqual(self.cls.classes_reverse_index_, self.another_cls.classes_reverse_index_)
@@ -1205,6 +1231,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(res, 'verbose'))
         self.assertTrue(hasattr(res, 'multioutput'))
         self.assertTrue(hasattr(res, 'bayesian'))
+        self.assertTrue(hasattr(res, 'adaptive_kl_loss'))
         self.assertTrue(hasattr(res, 'num_monte_carlo'))
         self.assertIsInstance(res.filters_for_conv1, int)
         self.assertIsInstance(res.filters_for_conv2, int)
@@ -1222,6 +1249,7 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.verbose, bool)
         self.assertIsInstance(res.multioutput, bool)
         self.assertIsInstance(res.bayesian, bool)
+        self.assertIsInstance(res.adaptive_kl_loss, bool)
         self.assertIsInstance(res.num_monte_carlo, int)
         self.assertTrue(hasattr(res, 'tokenizer_'))
         self.assertTrue(hasattr(res, 'classes_'))
@@ -1363,6 +1391,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(res, 'num_monte_carlo'))
         self.assertTrue(hasattr(res, 'multioutput'))
         self.assertTrue(hasattr(res, 'bayesian'))
+        self.assertTrue(hasattr(res, 'adaptive_kl_loss'))
         self.assertIsInstance(res.filters_for_conv1, int)
         self.assertIsInstance(res.filters_for_conv2, int)
         self.assertIsInstance(res.filters_for_conv3, int)
@@ -1378,6 +1407,7 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.validation_fraction, float)
         self.assertIsInstance(res.verbose, bool)
         self.assertIsInstance(res.bayesian, bool)
+        self.assertIsInstance(res.adaptive_kl_loss, bool)
         self.assertIsInstance(res.multioutput, bool)
         self.assertIsInstance(res.num_monte_carlo, int)
         self.assertTrue(hasattr(res, 'tokenizer_'))
@@ -1509,6 +1539,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(res, 'verbose'))
         self.assertTrue(hasattr(res, 'multioutput'))
         self.assertTrue(hasattr(res, 'bayesian'))
+        self.assertTrue(hasattr(res, 'adaptive_kl_loss'))
         self.assertTrue(hasattr(res, 'num_monte_carlo'))
         self.assertIsInstance(res.filters_for_conv1, int)
         self.assertIsInstance(res.filters_for_conv2, int)
@@ -1526,6 +1557,7 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.verbose, bool)
         self.assertIsInstance(res.multioutput, bool)
         self.assertIsInstance(res.bayesian, bool)
+        self.assertIsInstance(res.adaptive_kl_loss, bool)
         self.assertIsInstance(res.num_monte_carlo, int)
         self.assertTrue(hasattr(res, 'tokenizer_'))
         self.assertTrue(hasattr(res, 'classes_'))
@@ -1670,6 +1702,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(res, 'num_monte_carlo'))
         self.assertTrue(hasattr(res, 'multioutput'))
         self.assertTrue(hasattr(res, 'bayesian'))
+        self.assertTrue(hasattr(res, 'adaptive_kl_loss'))
         self.assertIsInstance(res.filters_for_conv1, int)
         self.assertIsInstance(res.filters_for_conv2, int)
         self.assertIsInstance(res.filters_for_conv3, int)
@@ -1685,6 +1718,7 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.validation_fraction, float)
         self.assertIsInstance(res.verbose, bool)
         self.assertIsInstance(res.bayesian, bool)
+        self.assertIsInstance(res.adaptive_kl_loss, bool)
         self.assertIsInstance(res.multioutput, bool)
         self.assertIsInstance(res.num_monte_carlo, int)
         self.assertTrue(hasattr(res, 'tokenizer_'))
@@ -1823,6 +1857,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(res, 'verbose'))
         self.assertTrue(hasattr(res, 'multioutput'))
         self.assertTrue(hasattr(res, 'bayesian'))
+        self.assertTrue(hasattr(res, 'adaptive_kl_loss'))
         self.assertTrue(hasattr(res, 'num_monte_carlo'))
         self.assertIsInstance(res.filters_for_conv1, int)
         self.assertIsInstance(res.filters_for_conv2, int)
@@ -1840,6 +1875,7 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.verbose, bool)
         self.assertIsInstance(res.multioutput, bool)
         self.assertIsInstance(res.bayesian, bool)
+        self.assertIsInstance(res.adaptive_kl_loss, bool)
         self.assertIsInstance(res.num_monte_carlo, int)
         self.assertTrue(hasattr(res, 'tokenizer_'))
         self.assertTrue(hasattr(res, 'classes_'))

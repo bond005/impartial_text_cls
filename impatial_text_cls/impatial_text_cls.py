@@ -46,7 +46,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                  filters_for_conv4: int=100, filters_for_conv5: int=100, hidden_layer_size: int=500, batch_size: int=32,
                  validation_fraction: float=0.1, max_epochs: int=10, patience: int=3, num_monte_carlo: int=50,
                  gpu_memory_frac: float=1.0, verbose: bool=False, multioutput: bool=False, bayesian: bool=True,
-                 random_seed: Union[int, None]=None):
+                 adaptive_kl_loss: bool=False, random_seed: Union[int, None]=None):
         self.batch_size = batch_size
         self.filters_for_conv1 = filters_for_conv1
         self.filters_for_conv2 = filters_for_conv2
@@ -64,6 +64,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         self.verbose = verbose
         self.multioutput = multioutput
         self.bayesian = bayesian
+        self.adaptive_kl_loss = adaptive_kl_loss
 
     def __del__(self):
         if hasattr(self, 'tokenizer_'):
@@ -477,7 +478,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             num_monte_carlo=self.num_monte_carlo, filters_for_conv1=self.filters_for_conv1,
             filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
             filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
-            multioutput=self.multioutput, bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size
+            multioutput=self.multioutput, bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size,
+            adaptive_kl_loss=self.adaptive_kl_loss
         )
         self.check_X(X, 'X')
         self.is_fitted()
@@ -529,7 +531,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             num_monte_carlo=self.num_monte_carlo, filters_for_conv1=self.filters_for_conv1,
             filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
             filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
-            multioutput=self.multioutput, bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size
+            multioutput=self.multioutput, bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size,
+            adaptive_kl_loss=self.adaptive_kl_loss
         )
         self.is_fitted()
         classes_dict, classes_reverse_index = self.check_Xy(X, 'X', y, 'y', self.multioutput)
@@ -748,7 +751,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 'filters_for_conv4': self.filters_for_conv4, 'filters_for_conv5': self.filters_for_conv5,
                 'validation_fraction': self.validation_fraction, 'gpu_memory_frac': self.gpu_memory_frac,
                 'verbose': self.verbose, 'random_seed': self.random_seed, 'num_monte_carlo': self.num_monte_carlo,
-                'multioutput': self.multioutput, 'bayesian': self.bayesian, 'hidden_layer_size': self.hidden_layer_size}
+                'multioutput': self.multioutput, 'bayesian': self.bayesian, 'hidden_layer_size': self.hidden_layer_size,
+                'adaptive_kl_loss': self.adaptive_kl_loss}
 
     def set_params(self, **params):
         for parameter, value in params.items():
@@ -989,7 +993,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size, multioutput=self.multioutput,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
             gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
-            bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size
+            bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size, adaptive_kl_loss=self.adaptive_kl_loss
         )
         try:
             self.is_fitted()
@@ -1014,7 +1018,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size, multioutput=self.multioutput,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
             gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
-            bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size
+            bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size, adaptive_kl_loss=self.adaptive_kl_loss
         )
         try:
             self.is_fitted()
@@ -1231,6 +1235,15 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 (not isinstance(kwargs['bayesian'], bool)) and (not isinstance(kwargs['bayesian'], np.bool)):
             raise ValueError('`bayesian` is wrong! Expected `{0}`, got `{1}`.'.format(
                 type(True), type(kwargs['bayesian'])))
+        if 'adaptive_kl_loss' not in kwargs:
+            raise ValueError('`adaptive_kl_loss` is not specified!')
+        if (not isinstance(kwargs['adaptive_kl_loss'], int)) and \
+                (not isinstance(kwargs['adaptive_kl_loss'], np.int32)) and \
+                (not isinstance(kwargs['adaptive_kl_loss'], np.uint32)) and \
+                (not isinstance(kwargs['adaptive_kl_loss'], bool)) and \
+                (not isinstance(kwargs['adaptive_kl_loss'], np.bool)):
+            raise ValueError('`adaptive_kl_loss` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(True), type(kwargs['adaptive_kl_loss'])))
         if 'filters_for_conv1' not in kwargs:
             raise ValueError('`filters_for_conv1` is not specified!')
         if (not isinstance(kwargs['filters_for_conv1'], int)) and \
