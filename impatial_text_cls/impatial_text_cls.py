@@ -46,7 +46,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                  filters_for_conv4: int=100, filters_for_conv5: int=100, hidden_layer_size: int=500, batch_size: int=32,
                  validation_fraction: float=0.1, max_epochs: int=10, patience: int=3, num_monte_carlo: int=50,
                  gpu_memory_frac: float=1.0, verbose: bool=False, multioutput: bool=False, bayesian: bool=True,
-                 adaptive_kl_loss: bool=False, random_seed: Union[int, None]=None):
+                 adaptive_kl_loss: bool=True, random_seed: Union[int, None]=None):
         self.batch_size = batch_size
         self.filters_for_conv1 = filters_for_conv1
         self.filters_for_conv2 = filters_for_conv2
