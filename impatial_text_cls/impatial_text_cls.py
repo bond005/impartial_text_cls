@@ -176,7 +176,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 bounds_of_batches_for_validation.append((batch_start, batch_end))
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            train_op, elbo_loss_, val_loss_, pi_ = self.build_model()
+            train_op, elbo_loss_, val_loss_, pi_ = self.build_model(len(bounds_of_batches_for_training))
         if not self.bayesian:
             val_loss_ = elbo_loss_
         init = tf.group(tf.compat.v1.global_variables_initializer(), tf.compat.v1.local_variables_initializer())
@@ -200,10 +200,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     if feed_dict_for_batch is not None:
                         del feed_dict_for_batch
                     if self.bayesian:
-                        feed_dict_for_batch = self.fill_feed_dict(
-                            X_batch, y_batch, pi_variable=pi_,
-                            pi_value=self.calculate_pi_value(batch_counter + 1, len(bounds_of_batches_for_training))
-                        )
+                        if self.adaptive_kl_loss:
+                            feed_dict_for_batch = self.fill_feed_dict(
+                                X_batch, y_batch, pi_variable=pi_,
+                                pi_value=self.calculate_pi_value(batch_counter + 1, len(bounds_of_batches_for_training))
+                            )
+                        else:
+                            feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
                     else:
                         feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
                     _, train_loss_ = self.sess_.run([train_op, elbo_loss_], feed_dict=feed_dict_for_batch)
@@ -759,7 +762,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             self.__setattr__(parameter, value)
         return self
 
-    def build_model(self):
+    def build_model(self, n_train_samples: int):
         config = tf.compat.v1.ConfigProto()
         config.gpu_options.per_process_gpu_memory_fraction = self.gpu_memory_frac
         self.sess_ = tf.compat.v1.Session(config=config)
@@ -859,9 +862,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             else:
                 labels_distribution = tfp.distributions.Categorical(logits=logits, name='LabelsDistribution')
             neg_log_likelihood = -tf.reduce_sum(input_tensor=labels_distribution.log_prob(y_ph))
-            pi = tf.Variable(0.5, trainable=False, name='Pi_for_ELBO_loss', dtype=tf.float32)
             kl = sum(model.losses)
-            elbo_loss = neg_log_likelihood + pi * kl
+            if self.adaptive_kl_loss:
+                pi = tf.Variable(0.5, trainable=False, name='Pi_for_ELBO_loss', dtype=tf.float32)
+                elbo_loss = neg_log_likelihood + pi * kl
+            else:
+                elbo_loss = neg_log_likelihood + kl / float(n_train_samples)
+                pi = None
             with tf.name_scope('train'):
                 optimizer = tf.compat.v1.train.AdamOptimizer()
                 train_op = optimizer.minimize(elbo_loss)
