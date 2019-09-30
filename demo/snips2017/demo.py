@@ -16,6 +16,7 @@ from argparse import ArgumentParser
 import os
 import pickle
 import sys
+import time
 
 import nltk
 from nltk.corpus import brown, genesis
@@ -169,6 +170,7 @@ def main():
                     fill_value=len(classes_list), dtype=np.int32)
         )
     )
+    start_time = time.time()
     if args.nn_type == 'additional_class':
         y_pred = nn.predict_proba(test_texts).argmax(axis=1)
     else:
@@ -176,6 +178,10 @@ def main():
     for sample_idx in range(len(y_pred)):
         if y_pred[sample_idx] < 0:
             y_pred[sample_idx] = len(classes_list)
+    end_time = time.time()
+    print('Duration of testing is {0:.3f} seconds.'.format(end_time - start_time))
+    print('Mean duration of a single test sample recognition is {0:.3f}.'.format(
+        (end_time - start_time) / float(len(test_texts))))
     print('Results of {0}:'.format(
         'bayesian neural network' if args.nn_type == 'bayesian' else
         ('usual neural network' if args.nn_type == 'usual' else 'usual neural network with additional class')
