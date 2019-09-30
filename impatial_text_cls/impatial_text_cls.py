@@ -184,7 +184,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         tmp_model_name = self.get_temp_model_name()
         if self.verbose:
             if X_val_tokenized is None:
-                print('Epoch      ELBO loss   Duration (secs)')
+                if self.bayesian:
+                    print('Epoch      ELBO loss   Duration (secs)')
+                else:
+                    print('Epoch           Loss   Duration (secs)')
         n_epochs_without_improving = 0
         try:
             best_acc = None
