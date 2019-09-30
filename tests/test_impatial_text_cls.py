@@ -1254,10 +1254,10 @@ class TestClassifier(unittest.TestCase):
         for sample_idx in range(len(valid_labels)):
             prob_sum = 0.0
             for class_idx in range(len(res.classes_)):
-                self.assertGreater(probabilities[sample_idx][class_idx], 0.0,
-                                   msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
-                self.assertLess(probabilities[sample_idx][class_idx], 1.0,
-                                msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
+                self.assertGreaterEqual(probabilities[sample_idx][class_idx], 0.0,
+                                        msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
+                self.assertLessEqual(probabilities[sample_idx][class_idx], 1.0,
+                                     msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
                 prob_sum += probabilities[sample_idx][class_idx]
             self.assertAlmostEqual(prob_sum, 1.0, places=3, msg='Sample {0}'.format(sample_idx))
         log_probabilities = res.predict_log_proba(valid_texts)
@@ -1410,10 +1410,10 @@ class TestClassifier(unittest.TestCase):
         for sample_idx in range(len(valid_labels)):
             prob_sum = 0.0
             for class_idx in range(len(res.classes_)):
-                self.assertGreater(probabilities[sample_idx][class_idx], 0.0,
-                                   msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
-                self.assertLess(probabilities[sample_idx][class_idx], 1.0,
-                                msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
+                self.assertGreaterEqual(probabilities[sample_idx][class_idx], 0.0,
+                                        msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
+                self.assertLessEqual(probabilities[sample_idx][class_idx], 1.0,
+                                     msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
                 prob_sum += probabilities[sample_idx][class_idx]
             self.assertAlmostEqual(prob_sum, 1.0, places=3, msg='Sample {0}'.format(sample_idx))
         log_probabilities = res.predict_log_proba(valid_texts)
@@ -1556,10 +1556,10 @@ class TestClassifier(unittest.TestCase):
         self.assertEqual(probabilities.shape[1], len(res.classes_))
         for sample_idx in range(len(valid_labels)):
             for class_idx in range(len(res.classes_)):
-                self.assertGreater(probabilities[sample_idx][class_idx], 0.0,
-                                   msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
-                self.assertLess(probabilities[sample_idx][class_idx], 1.0,
-                                msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
+                self.assertGreaterEqual(probabilities[sample_idx][class_idx], 0.0,
+                                        msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
+                self.assertLessEqual(probabilities[sample_idx][class_idx], 1.0,
+                                     msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
         log_probabilities = res.predict_log_proba(valid_texts)
         self.assertIsInstance(log_probabilities, np.ndarray)
         self.assertEqual(len(log_probabilities.shape), 2)
@@ -1717,10 +1717,10 @@ class TestClassifier(unittest.TestCase):
         for sample_idx in range(len(valid_labels)):
             prob_sum = 0.0
             for class_idx in range(len(res.classes_)):
-                self.assertGreater(probabilities[sample_idx][class_idx], 0.0,
-                                   msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
-                self.assertLess(probabilities[sample_idx][class_idx], 1.0,
-                                msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
+                self.assertGreaterEqual(probabilities[sample_idx][class_idx], 0.0,
+                                        msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
+                self.assertLessEqual(probabilities[sample_idx][class_idx], 1.0,
+                                     msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
                 prob_sum += probabilities[sample_idx][class_idx]
             self.assertAlmostEqual(prob_sum, 1.0, places=3, msg='Sample {0}'.format(sample_idx))
         log_probabilities = res.predict_log_proba(valid_texts)
@@ -1870,10 +1870,10 @@ class TestClassifier(unittest.TestCase):
         self.assertEqual(probabilities.shape[1], len(res.classes_))
         for sample_idx in range(len(valid_labels)):
             for class_idx in range(len(res.classes_)):
-                self.assertGreater(probabilities[sample_idx][class_idx], 0.0,
-                                   msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
-                self.assertLess(probabilities[sample_idx][class_idx], 1.0,
-                                msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
+                self.assertGreaterEqual(probabilities[sample_idx][class_idx], 0.0,
+                                        msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
+                self.assertLessEqual(probabilities[sample_idx][class_idx], 1.0,
+                                     msg='Sample {0}, class {1}'.format(sample_idx, class_idx))
         log_probabilities = res.predict_log_proba(valid_texts)
         self.assertIsInstance(log_probabilities, np.ndarray)
         self.assertEqual(len(log_probabilities.shape), 2)

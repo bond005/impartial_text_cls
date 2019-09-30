@@ -804,35 +804,35 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             if self.filters_for_conv1 > 0:
                 conv_layer_1 = tfp.layers.Convolution1DFlipout(
                     filters=self.filters_for_conv1, kernel_size=1, name='Conv1', padding='valid',
-                    activation=tf.nn.relu, seed=self.random_seed
+                    activation=tf.nn.softplus, seed=self.random_seed
                 )(input_sequence_layer)
                 conv_layer_1 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling1')(conv_layer_1)
                 conv_layers.append(conv_layer_1)
             if self.filters_for_conv2 > 0:
                 conv_layer_2 = tfp.layers.Convolution1DFlipout(
                     filters=self.filters_for_conv2, kernel_size=2, name='Conv2', padding='valid',
-                    activation=tf.nn.relu, seed=self.random_seed
+                    activation=tf.nn.softplus, seed=self.random_seed
                 )(input_sequence_layer)
                 conv_layer_2 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling2')(conv_layer_2)
                 conv_layers.append(conv_layer_2)
             if self.filters_for_conv3 > 0:
                 conv_layer_3 = tfp.layers.Convolution1DFlipout(
                     filters=self.filters_for_conv3, kernel_size=3, name='Conv3', padding='valid',
-                    activation=tf.nn.relu, seed=self.random_seed
+                    activation=tf.nn.softplus, seed=self.random_seed
                 )(input_sequence_layer)
                 conv_layer_3 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling3')(conv_layer_3)
                 conv_layers.append(conv_layer_3)
             if self.filters_for_conv4 > 0:
                 conv_layer_4 = tfp.layers.Convolution1DFlipout(
                     filters=self.filters_for_conv4, kernel_size=4, name='Conv4', padding='valid',
-                    activation=tf.nn.relu, seed=self.random_seed
+                    activation=tf.nn.softplus, seed=self.random_seed
                 )(input_sequence_layer)
                 conv_layer_4 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling4')(conv_layer_4)
                 conv_layers.append(conv_layer_4)
             if self.filters_for_conv5 > 0:
                 conv_layer_5 = tfp.layers.Convolution1DFlipout(
                     filters=self.filters_for_conv5, kernel_size=5, name='Conv5', padding='valid',
-                    activation=tf.nn.relu, seed=self.random_seed
+                    activation=tf.nn.softplus, seed=self.random_seed
                 )(input_sequence_layer)
                 conv_layer_5 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling5')(conv_layer_5)
                 conv_layers.append(conv_layer_5)
@@ -842,7 +842,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 concat_layer = conv_layers[0]
             if self.hidden_layer_size > 0:
                 hidden_layer = tfp.layers.DenseFlipout(self.hidden_layer_size, seed=self.random_seed,
-                                                       name='HiddenLayer', activation=tf.nn.relu)(concat_layer)
+                                                       name='HiddenLayer', activation=tf.nn.softplus)(concat_layer)
                 output_layer = tfp.layers.DenseFlipout(len(self.classes_), seed=self.random_seed, name='OutputLayer')(
                     hidden_layer)
             else:
