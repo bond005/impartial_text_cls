@@ -397,8 +397,8 @@ class TestClassifier(unittest.TestCase):
             )
 
     def test_check_params_negative028(self):
-        true_err_msg = re.escape('`hidden_layer_size` is wrong! Expected a positive integer value, but -1 is not '
-                                 'positive.')
+        true_err_msg = re.escape('`hidden_layer_size` is wrong! Expected a positive integer value or zero, '
+                                 'but -1 is negative.')
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
