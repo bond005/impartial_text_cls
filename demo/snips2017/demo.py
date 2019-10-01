@@ -123,6 +123,8 @@ def main():
     if os.path.isfile(model_name):
         with open(model_name, 'rb') as fp:
             nn = pickle.load(fp)
+        if args.nn_type == 'additional_class':
+            classes_list.append('UNKNOWN')
     else:
         if args.nn_type == 'additional_class':
             indices = np.arange(0, len(unlabeled_texts_for_training), 1, dtype=np.int32)
@@ -145,6 +147,7 @@ def main():
                 )
             )
             del indices
+            classes_list.append('UNKNOWN')
         else:
             train_texts = np.concatenate((train_data[0], unlabeled_texts_for_training))
             train_labels = np.concatenate(
@@ -163,14 +166,8 @@ def main():
                                     random_seed=42, validation_fraction=0.15, max_epochs=100, patience=5,
                                     bayesian=(args.nn_type == 'bayesian'))
         nn.fit(
-            train_texts,
-            [(classes_list[idx1] if idx1 >= 0 else ('UNKNOWN' if args.nn_type == 'additional_class' else -1))
-             for idx1 in train_labels],
-            validation_data=(
-                val_texts,
-                [(classes_list[idx2] if idx2 >= 0 else ('UNKNOWN' if args.nn_type == 'additional_class' else -1))
-                 for idx2 in val_labels]
-            )
+            train_texts, [(classes_list[idx1] if idx1 >= 0 else -1) for idx1 in train_labels],
+            validation_data=(val_texts, [(classes_list[idx2] if idx2 >= 0 else -1) for idx2 in val_labels])
         )
         print('')
         with open(model_name, 'wb') as fp:
