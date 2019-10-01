@@ -15,8 +15,10 @@
 from argparse import ArgumentParser
 import os
 import pickle
+import random
 import sys
 import time
+from typing import List, Union
 
 import nltk
 from nltk.corpus import brown, genesis
@@ -34,47 +36,37 @@ except:
     from impatial_text_cls.utils import read_snips2017_data
 
 
-def load_brown_corpus() -> np.ndarray:
+def load_brown_corpus() -> List[str]:
     nltk.download('brown')
     sentences = list(filter(
         lambda sent: (len(sent) <= 30) and (len(sent) >= 1) and any(map(lambda word: word.isalpha(), sent)),
         brown.sents()
     ))
     mdetok = TreebankWordDetokenizer()
-    return np.array(
-        list(map(
-            lambda sent: mdetok.detokenize(
-                (' '.join(sent).replace('``', '"').replace("''", '"').replace('`', "'")).split()
-            ),
-            sentences
-        )),
-        dtype=object
-    )
+    return list(map(
+        lambda sent: mdetok.detokenize(
+            (' '.join(sent).replace('``', '"').replace("''", '"').replace('`', "'")).split()
+        ),
+        sentences
+    ))
 
 
-def load_genesis_corpus() -> np.ndarray:
+def load_genesis_corpus() -> List[str]:
     nltk.download('genesis')
     sentences = list(filter(
         lambda sent: (len(sent) <= 30) and (len(sent) >= 1) and any(map(lambda word: word.isalpha(), sent)),
         genesis.sents()
     ))
     mdetok = TreebankWordDetokenizer()
-    return np.array(
-        list(map(
-            lambda sent: mdetok.detokenize(
-                (' '.join(sent).replace('``', '"').replace("''", '"').replace('`', "'")).split()
-            ),
-            sentences
-        )),
-        dtype=object
-    )
+    return list(map(
+        lambda sent: mdetok.detokenize(
+            (' '.join(sent).replace('``', '"').replace("''", '"').replace('`', "'")).split()
+        ),
+        sentences
+    ))
 
 
-def prepare_labels(src, classes_list):
-    return [(classes_list[idx] if (idx >= 0) else -1) for idx in src]
-
-
-def is_string(value):
+def is_string(value: Union[str, int]) -> bool:
     return hasattr(value, 'split') and hasattr(value, 'strip')
 
 
@@ -112,8 +104,8 @@ def main():
     model_name = os.path.normpath(args.model_name)
     data_dir = os.path.normpath(args.data_dir)
 
-    train_data, val_data, test_data, classes_list = read_snips2017_data(data_dir)
-    print('Classes list: {0}'.format(classes_list))
+    train_data, val_data, test_data = read_snips2017_data(data_dir)
+    print('Classes list: {0}'.format(sorted(list(set(train_data[1])))))
     print('Number of samples for training is {0}.'.format(len(train_data[0])))
     print('Number of samples for validation is {0}.'.format(len(val_data[0])))
     print('Number of samples for final testing is {0}.'.format(len(test_data[0])))
@@ -129,35 +121,16 @@ def main():
             nn = pickle.load(fp)
     else:
         if args.nn_type == 'additional_class':
-            indices = np.arange(0, len(unlabeled_texts_for_training), 1, dtype=np.int32)
-            np.random.seed(42)
-            np.random.shuffle(indices)
-            n = int(round(0.15 * len(indices)))
-            train_texts = np.concatenate((train_data[0], unlabeled_texts_for_training[indices[n:]]))
-            train_labels = np.concatenate(
-                (
-                    train_data[1],
-                    np.full(shape=(len(unlabeled_texts_for_training) - n,), fill_value=len(classes_list),
-                            dtype=np.int32)
-                )
-            )
-            val_texts = np.concatenate((val_data[0], unlabeled_texts_for_training[indices[:n]]))
-            val_labels = np.concatenate(
-                (
-                    val_data[1],
-                    np.full(shape=(n,), fill_value=len(classes_list), dtype=np.int32)
-                )
-            )
-            del indices
-            classes_list.append('UNKNOWN')
+            random.seed(42)
+            random.shuffle(unlabeled_texts_for_training)
+            n = int(round(0.15 * len(unlabeled_texts_for_training)))
+            train_texts = train_data[0] + unlabeled_texts_for_training[n:]
+            train_labels = train_data[1] + ['UNKNOWN' for _ in range(len(unlabeled_texts_for_training) - n)]
+            val_texts = val_data[0] + unlabeled_texts_for_training[:n]
+            val_labels = val_data[1] + ['UNKNOWN' for _ in range(n)]
         else:
-            train_texts = np.concatenate((train_data[0], unlabeled_texts_for_training))
-            train_labels = np.concatenate(
-                (
-                    train_data[1],
-                    np.full(shape=(len(unlabeled_texts_for_training),), fill_value=-1, dtype=np.int32)
-                )
-            )
+            train_texts = train_data[0] + unlabeled_texts_for_training
+            train_labels = train_data[1] + [-1 for _ in range(len(unlabeled_texts_for_training))]
             val_texts = val_data[0]
             val_labels = val_data[1]
         nn = ImpatialTextClassifier(filters_for_conv1=args.size_of_conv1, filters_for_conv2=args.size_of_conv2,
@@ -167,16 +140,12 @@ def main():
                                     gpu_memory_frac=args.gpu_memory_frac, verbose=True, multioutput=False,
                                     random_seed=42, validation_fraction=0.15, max_epochs=100, patience=5,
                                     bayesian=(args.nn_type == 'bayesian'))
-        nn.fit(
-            train_texts, prepare_labels(train_labels, classes_list),
-            validation_data=(val_texts, prepare_labels(val_labels, classes_list))
-        )
+        nn.fit(train_texts, train_labels, validation_data=(val_texts, val_labels))
         print('')
         with open(model_name, 'wb') as fp:
             pickle.dump(nn, fp)
-    test_texts = np.concatenate((test_data[0], unlabeled_texts_for_testing))
-    test_labels = [(classes_list[idx] if idx >= 0 else 'UNKNOWN') for idx in test_data[1]]
-    test_labels += ['UNKNOWN' for _ in range(len(unlabeled_texts_for_testing))]
+    test_texts = test_data[0] + unlabeled_texts_for_testing
+    test_labels = test_data[1] + ['UNKNOWN' for _ in range(len(unlabeled_texts_for_testing))]
     start_time = time.time()
     if args.nn_type == 'additional_class':
         y_pred = [nn.classes_reverse_index_[class_idx] for class_idx in nn.predict_proba(test_texts).argmax(axis=1)]

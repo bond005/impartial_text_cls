@@ -210,27 +210,27 @@ class TestUtils(unittest.TestCase):
             'Show me movie time for I Am Sorry at my movie house'
         ]
         true_train_labels = [
-            0,
-            0,
-            0,
-            1,
-            1,
-            1,
-            2,
-            2,
-            2,
-            3,
-            3,
-            3,
-            4,
-            4,
-            4,
-            5,
-            5,
-            5,
-            6,
-            6,
-            6
+            'AddToPlaylist',
+            'AddToPlaylist',
+            'AddToPlaylist',
+            'BookRestaurant',
+            'BookRestaurant',
+            'BookRestaurant',
+            'GetWeather',
+            'GetWeather',
+            'GetWeather',
+            'PlayMusic',
+            'PlayMusic',
+            'PlayMusic',
+            'RateBook',
+            'RateBook',
+            'RateBook',
+            'SearchCreativeWork',
+            'SearchCreativeWork',
+            'SearchCreativeWork',
+            'SearchScreeningEvent',
+            'SearchScreeningEvent',
+            'SearchScreeningEvent'
         ]
         true_val_texts = [
             'add Stani, stani Ibar vodo songs in my playlist música libre',
@@ -249,20 +249,20 @@ class TestUtils(unittest.TestCase):
             'What are the movie times for Amco Entertainment'
         ]
         true_val_labels = [
-            0,
-            0,
-            1,
-            1,
-            2,
-            2,
-            3,
-            3,
-            4,
-            4,
-            5,
-            5,
-            6,
-            6
+            'AddToPlaylist',
+            'AddToPlaylist',
+            'BookRestaurant',
+            'BookRestaurant',
+            'GetWeather',
+            'GetWeather',
+            'PlayMusic',
+            'PlayMusic',
+            'RateBook',
+            'RateBook',
+            'SearchCreativeWork',
+            'SearchCreativeWork',
+            'SearchScreeningEvent',
+            'SearchScreeningEvent'
         ]
         true_test_texts = [
             'I\'d like to have this track onto my Classical Relaxations playlist.',
@@ -274,45 +274,38 @@ class TestUtils(unittest.TestCase):
             'Is Babar: King of the Elephants playing'
         ]
         true_test_labels = [
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            6
+            'AddToPlaylist',
+            'BookRestaurant',
+            'GetWeather',
+            'PlayMusic',
+            'RateBook',
+            'SearchCreativeWork',
+            'SearchScreeningEvent'
         ]
-        true_classes_list = ['addtoplaylist', 'bookrestaurant', 'getweather', 'playmusic', 'ratebook',
-                             'searchcreativework', 'searchscreeningevent']
-        loaded_train_data, loaded_val_data, loaded_test_data, loaded_classes_list = read_snips2017_data(
+        loaded_train_data, loaded_val_data, loaded_test_data = read_snips2017_data(
             os.path.join(os.path.dirname(__file__), 'test_snips2017')
         )
         self.assertIsInstance(loaded_train_data, tuple)
         self.assertIsInstance(loaded_val_data, tuple)
         self.assertIsInstance(loaded_test_data, tuple)
-        self.assertIsInstance(loaded_classes_list, list)
-        self.assertEqual(true_classes_list, loaded_classes_list)
         self.assertEqual(len(loaded_train_data), 2)
         self.assertEqual(len(loaded_val_data), 2)
         self.assertEqual(len(loaded_test_data), 2)
-        self.assertIsInstance(loaded_train_data[0], np.ndarray)
-        self.assertIsInstance(loaded_train_data[1], np.ndarray)
-        self.assertEqual(len(loaded_train_data[0].shape), 1)
-        self.assertEqual(loaded_train_data[0].shape, loaded_train_data[1].shape)
-        self.assertIsInstance(loaded_val_data[0], np.ndarray)
-        self.assertIsInstance(loaded_val_data[1], np.ndarray)
-        self.assertEqual(len(loaded_val_data[0].shape), 1)
-        self.assertEqual(loaded_val_data[0].shape, loaded_val_data[1].shape)
-        self.assertIsInstance(loaded_test_data[0], np.ndarray)
-        self.assertIsInstance(loaded_test_data[1], np.ndarray)
-        self.assertEqual(len(loaded_test_data[0].shape), 1)
-        self.assertEqual(loaded_test_data[0].shape, loaded_test_data[1].shape)
-        self.assertEqual(true_train_texts, loaded_train_data[0].tolist())
-        self.assertEqual(true_train_labels, loaded_train_data[1].tolist())
-        self.assertEqual(true_val_texts, loaded_val_data[0].tolist())
-        self.assertEqual(true_val_labels, loaded_val_data[1].tolist())
-        self.assertEqual(true_test_texts, loaded_test_data[0].tolist())
-        self.assertEqual(true_test_labels, loaded_test_data[1].tolist())
+        self.assertIsInstance(loaded_train_data[0], list)
+        self.assertIsInstance(loaded_train_data[1], list)
+        self.assertEqual(len(loaded_train_data[0]), len(loaded_train_data[1]))
+        self.assertIsInstance(loaded_val_data[0], list)
+        self.assertIsInstance(loaded_val_data[1], list)
+        self.assertEqual(len(loaded_val_data[0]), len(loaded_val_data[1]))
+        self.assertIsInstance(loaded_test_data[0], list)
+        self.assertIsInstance(loaded_test_data[1], list)
+        self.assertEqual(len(loaded_test_data[0]), len(loaded_test_data[1]))
+        self.assertEqual(true_train_texts, loaded_train_data[0])
+        self.assertEqual(true_train_labels, loaded_train_data[1])
+        self.assertEqual(true_val_texts, loaded_val_data[0])
+        self.assertEqual(true_val_labels, loaded_val_data[1])
+        self.assertEqual(true_test_texts, loaded_test_data[0])
+        self.assertEqual(true_test_labels, loaded_test_data[1])
 
     def test_read_csv_positive01(self):
         file_name = os.path.join(os.path.dirname(__file__), 'csv_for_testing1.csv')
