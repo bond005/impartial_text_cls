@@ -70,6 +70,10 @@ def load_genesis_corpus() -> np.ndarray:
     )
 
 
+def prepare_labels(src, classes_list):
+    return [(classes_list[idx] if (idx >= 0) else -1) for idx in src]
+
+
 def is_string(value):
     return hasattr(value, 'split') and hasattr(value, 'strip')
 
@@ -123,8 +127,6 @@ def main():
     if os.path.isfile(model_name):
         with open(model_name, 'rb') as fp:
             nn = pickle.load(fp)
-        if args.nn_type == 'additional_class':
-            classes_list.append('UNKNOWN')
     else:
         if args.nn_type == 'additional_class':
             indices = np.arange(0, len(unlabeled_texts_for_training), 1, dtype=np.int32)
@@ -166,8 +168,8 @@ def main():
                                     random_seed=42, validation_fraction=0.15, max_epochs=100, patience=5,
                                     bayesian=(args.nn_type == 'bayesian'))
         nn.fit(
-            train_texts, [(classes_list[idx1] if idx1 >= 0 else -1) for idx1 in train_labels],
-            validation_data=(val_texts, [(classes_list[idx2] if idx2 >= 0 else -1) for idx2 in val_labels])
+            train_texts, prepare_labels(train_labels, classes_list),
+            validation_data=(val_texts, prepare_labels(val_labels, classes_list))
         )
         print('')
         with open(model_name, 'wb') as fp:
@@ -177,7 +179,7 @@ def main():
     test_labels += ['UNKNOWN' for _ in range(len(unlabeled_texts_for_testing))]
     start_time = time.time()
     if args.nn_type == 'additional_class':
-        y_pred = nn.predict(test_texts)
+        y_pred = [nn.classes_reverse_index_[class_idx] for class_idx in nn.predict_proba(test_texts).argmax(axis=1)]
     else:
         y_pred_ = nn.predict(test_texts)
         y_pred = []
