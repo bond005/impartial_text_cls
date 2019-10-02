@@ -873,7 +873,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 elbo_loss = neg_log_likelihood + kl / float(n_train_samples)
                 pi = None
             with tf.name_scope('train'):
-                optimizer = tf.compat.v1.train.AdamOptimizer()
+                optimizer = tf.compat.v1.train.RMSPropOptimizer(learning_rate=1e-4)
                 train_op = optimizer.minimize(elbo_loss)
             return train_op, elbo_loss, neg_log_likelihood, pi
         if self.filters_for_conv1 > 0:
@@ -928,10 +928,11 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             )(concat_layer)
             hidden = tf.keras.layers.BatchNormalization(name='BatchNormLayer')(hidden)
             logits = tf.layers.dense(hidden, units=len(self.classes_), kernel_initializer=glorot_init, name='Logits',
-                                     activation=(tf.nn.sigmoid if self.multioutput else tf.nn.softmax))
+                                     activation=(tf.nn.sigmoid if self.multioutput else tf.nn.softmax), reuse=False)
         else:
             logits = tf.layers.dense(concat_layer, units=len(self.classes_), kernel_initializer=glorot_init,
-                                     name='Logits', activation=(tf.nn.sigmoid if self.multioutput else tf.nn.softmax))
+                                     name='Logits', activation=(tf.nn.sigmoid if self.multioutput else tf.nn.softmax),
+                                     resuse=False)
         with tf.name_scope('loss'):
             if self.multioutput:
                 loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=y_ph, logits=logits)
@@ -939,7 +940,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y_ph, logits=logits)
             loss = tf.reduce_mean(loss, name='loss')
         with tf.name_scope('train'):
-            optimizer = tf.compat.v1.train.AdamOptimizer()
+            optimizer = tf.compat.v1.train.RMSPropOptimizer(learning_rate=1e-4)
             train_op = optimizer.minimize(loss)
         return train_op, loss, None, None
 
