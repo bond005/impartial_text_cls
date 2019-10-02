@@ -932,7 +932,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         else:
             logits = tf.layers.dense(concat_layer, units=len(self.classes_), kernel_initializer=glorot_init,
                                      name='Logits', activation=(tf.nn.sigmoid if self.multioutput else tf.nn.softmax),
-                                     resuse=False)
+                                     reuse=False)
         with tf.name_scope('loss'):
             if self.multioutput:
                 loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=y_ph, logits=logits)
