@@ -139,7 +139,7 @@ def main():
                                     hidden_layer_size=args.hidden_layer_size, num_monte_carlo=args.num_monte_carlo,
                                     gpu_memory_frac=args.gpu_memory_frac, verbose=True, multioutput=False,
                                     random_seed=42, validation_fraction=0.15, max_epochs=100, patience=5,
-                                    bayesian=(args.nn_type == 'bayesian'))
+                                    bayesian=(args.nn_type == 'bayesian'), adaptive_kl_loss=False)
         nn.fit(train_texts, train_labels, validation_data=(val_texts, val_labels))
         print('')
         with open(model_name, 'wb') as fp:
