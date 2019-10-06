@@ -77,21 +77,21 @@ def main():
     parser.add_argument('-d', '--data_dir', dest='data_dir', type=str, required=True,
                         help='Path to the directory with SNIPS-2017 data (see `2017-06-custom-intent-engines` subfolder'
                              ' of the repository https://github.com/snipsco/nlu-benchmark).')
-    parser.add_argument('--conv1', dest='size_of_conv1', type=int, required=False, default=20,
+    parser.add_argument('--conv1', dest='size_of_conv1', type=int, required=False, default=200,
                         help='Size of the Bayesian convolution layer with kernel size 1.')
-    parser.add_argument('--conv2', dest='size_of_conv2', type=int, required=False, default=20,
+    parser.add_argument('--conv2', dest='size_of_conv2', type=int, required=False, default=200,
                         help='Size of the Bayesian convolution layer with kernel size 2.')
-    parser.add_argument('--conv3', dest='size_of_conv3', type=int, required=False, default=20,
+    parser.add_argument('--conv3', dest='size_of_conv3', type=int, required=False, default=200,
                         help='Size of the Bayesian convolution layer with kernel size 3.')
-    parser.add_argument('--conv4', dest='size_of_conv4', type=int, required=False, default=20,
+    parser.add_argument('--conv4', dest='size_of_conv4', type=int, required=False, default=200,
                         help='Size of the Bayesian convolution layer with kernel size 4.')
-    parser.add_argument('--conv5', dest='size_of_conv5', type=int, required=False, default=20,
+    parser.add_argument('--conv5', dest='size_of_conv5', type=int, required=False, default=200,
                         help='Size of the Bayesian convolution layer with kernel size 5.')
-    parser.add_argument('--hidden', dest='hidden_layer_size', type=int, required=False, default=300,
+    parser.add_argument('--hidden', dest='hidden_layer_size', type=int, required=False, default=500,
                         help='Hidden layer size.')
-    parser.add_argument('--num_monte_carlo', dest='num_monte_carlo', type=int, required=False, default=50,
+    parser.add_argument('--num_monte_carlo', dest='num_monte_carlo', type=int, required=False, default=100,
                         help='Number of generated Monte Carlo samples for each data sample.')
-    parser.add_argument('--batch_size', dest='batch_size', type=int, required=False, default=16,
+    parser.add_argument('--batch_size', dest='batch_size', type=int, required=False, default=64,
                         help='Size of mini-batch.')
     parser.add_argument('--gpu_frac', dest='gpu_memory_frac', type=float, required=False, default=0.9,
                         help='Allocable part of the GPU memory for the classifier.')
