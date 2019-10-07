@@ -167,7 +167,7 @@ def main():
         'bayesian neural network' if args.nn_type == 'bayesian' else
         ('usual neural network' if args.nn_type == 'usual' else 'usual neural network with additional class')
     ))
-    print(classification_report(test_labels, y_pred))
+    print(classification_report(test_labels, y_pred, digits=4))
 
 
 if __name__ == '__main__':

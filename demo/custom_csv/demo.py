@@ -225,14 +225,14 @@ def main():
                             y_pred_[sample_idx] = 1
                     elif class_idx == y_pred[sample_idx]:
                         y_pred_[sample_idx] = 1
-                print(classification_report(y_true, y_pred, target_names=['OTHER', classes_list[class_idx]]))
+                print(classification_report(y_true, y_pred, target_names=['OTHER', classes_list[class_idx]], digits=4))
         else:
             for sample_idx in range(len(y_true)):
                 if y_true[sample_idx] < 0:
                     y_true[sample_idx] = len(classes_list)
                 if y_pred[sample_idx] < 0:
                     y_pred[sample_idx] = len(classes_list)
-            print(classification_report(y_true, y_pred, target_names=classes_list + ['UNKNOWN']))
+            print(classification_report(y_true, y_pred, target_names=classes_list + ['UNKNOWN'], digits=4))
             print('')
 
     def train(args) -> ImpatialTextClassifier:
