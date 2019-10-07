@@ -18,7 +18,7 @@ import pickle
 import random
 import sys
 import time
-from typing import List, Union
+from typing import List, Tuple, Union
 
 import nltk
 from nltk.corpus import brown, reuters
@@ -82,6 +82,32 @@ def generate_random_samples(texts: List[str], labels: List[str]):
             print('    {0}'.format(cur_text))
 
 
+def parse_hidden_layers_description(hidden_layer: Union[str, None]) -> Tuple[int, int]:
+    if hidden_layer is None:
+        return (0, 0)
+    if len(hidden_layer.strip()) == 0:
+        return (0, 0)
+    parts = list(map(lambda it: it.strip(), hidden_layer.split(':')))
+    if len(parts) < 1:
+        raise ValueError('Description of hidden layers is empty!')
+    if len(parts) > 2:
+        raise ValueError('`{0}` is wrong description of hidden layers!')
+    if (not parts[0].isdigit()) or (not parts[1].isdigit()):
+        raise ValueError('`{0}` is wrong description of hidden layers!')
+    hidden_layer_size = int(parts[0])
+    if hidden_layer_size < 0:
+        raise ValueError('`{0}` is wrong description of hidden layers!')
+    if len(parts) > 1:
+        number_of_hidden_layers = int(parts[1])
+        if number_of_hidden_layers <= 0:
+            raise ValueError('`{0}` is wrong description of hidden layers!')
+    else:
+        number_of_hidden_layers = 1
+    if hidden_layer_size == 0:
+        number_of_hidden_layers = 0
+    return (hidden_layer_size, number_of_hidden_layers)
+
+
 def is_string(value: Union[str, int]) -> bool:
     return hasattr(value, 'split') and hasattr(value, 'strip')
 
@@ -104,8 +130,8 @@ def main():
                         help='Size of the Bayesian convolution layer with kernel size 4.')
     parser.add_argument('--conv5', dest='size_of_conv5', type=int, required=False, default=200,
                         help='Size of the Bayesian convolution layer with kernel size 5.')
-    parser.add_argument('--hidden', dest='hidden_layer_size', type=int, required=False, default=500,
-                        help='Hidden layer size.')
+    parser.add_argument('--hidden', dest='hidden_layer_size', type=str, required=False, default='500',
+                        help='Size of each hidden layer and total number of hidden layers (separate them with colons).')
     parser.add_argument('--num_monte_carlo', dest='num_monte_carlo', type=int, required=False, default=100,
                         help='Number of generated Monte Carlo samples for each data sample.')
     parser.add_argument('--batch_size', dest='batch_size', type=int, required=False, default=64,
@@ -120,6 +146,7 @@ def main():
 
     model_name = os.path.normpath(args.model_name)
     data_dir = os.path.normpath(args.data_dir)
+    hidden_layer_size, n_hidden_layers = parse_hidden_layers_description(args.hidden_layer_size)
 
     train_data, val_data, test_data = read_snips2017_data(data_dir)
     print('Classes list: {0}'.format(sorted(list(set(train_data[1])))))
@@ -160,10 +187,11 @@ def main():
         nn = ImpatialTextClassifier(filters_for_conv1=args.size_of_conv1, filters_for_conv2=args.size_of_conv2,
                                     filters_for_conv3=args.size_of_conv3, filters_for_conv4=args.size_of_conv4,
                                     filters_for_conv5=args.size_of_conv5, batch_size=args.batch_size,
-                                    hidden_layer_size=args.hidden_layer_size, num_monte_carlo=args.num_monte_carlo,
-                                    gpu_memory_frac=args.gpu_memory_frac, verbose=True, multioutput=False,
-                                    random_seed=random_seed, validation_fraction=0.15, max_epochs=30, patience=5,
-                                    bayesian=(args.nn_type == 'bayesian'), kl_weight_init=0.5, kl_weight_fin=1e-2)
+                                    hidden_layer_size=hidden_layer_size, n_hidden_layers=n_hidden_layers,
+                                    num_monte_carlo=args.num_monte_carlo, gpu_memory_frac=args.gpu_memory_frac,
+                                    verbose=True, multioutput=False, random_seed=random_seed, validation_fraction=0.15,
+                                    max_epochs=30, patience=5, bayesian=(args.nn_type == 'bayesian'),
+                                    kl_weight_init=1.0, kl_weight_fin=1e-2)
         nn.fit(train_texts, train_labels, validation_data=(val_texts, val_labels))
         print('')
         with open(model_name, 'wb') as fp:
