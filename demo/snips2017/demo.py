@@ -70,6 +70,7 @@ def is_string(value: Union[str, int]) -> bool:
 
 
 def main():
+    random_seed = 42
     parser = ArgumentParser()
     parser.add_argument('-m', '--model', dest='model_name', type=str, required=True,
                         help='The binary file with the text classifier.')
@@ -109,10 +110,17 @@ def main():
     print('Number of samples for validation is {0}.'.format(len(val_data[0])))
     print('Number of samples for final testing is {0}.'.format(len(test_data[0])))
     print('')
-    unlabeled_texts_for_training = load_brown_corpus()
-    unlabeled_texts_for_testing = load_genesis_corpus()
-    print('Number of unlabeled (unknown) samples for training is {0}.'.format(len(unlabeled_texts_for_training)))
-    print('Number of unlabeled (unknown) samples for final testing is {0}.'.format(len(unlabeled_texts_for_testing)))
+    unlabeled_texts_for_training = load_genesis_corpus()
+    unlabeled_texts_for_testing = load_brown_corpus()
+    random.seed(random_seed)
+    print('Number of unlabeled (unknown) samples for training is {0}. For example:'.format(
+        len(unlabeled_texts_for_training)))
+    for it in random.sample(unlabeled_texts_for_training, 5):
+        print('  {0}'.format(it))
+    print('Number of unlabeled (unknown) samples for final testing is {0}. For example:'.format(
+        len(unlabeled_texts_for_testing)))
+    for it in random.sample(unlabeled_texts_for_testing, 5):
+        print('  {0}'.format(it))
     print('')
 
     if os.path.isfile(model_name):
@@ -120,7 +128,6 @@ def main():
             nn = pickle.load(fp)
     else:
         if args.nn_type == 'additional_class':
-            random.seed(42)
             random.shuffle(unlabeled_texts_for_training)
             n = int(round(0.15 * len(unlabeled_texts_for_training)))
             train_texts = train_data[0] + unlabeled_texts_for_training[n:]
@@ -137,7 +144,7 @@ def main():
                                     filters_for_conv5=args.size_of_conv5, batch_size=args.batch_size,
                                     hidden_layer_size=args.hidden_layer_size, num_monte_carlo=args.num_monte_carlo,
                                     gpu_memory_frac=args.gpu_memory_frac, verbose=True, multioutput=False,
-                                    random_seed=42, validation_fraction=0.15, max_epochs=100, patience=5,
+                                    random_seed=random_seed, validation_fraction=0.15, max_epochs=100, patience=5,
                                     bayesian=(args.nn_type == 'bayesian'), kl_weight_init=1.0, kl_weight_fin=1e-2)
         nn.fit(train_texts, train_labels, validation_data=(val_texts, val_labels))
         print('')
