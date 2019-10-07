@@ -22,7 +22,7 @@ from typing import List
 import numpy as np
 from sklearn.metrics import classification_report
 from skopt import gp_minimize
-from skopt.space import Integer
+from skopt.space import Integer, Real
 
 
 try:
@@ -71,6 +71,16 @@ def main():
         quality = 0.0
         print('Filters number for different convolution kernels: ({0}, {1}, {2}, {3}, {4})'.format(
             conv1_, conv2_, conv3_, conv4_, conv5_))
+        if hidden_ > 0:
+            print('Hidden layer size is {0}.'.format(hidden_))
+        if nn_type == 'bayesian':
+            init_kl_weight = float(args[6])
+            fin_kl_weight = float(args[7])
+            print('Optimal value of initial KL weight is {0:.6f}.'.format(init_kl_weight))
+            print('Optimal value of final KL weight is {0:.6f}.'.format(fin_kl_weight))
+        else:
+            init_kl_weight = 1.0
+            fin_kl_weight = 1.0
         if sum(args) == 0:
             return 1.0
         for fold_idx, (train_index, test_index) in enumerate(indices_for_cv):
@@ -80,7 +90,8 @@ def main():
                                          filters_for_conv4=conv4_, filters_for_conv5=conv5_, hidden_layer_size=hidden_,
                                          multioutput=multioutput, gpu_memory_frac=gpu_memory_frac,
                                          num_monte_carlo=num_monte_carlo, verbose=False, random_seed=42, max_epochs=100,
-                                         patience=5, batch_size=16, bayesian=(nn_type == 'bayesian'))
+                                         patience=5, batch_size=16, bayesian=(nn_type == 'bayesian'),
+                                         kl_weight_init=init_kl_weight, kl_weight_fin=fin_kl_weight)
             if os.path.exists(os.path.normpath(bert_handle)):
                 cls.PATH_TO_BERT = os.path.normpath(bert_handle)
             train_texts = labeled_texts[train_index]
@@ -140,6 +151,16 @@ def main():
         hidden_ = int(args[5])
         print('Optimal filters number for different convolution kernels: ({0}, {1}, {2}, {3}, {4})'.format(
             conv1_, conv2_, conv3_, conv4_, conv5_))
+        if hidden_ > 0:
+            print('Optimal size of the hidden layer is {0}.'.format(hidden_))
+        if nn_type == 'bayesian':
+            init_kl_weight = float(args[6])
+            fin_kl_weight = float(args[7])
+            print('Optimal value of initial KL weight is {0:.6f}.'.format(init_kl_weight))
+            print('Optimal value of final KL weight is {0:.6f}.'.format(fin_kl_weight))
+        else:
+            init_kl_weight = 1.0
+            fin_kl_weight = 1.0
         print('')
         y_pred = []
         y_true = []
@@ -151,7 +172,8 @@ def main():
                                          filters_for_conv4=conv4_, filters_for_conv5=conv5_, hidden_layer_size=hidden_,
                                          batch_size=16, gpu_memory_frac=gpu_memory_frac, verbose=True, random_seed=42,
                                          num_monte_carlo=num_monte_carlo, max_epochs=100, patience=5,
-                                         multioutput=multioutput, bayesian=(nn_type == 'bayesian'))
+                                         multioutput=multioutput, bayesian=(nn_type == 'bayesian'),
+                                         kl_weight_init=init_kl_weight, kl_weight_fin=fin_kl_weight)
             if os.path.exists(os.path.normpath(bert_handle)):
                 cls.PATH_TO_BERT = os.path.normpath(bert_handle)
             train_texts = labeled_texts[train_index]
@@ -220,6 +242,12 @@ def main():
         conv4_ = int(args[3])
         conv5_ = int(args[4])
         hidden_ = int(args[5])
+        if nn_type == 'bayesian':
+            init_kl_weight = float(args[6])
+            fin_kl_weight = float(args[7])
+        else:
+            init_kl_weight = 1.0
+            fin_kl_weight = 1.0
         train_index, val_index = ImpatialTextClassifier.train_test_split(labels, 0.1)
         if unlabeled_texts_for_training is None:
             train_texts = labeled_texts[train_index]
@@ -245,7 +273,8 @@ def main():
                                      filters_for_conv4=conv4_, filters_for_conv5=conv5_, hidden_layer_size=hidden_,
                                      batch_size=16, gpu_memory_frac=gpu_memory_frac, num_monte_carlo=num_monte_carlo,
                                      verbose=True, random_seed=42, max_epochs=100, patience=5, multioutput=multioutput,
-                                     bayesian=(nn_type == 'bayesian'))
+                                     bayesian=(nn_type == 'bayesian'),
+                                     kl_weight_init=init_kl_weight, kl_weight_fin=fin_kl_weight)
         if os.path.exists(os.path.normpath(bert_handle)):
             cls.PATH_TO_BERT = os.path.normpath(bert_handle)
         cls.fit(train_texts, train_labels, validation_data=(val_texts, val_labels))
@@ -267,9 +296,7 @@ def main():
     parser.add_argument('--gpu_frac', dest='gpu_memory_frac', type=float, required=False, default=0.9,
                         help='Allocable part of the GPU memory for the classifier.')
     parser.add_argument('--nn_type', dest='nn_type', type=str, choices=['bayesian', 'usual'], required=False,
-                        default='bayesian', help='Neural network type: `bayesian`, `usual` or `additional_class` (it '
-                                                 'is same as `usual` but unlabeled samples are modeled as additional '
-                                                 'class).')
+                        default='bayesian', help='Neural network type: `bayesian` or `usual`.')
     parser.add_argument('--num_monte_carlo', dest='num_monte_carlo', type=int, required=False, default=100,
                         help='Number of generated Monte Carlo samples for each data sample.')
     parser.add_argument('--conv1', dest='size_of_conv1', type=int, required=False, default=20,
@@ -284,6 +311,10 @@ def main():
                         help='Size of the Bayesian convolution layer with kernel size 5.')
     parser.add_argument('--hidden', dest='hidden_layer_size', type=int, required=False, default=500,
                         help='Hidden layer size.')
+    parser.add_argument('--init_kl_weight', dest='init_kl_weight', type=float, required=False, default=1e-1,
+                        help='Initial value of KL weight.')
+    parser.add_argument('--fin_kl_weight', dest='fin_kl_weight', type=float, required=False, default=1e-2,
+                        help='Final value of KL weight.')
     parser.add_argument('--search', dest='search_hyperparameters', required=False, action='store_true',
                         default=False, help='Will be hyperparameters found by the Bayesian optimization?')
     cmd_args = parser.parse_args()
@@ -321,17 +352,20 @@ def main():
     np.random.seed(42)
     indices_for_cv = ImpatialTextClassifier.cv_split(labels, 5)
     if cmd_args.search_hyperparameters:
+        dimensions = [Integer(0, 300), Integer(0, 300), Integer(0, 300), Integer(0, 300), Integer(0, 300),
+                      Integer(100, 2000)]
+        if nn_type == 'bayesian':
+            dimensions += [Real(1e-5, 1.0, prior='log-uniform'), Real(1e-5, 1.0, prior='log-uniform')]
         optimal_res = gp_minimize(
-            func,
-            dimensions=[Integer(0, 200), Integer(0, 200), Integer(0, 200), Integer(0, 200), Integer(0, 200),
-                        Integer(100, 1000)],
-            n_calls=50, n_random_starts=5, random_state=42, verbose=False, n_jobs=1
+            func, dimensions=dimensions,
+            n_calls=100, n_random_starts=5, random_state=42, verbose=False, n_jobs=1
         )
         print('')
         hyperparameters = optimal_res.x
     else:
         hyperparameters = [cmd_args.size_of_conv1, cmd_args.size_of_conv2, cmd_args.size_of_conv3,
-                           cmd_args.size_of_conv4, cmd_args.size_of_conv5, cmd_args.hidden_layer_size]
+                           cmd_args.size_of_conv4, cmd_args.size_of_conv5, cmd_args.hidden_layer_size,
+                           cmd_args.init_kl_weight, cmd_args.fin_kl_weight]
     score(hyperparameters)
     with open(model_name, 'wb') as fp:
         pickle.dump(train(hyperparameters), fp)

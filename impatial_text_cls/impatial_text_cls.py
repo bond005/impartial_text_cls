@@ -21,7 +21,6 @@ from typing import Dict, List, Tuple, Union
 import warnings
 
 import numpy as np
-from scipy.stats import geom
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
 from sklearn.model_selection import StratifiedKFold
@@ -39,6 +38,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
     MAX_SEQ_LENGTH = 512
     PATH_TO_BERT = None
+    EPSILON = 1e-6
 
     def __init__(self,
                  bert_hub_module_handle: Union[str, None]='https://tfhub.dev/google/bert_uncased_L-12_H-768_A-12/1',
@@ -46,7 +46,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                  filters_for_conv4: int=100, filters_for_conv5: int=100, hidden_layer_size: int=500, batch_size: int=32,
                  validation_fraction: float=0.1, max_epochs: int=10, patience: int=3, num_monte_carlo: int=50,
                  gpu_memory_frac: float=1.0, verbose: bool=False, multioutput: bool=False, bayesian: bool=True,
-                 adaptive_kl_loss: bool=False, random_seed: Union[int, None]=None):
+                 kl_weight_init: float=1.0, kl_weight_fin: float=0.1, random_seed: Union[int, None]=None):
         self.batch_size = batch_size
         self.filters_for_conv1 = filters_for_conv1
         self.filters_for_conv2 = filters_for_conv2
@@ -64,7 +64,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         self.verbose = verbose
         self.multioutput = multioutput
         self.bayesian = bayesian
-        self.adaptive_kl_loss = adaptive_kl_loss
+        self.kl_weight_init = kl_weight_init
+        self.kl_weight_fin = kl_weight_fin
 
     def __del__(self):
         if hasattr(self, 'tokenizer_'):
@@ -176,7 +177,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 bounds_of_batches_for_validation.append((batch_start, batch_end))
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            train_op, elbo_loss_, val_loss_, pi_ = self.build_model(len(bounds_of_batches_for_training))
+            train_op, elbo_loss_, val_loss_, kl_weight_ = self.build_model(len(bounds_of_batches_for_training))
         if not self.bayesian:
             val_loss_ = elbo_loss_
         init = tf.group(tf.compat.v1.global_variables_initializer(), tf.compat.v1.local_variables_initializer())
@@ -203,10 +204,11 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     if feed_dict_for_batch is not None:
                         del feed_dict_for_batch
                     if self.bayesian:
-                        if self.adaptive_kl_loss:
+                        if abs(self.kl_weight_init - self.kl_weight_fin) > self.EPSILON:
                             feed_dict_for_batch = self.fill_feed_dict(
-                                X_batch, y_batch, pi_variable=pi_,
-                                pi_value=self.calculate_pi_value(batch_counter + 1, len(bounds_of_batches_for_training))
+                                X_batch, y_batch, kl_weight_variable=kl_weight_,
+                                kl_weight_value=self.calculate_kl_weight(epoch, self.max_epochs,
+                                                                         self.kl_weight_init, self.kl_weight_fin)
                             )
                         else:
                             feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
@@ -485,7 +487,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
             filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
             multioutput=self.multioutput, bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size,
-            adaptive_kl_loss=self.adaptive_kl_loss
+            kl_weight_init=self.kl_weight_init, kl_weight_fin=self.kl_weight_fin
         )
         self.check_X(X, 'X')
         self.is_fitted()
@@ -538,7 +540,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
             filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
             multioutput=self.multioutput, bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size,
-            adaptive_kl_loss=self.adaptive_kl_loss
+            kl_weight_init=self.kl_weight_init, kl_weight_fin=self.kl_weight_fin
         )
         self.is_fitted()
         classes_dict, classes_reverse_index = self.check_Xy(X, 'X', y, 'y', self.multioutput)
@@ -587,7 +589,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         check_is_fitted(self, ['classes_', 'classes_reverse_index_', 'tokenizer_', 'sess_', 'certainty_threshold_'])
 
     def fill_feed_dict(self, X: List[np.ndarray], y: np.ndarray = None,
-                       pi_variable: tf.Variable=None, pi_value: float=None) -> dict:
+                       kl_weight_variable: tf.Variable=None, kl_weight_value: float=None) -> dict:
         assert len(X) == 3
         assert len(X[0]) == self.batch_size
         feed_dict = {
@@ -595,8 +597,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         }
         if y is not None:
             feed_dict['y_ph:0'] = np.asarray(y, dtype=np.float32) if self.multioutput else y
-        if (pi_variable is not None) and (pi_value is not None):
-            feed_dict[pi_variable] = pi_value
+        if (kl_weight_variable is not None) and (kl_weight_value is not None):
+            feed_dict[kl_weight_variable] = kl_weight_value
         return feed_dict
 
     def extend_Xy(self, X: List[np.ndarray], y: np.ndarray=None, shuffle: bool=False) -> \
@@ -758,7 +760,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 'validation_fraction': self.validation_fraction, 'gpu_memory_frac': self.gpu_memory_frac,
                 'verbose': self.verbose, 'random_seed': self.random_seed, 'num_monte_carlo': self.num_monte_carlo,
                 'multioutput': self.multioutput, 'bayesian': self.bayesian, 'hidden_layer_size': self.hidden_layer_size,
-                'adaptive_kl_loss': self.adaptive_kl_loss}
+                'kl_weight_fin': self.kl_weight_fin, 'kl_weight_init': self.kl_weight_init}
 
     def set_params(self, **params):
         for parameter, value in params.items():
@@ -866,16 +868,16 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 labels_distribution = tfp.distributions.Categorical(logits=logits, name='LabelsDistribution')
             neg_log_likelihood = -tf.reduce_mean(input_tensor=labels_distribution.log_prob(y_ph))
             kl = sum(model.losses)
-            if self.adaptive_kl_loss:
-                pi = tf.Variable(0.5, trainable=False, name='Pi_for_ELBO_loss', dtype=tf.float32)
-                elbo_loss = neg_log_likelihood + pi * kl
+            if abs(self.kl_weight_init - self.kl_weight_fin) > self.EPSILON:
+                kl_weight = tf.Variable(self.kl_weight_init, trainable=False, name='KL_weight', dtype=tf.float32)
+                elbo_loss = neg_log_likelihood + kl_weight * (kl / float(n_train_samples))
             else:
-                elbo_loss = neg_log_likelihood + kl / float(n_train_samples)
-                pi = None
+                elbo_loss = neg_log_likelihood + self.kl_weight_init * (kl / float(n_train_samples))
+                kl_weight = None
             with tf.name_scope('train'):
                 optimizer = tf.compat.v1.train.AdamOptimizer()
                 train_op = optimizer.minimize(elbo_loss)
-            return train_op, elbo_loss, neg_log_likelihood, pi
+            return train_op, elbo_loss, neg_log_likelihood, kl_weight
         if self.filters_for_conv1 > 0:
             conv_layer_1 = tf.keras.layers.Conv1D(
                 filters=self.filters_for_conv1, kernel_size=1, name='Conv1', padding='valid', activation=tf.nn.elu,
@@ -1012,7 +1014,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size, multioutput=self.multioutput,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
             gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
-            bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size, adaptive_kl_loss=self.adaptive_kl_loss
+            bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size, kl_weight_init=self.kl_weight_init,
+            kl_weight_fin=self.kl_weight_fin
         )
         try:
             self.is_fitted()
@@ -1037,7 +1040,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size, multioutput=self.multioutput,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
             gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
-            bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size, adaptive_kl_loss=self.adaptive_kl_loss
+            bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size, kl_weight_init=self.kl_weight_init,
+            kl_weight_fin=self.kl_weight_fin
         )
         try:
             self.is_fitted()
@@ -1214,7 +1218,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             raise ValueError('`gpu_memory_frac` is not specified!')
         if (not isinstance(kwargs['gpu_memory_frac'], float)) and \
                 (not isinstance(kwargs['gpu_memory_frac'], np.float32)) and \
-                (not isinstance(kwargs['gpu_memory_frac'], np.float64)):
+                (not isinstance(kwargs['gpu_memory_frac'], np.float64)) and \
+                (not isinstance(kwargs['gpu_memory_frac'], np.float)):
             raise ValueError('`gpu_memory_frac` is wrong! Expected `{0}`, got `{1}`.'.format(
                 type(3.5), type(kwargs['gpu_memory_frac'])))
         if (kwargs['gpu_memory_frac'] <= 0.0) or (kwargs['gpu_memory_frac'] > 1.0):
@@ -1224,7 +1229,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             raise ValueError('`validation_fraction` is not specified!')
         if (not isinstance(kwargs['validation_fraction'], float)) and \
                 (not isinstance(kwargs['validation_fraction'], np.float32)) and \
-                (not isinstance(kwargs['validation_fraction'], np.float64)):
+                (not isinstance(kwargs['validation_fraction'], np.float64)) and \
+                (not isinstance(kwargs['validation_fraction'], np.float)):
             raise ValueError('`validation_fraction` is wrong! Expected `{0}`, got `{1}`.'.format(
                 type(3.5), type(kwargs['validation_fraction'])))
         if kwargs['validation_fraction'] < 0.0:
@@ -1254,15 +1260,34 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 (not isinstance(kwargs['bayesian'], bool)) and (not isinstance(kwargs['bayesian'], np.bool)):
             raise ValueError('`bayesian` is wrong! Expected `{0}`, got `{1}`.'.format(
                 type(True), type(kwargs['bayesian'])))
-        if 'adaptive_kl_loss' not in kwargs:
-            raise ValueError('`adaptive_kl_loss` is not specified!')
-        if (not isinstance(kwargs['adaptive_kl_loss'], int)) and \
-                (not isinstance(kwargs['adaptive_kl_loss'], np.int32)) and \
-                (not isinstance(kwargs['adaptive_kl_loss'], np.uint32)) and \
-                (not isinstance(kwargs['adaptive_kl_loss'], bool)) and \
-                (not isinstance(kwargs['adaptive_kl_loss'], np.bool)):
-            raise ValueError('`adaptive_kl_loss` is wrong! Expected `{0}`, got `{1}`.'.format(
-                type(True), type(kwargs['adaptive_kl_loss'])))
+        if 'kl_weight_init' not in kwargs:
+            raise ValueError('`kl_weight_init` is not specified!')
+        if (not isinstance(kwargs['kl_weight_init'], float)) and \
+                (not isinstance(kwargs['kl_weight_init'], np.float32)) and \
+                (not isinstance(kwargs['kl_weight_init'], np.float64)) and \
+                (not isinstance(kwargs['kl_weight_init'], np.float)):
+            raise ValueError('`kl_weight_init` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(3.5), type(kwargs['kl_weight_init'])))
+        if kwargs['kl_weight_init'] <= 0.0:
+            raise ValueError('`kl_weight_init` is wrong! Expected a non-negative floating-point value, '
+                             'but {0} is {1}.'.format(
+                kwargs['kl_weight_init'],
+                'zero' if abs(kwargs['kl_weight_init']) <= ImpatialTextClassifier.EPSILON else 'negative'
+            ))
+        if 'kl_weight_fin' not in kwargs:
+            raise ValueError('`kl_weight_fin` is not specified!')
+        if (not isinstance(kwargs['kl_weight_fin'], float)) and \
+                (not isinstance(kwargs['kl_weight_fin'], np.float32)) and \
+                (not isinstance(kwargs['kl_weight_fin'], np.float64)) and \
+                (not isinstance(kwargs['kl_weight_fin'], np.float)):
+            raise ValueError('`kl_weight_fin` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(3.5), type(kwargs['kl_weight_fin'])))
+        if kwargs['kl_weight_fin'] <= 0.0:
+            raise ValueError('`kl_weight_fin` is wrong! Expected a non-negative floating-point value, '
+                             'but {0} is {1}.'.format(
+                kwargs['kl_weight_fin'],
+                'zero' if abs(kwargs['kl_weight_fin']) <= ImpatialTextClassifier.EPSILON else 'negative'
+            ))
         if 'filters_for_conv1' not in kwargs:
             raise ValueError('`filters_for_conv1` is not specified!')
         if (not isinstance(kwargs['filters_for_conv1'], int)) and \
@@ -1574,9 +1599,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         return prep_y
 
     @staticmethod
-    def calculate_pi_value(batch: int, n_batches: int) -> float:
-        sum_prob = sum(geom.pmf([(idx + 1) for idx in range(n_batches)], 0.5))
-        return geom.pmf(float(batch), 0.5) / sum_prob
+    def calculate_kl_weight(epoch: int, n_epochs: int, init_kl_weight: float, fin_kl_weight: float) -> float:
+        if n_epochs < 2:
+            return init_kl_weight
+        return init_kl_weight + (fin_kl_weight - init_kl_weight) * epoch / float(n_epochs - 1)
 
     @staticmethod
     def check_path_to_bert(dir_name: str) -> bool:
