@@ -65,6 +65,22 @@ def load_genesis_corpus() -> List[str]:
     ))
 
 
+def generate_random_samples(texts: List[str], labels: List[str]):
+    texts_by_classes = dict()
+    for cur_text, cur_label in zip(texts, labels):
+        if cur_label in texts_by_classes:
+            texts_by_classes[cur_label].add(cur_text)
+        else:
+            texts_by_classes[cur_label] = {cur_text}
+    for cur_label in texts_by_classes.keys():
+        texts_by_classes[cur_label] = sorted(random.sample(list(texts_by_classes[cur_label]), k=2))
+    print('Random examples from train set:')
+    for cur_label in sorted(list(texts_by_classes.keys())):
+        print('  Class `{0}`:'.format(cur_label))
+        for cur_text in texts_by_classes[cur_label]:
+            print('    {0}'.format(cur_text))
+
+
 def is_string(value: Union[str, int]) -> bool:
     return hasattr(value, 'split') and hasattr(value, 'strip')
 
@@ -109,6 +125,7 @@ def main():
     print('Number of samples for training is {0}.'.format(len(train_data[0])))
     print('Number of samples for validation is {0}.'.format(len(val_data[0])))
     print('Number of samples for final testing is {0}.'.format(len(test_data[0])))
+    generate_random_samples(train_data[0], train_data[1])
     print('')
     unlabeled_texts_for_training = load_genesis_corpus()
     unlabeled_texts_for_testing = load_brown_corpus()
