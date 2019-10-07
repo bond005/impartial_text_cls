@@ -23,7 +23,6 @@ from typing import List, Union
 import nltk
 from nltk.corpus import brown, genesis
 from nltk.tokenize.treebank import TreebankWordDetokenizer
-import numpy as np
 from sklearn.metrics import classification_report
 
 
