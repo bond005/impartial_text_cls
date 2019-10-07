@@ -242,9 +242,9 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                             del probs
                         else:
                             if self.multioutput:
-                                mean_probs = self.sess_.run('OutputLayer/Sigmoid:0', feed_dict=feed_dict_for_batch)
+                                mean_probs = self.sess_.run('Logits/Sigmoid:0', feed_dict=feed_dict_for_batch)
                             else:
-                                mean_probs = self.sess_.run('OutputLayer/Softmax:0', feed_dict=feed_dict_for_batch)
+                                mean_probs = self.sess_.run('Logits/Softmax:0', feed_dict=feed_dict_for_batch)
                         del feed_dict_for_batch
                         if self.multioutput:
                             if y_pred is None:
@@ -370,9 +370,9 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             else:
                 feed_dict_for_batch = self.fill_feed_dict(X_batch)
                 if self.multioutput:
-                    probs = self.sess_.run('OutputLayer/Sigmoid:0', feed_dict=feed_dict_for_batch)
+                    probs = self.sess_.run('Logits/Sigmoid:0', feed_dict=feed_dict_for_batch)
                 else:
-                    probs = self.sess_.run('OutputLayer/Softmax:0', feed_dict=feed_dict_for_batch)
+                    probs = self.sess_.run('Logits/Softmax:0', feed_dict=feed_dict_for_batch)
                 probabilities[batch_start:batch_end] = probs[0:(batch_end - batch_start)]
                 del probs
                 del feed_dict_for_batch
