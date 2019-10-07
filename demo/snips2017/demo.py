@@ -92,12 +92,14 @@ def parse_hidden_layers_description(hidden_layer: Union[str, None]) -> Tuple[int
         raise ValueError('Description of hidden layers is empty!')
     if len(parts) > 2:
         raise ValueError('`{0}` is wrong description of hidden layers!')
-    if (not parts[0].isdigit()) or (not parts[1].isdigit()):
+    if not parts[0].isdigit():
         raise ValueError('`{0}` is wrong description of hidden layers!')
     hidden_layer_size = int(parts[0])
     if hidden_layer_size < 0:
         raise ValueError('`{0}` is wrong description of hidden layers!')
     if len(parts) > 1:
+        if not parts[1].isdigit():
+            raise ValueError('`{0}` is wrong description of hidden layers!')
         number_of_hidden_layers = int(parts[1])
         if number_of_hidden_layers <= 0:
             raise ValueError('`{0}` is wrong description of hidden layers!')
