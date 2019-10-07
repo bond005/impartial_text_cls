@@ -21,7 +21,7 @@ import time
 from typing import List, Union
 
 import nltk
-from nltk.corpus import brown, genesis
+from nltk.corpus import brown, reuters
 from nltk.tokenize.treebank import TreebankWordDetokenizer
 from sklearn.metrics import classification_report
 
@@ -38,7 +38,7 @@ except:
 def load_brown_corpus() -> List[str]:
     nltk.download('brown')
     sentences = list(filter(
-        lambda sent: (len(sent) <= 30) and (len(sent) >= 1) and any(map(lambda word: word.isalpha(), sent)),
+        lambda sent: (len(sent) <= 30) and (len(sent) >= 3) and any(map(lambda word: word.isalpha(), sent)),
         brown.sents()
     ))
     mdetok = TreebankWordDetokenizer()
@@ -50,11 +50,12 @@ def load_brown_corpus() -> List[str]:
     ))
 
 
-def load_genesis_corpus() -> List[str]:
-    nltk.download('genesis')
+def load_reuters_corpus() -> List[str]:
+    nltk.download('reuters')
     sentences = list(filter(
-        lambda sent: (len(sent) <= 30) and (len(sent) >= 1) and any(map(lambda word: word.isalpha(), sent)),
-        genesis.sents()
+        lambda sent: (len(sent) <= 30) and (len(sent) >= 3) and any(map(lambda word: word.isalpha(), sent)) and
+                     sum(filter(lambda word2: word2.isupper(), sent)) < (len(sent) // 4),
+        reuters.sents()
     ))
     mdetok = TreebankWordDetokenizer()
     return list(map(
@@ -127,7 +128,7 @@ def main():
     print('Number of samples for final testing is {0}.'.format(len(test_data[0])))
     generate_random_samples(train_data[0], train_data[1])
     print('')
-    unlabeled_texts_for_training = load_genesis_corpus()
+    unlabeled_texts_for_training = load_reuters_corpus()
     unlabeled_texts_for_testing = load_brown_corpus()
     random.seed(random_seed)
     print('Number of unlabeled (unknown) samples for training is {0}. For example:'.format(
