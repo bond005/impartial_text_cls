@@ -54,7 +54,7 @@ def load_reuters_corpus() -> List[str]:
     nltk.download('reuters')
     sentences = list(filter(
         lambda sent: (len(sent) <= 30) and (len(sent) >= 3) and any(map(lambda word: word.isalpha(), sent)) and
-                     sum(filter(lambda word2: word2.isupper(), sent)) < (len(sent) // 4),
+                     len(list(filter(lambda word2: word2.isupper(), sent))) < (len(sent) // 4),
         reuters.sents()
     ))
     mdetok = TreebankWordDetokenizer()
