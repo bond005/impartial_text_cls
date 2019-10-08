@@ -179,7 +179,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 bounds_of_batches_for_validation.append((batch_start, batch_end))
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            train_op, elbo_loss_, val_loss_, kl_weight_ = self.build_model(len(bounds_of_batches_for_training))
+            train_op, elbo_loss_, val_loss_, kl_weight_ = self.build_model()
         if not self.bayesian:
             val_loss_ = elbo_loss_
         init = tf.group(tf.compat.v1.global_variables_initializer(), tf.compat.v1.local_variables_initializer())
@@ -789,7 +789,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             self.__setattr__(parameter, value)
         return self
 
-    def build_model(self, n_train_samples: int):
+    def build_model(self):
         config = tf.compat.v1.ConfigProto()
         config.gpu_options.per_process_gpu_memory_fraction = self.gpu_memory_frac
         self.sess_ = tf.compat.v1.Session(config=config)
@@ -901,7 +901,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             else:
                 labels_distribution = tfp.distributions.Categorical(logits=logits, name='LabelsDistribution')
             neg_log_likelihood = -tf.reduce_mean(input_tensor=labels_distribution.log_prob(y_ph))
-            kl = sum(model.losses) / float(n_train_samples)
+            kl = sum(model.losses) / float(self.batch_size)
             if abs(self.kl_weight_init - self.kl_weight_fin) > self.EPSILON:
                 kl_weight = tf.Variable(self.kl_weight_init, trainable=False, name='KL_weight', dtype=tf.float32)
                 elbo_loss = neg_log_likelihood + kl_weight * kl
@@ -910,7 +910,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 kl_weight = None
             with tf.name_scope('train'):
                 MyAdamW = tf.contrib.opt.extend_with_decoupled_weight_decay(tf.compat.v1.train.AdamOptimizer)
-                optimizer = MyAdamW(weight_decay=0.001, learning_rate=0.0001)
+                optimizer = MyAdamW(weight_decay=0.001, learning_rate=0.0003)
                 train_op = optimizer.minimize(elbo_loss)
             return train_op, elbo_loss, neg_log_likelihood, kl_weight
         spatial_dropout = tf.keras.layers.SpatialDropout1D(rate=0.15, seed=self.random_seed,
@@ -1010,7 +1010,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             loss = tf.reduce_mean(loss, name='loss')
         with tf.name_scope('train'):
             MyAdamW = tf.contrib.opt.extend_with_decoupled_weight_decay(tf.compat.v1.train.AdamOptimizer)
-            optimizer = MyAdamW(weight_decay=0.001, learning_rate=0.0001)
+            optimizer = MyAdamW(weight_decay=0.001, learning_rate=0.0003)
             train_op = optimizer.minimize(loss)
         return train_op, loss, None, None
 
