@@ -915,42 +915,47 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                                                            name='SpatialDropout')(sequence_output)
         if self.filters_for_conv1 > 0:
             conv_layer_1 = tf.keras.layers.Conv1D(
-                filters=self.filters_for_conv1, kernel_size=1, name='Conv1', padding='valid', activation=tf.nn.elu,
+                filters=self.filters_for_conv1, kernel_size=1, name='Conv1', padding='valid', activation=None,
                 kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
             )(spatial_dropout)
             conv_layer_1 = tf.keras.layers.BatchNormalization(name='BatchNormConv1')(conv_layer_1)
+            conv_layer_1 = tf.keras.layers.Activation(name='ActivationConv1', activation=tf.nn.elu)(conv_layer_1)
             conv_layer_1 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling1')(conv_layer_1)
             conv_layers.append(conv_layer_1)
         if self.filters_for_conv2 > 0:
             conv_layer_2 = tf.keras.layers.Conv1D(
-                filters=self.filters_for_conv2, kernel_size=2, name='Conv2', padding='valid', activation=tf.nn.elu,
+                filters=self.filters_for_conv2, kernel_size=2, name='Conv2', padding='valid', activation=None,
                 kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
             )(spatial_dropout)
             conv_layer_2 = tf.keras.layers.BatchNormalization(name='BatchNormConv2')(conv_layer_2)
+            conv_layer_2 = tf.keras.layers.Activation(name='ActivationConv2', activation=tf.nn.elu)(conv_layer_2)
             conv_layer_2 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling2')(conv_layer_2)
             conv_layers.append(conv_layer_2)
         if self.filters_for_conv3 > 0:
             conv_layer_3 = tf.keras.layers.Conv1D(
-                filters=self.filters_for_conv3, kernel_size=3, name='Conv3', padding='valid', activation=tf.nn.elu,
+                filters=self.filters_for_conv3, kernel_size=3, name='Conv3', padding='valid', activation=None,
                 kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
             )(spatial_dropout)
             conv_layer_3 = tf.keras.layers.BatchNormalization(name='BatchNormConv3')(conv_layer_3)
+            conv_layer_3 = tf.keras.layers.Activation(name='ActivationConv3', activation=tf.nn.elu)(conv_layer_3)
             conv_layer_3 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling3')(conv_layer_3)
             conv_layers.append(conv_layer_3)
         if self.filters_for_conv4 > 0:
             conv_layer_4 = tf.keras.layers.Conv1D(
-                filters=self.filters_for_conv4, kernel_size=4, name='Conv4', padding='valid', activation=tf.nn.elu,
+                filters=self.filters_for_conv4, kernel_size=4, name='Conv4', padding='valid', activation=None,
                 kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
             )(spatial_dropout)
             conv_layer_4 = tf.keras.layers.BatchNormalization(name='BatchNormConv4')(conv_layer_4)
+            conv_layer_4 = tf.keras.layers.Activation(name='ActivationConv4', activation=tf.nn.elu)(conv_layer_4)
             conv_layer_4 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling4')(conv_layer_4)
             conv_layers.append(conv_layer_4)
         if self.filters_for_conv5 > 0:
             conv_layer_5 = tf.keras.layers.Conv1D(
-                filters=self.filters_for_conv5, kernel_size=5, name='Conv5', padding='valid', activation=tf.nn.elu,
+                filters=self.filters_for_conv5, kernel_size=5, name='Conv5', padding='valid', activation=None,
                 kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
             )(spatial_dropout)
             conv_layer_5 = tf.keras.layers.BatchNormalization(name='BatchNormConv5')(conv_layer_5)
+            conv_layer_5 = tf.keras.layers.Activation(name='ActivationConv5', activation=tf.nn.elu)(conv_layer_5)
             conv_layer_5 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling5')(conv_layer_5)
             conv_layers.append(conv_layer_5)
         if len(conv_layers) > 1:
@@ -962,26 +967,29 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             if self.n_hidden_layers > 1:
                 hidden = tf.keras.layers.Dropout(rate=0.5, seed=self.random_seed, name='Dropout1')(concat_layer)
                 hidden = tf.keras.layers.Dense(
-                    units=self.hidden_layer_size, activation=tf.nn.elu, name='HiddenLayer1',
+                    units=self.hidden_layer_size, activation=None, name='HiddenLayer1',
                     kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
                 )(hidden)
                 hidden = tf.keras.layers.BatchNormalization(name='BatchNormLayer1')(hidden)
+                hidden = tf.keras.layers.Activation(name='Activation1', activation=tf.nn.elu)(hidden)
                 for layer_idx in range(1, self.n_hidden_layers):
                     hidden = tf.keras.layers.Dropout(rate=0.5, seed=self.random_seed,
                                                      name='Dropout{0}'.format(layer_idx + 1))(hidden)
                     hidden = tf.keras.layers.Dense(
-                        units=self.hidden_layer_size, activation=tf.nn.elu,
-                        name='HiddenLayer{0}'.format(layer_idx + 1),
+                        units=self.hidden_layer_size, activation=None, name='HiddenLayer{0}'.format(layer_idx + 1),
                         kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
                     )(hidden)
                     hidden = tf.keras.layers.BatchNormalization(name='BatchNormLayer{0}'.format(layer_idx + 1))(hidden)
+                    hidden = tf.keras.layers.Activation(name='Activation{0}'.format(layer_idx + 1),
+                                                        activation=tf.nn.elu)(hidden)
             else:
                 hidden = tf.keras.layers.Dropout(rate=0.5, seed=self.random_seed, name='Dropout')(concat_layer)
                 hidden = tf.keras.layers.Dense(
-                    units=self.hidden_layer_size, activation=tf.nn.elu, name='HiddenLayer',
+                    units=self.hidden_layer_size, activation=None, name='HiddenLayer',
                     kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
                 )(hidden)
                 hidden = tf.keras.layers.BatchNormalization(name='BatchNormLayer')(hidden)
+                hidden = tf.keras.layers.Activation(name='Activation', activation=tf.nn.elu)(hidden)
             output_dropout = tf.keras.layers.Dropout(rate=0.5, seed=self.random_seed, name='OutputDropout')(hidden)
             logits = tf.layers.dense(output_dropout, units=len(self.classes_), kernel_initializer=glorot_init,
                                      name='Logits', activation=(tf.nn.sigmoid if self.multioutput else tf.nn.softmax),
