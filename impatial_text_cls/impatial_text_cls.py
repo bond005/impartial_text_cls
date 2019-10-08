@@ -910,7 +910,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 kl_weight = None
             with tf.name_scope('train'):
                 MyAdamW = tf.contrib.opt.extend_with_decoupled_weight_decay(tf.compat.v1.train.AdamOptimizer)
-                optimizer = MyAdamW(weight_decay=0.001, learning_rate=0.0003)
+                optimizer = MyAdamW(weight_decay=0.025, learning_rate=0.0003)
                 train_op = optimizer.minimize(elbo_loss)
             return train_op, elbo_loss, neg_log_likelihood, kl_weight
         spatial_dropout = tf.keras.layers.SpatialDropout1D(rate=0.15, seed=self.random_seed,
@@ -1010,7 +1010,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             loss = tf.reduce_mean(loss, name='loss')
         with tf.name_scope('train'):
             MyAdamW = tf.contrib.opt.extend_with_decoupled_weight_decay(tf.compat.v1.train.AdamOptimizer)
-            optimizer = MyAdamW(weight_decay=0.001, learning_rate=0.0003)
+            optimizer = MyAdamW(weight_decay=0.025, learning_rate=0.0003)
             train_op = optimizer.minimize(loss)
         return train_op, loss, None, None
 
