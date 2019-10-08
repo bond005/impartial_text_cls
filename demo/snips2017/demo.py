@@ -193,7 +193,7 @@ def main():
                                     num_monte_carlo=args.num_monte_carlo, gpu_memory_frac=args.gpu_memory_frac,
                                     verbose=True, multioutput=False, random_seed=random_seed, validation_fraction=0.15,
                                     max_epochs=30, patience=5, bayesian=(args.nn_type == 'bayesian'),
-                                    kl_weight_init=1.0, kl_weight_fin=1e-2)
+                                    kl_weight_init=10.0, kl_weight_fin=0.1)
         nn.fit(train_texts, train_labels, validation_data=(val_texts, val_labels))
         print('')
         with open(model_name, 'wb') as fp:

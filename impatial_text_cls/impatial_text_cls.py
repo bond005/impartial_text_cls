@@ -839,35 +839,35 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             if self.filters_for_conv1 > 0:
                 conv_layer_1 = tfp.layers.Convolution1DFlipout(
                     filters=self.filters_for_conv1, kernel_size=1, name='Conv1', padding='valid',
-                    activation=tf.nn.relu, seed=self.random_seed
+                    activation=tf.nn.elu, seed=self.random_seed
                 )(input_sequence_layer)
                 conv_layer_1 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling1')(conv_layer_1)
                 conv_layers.append(conv_layer_1)
             if self.filters_for_conv2 > 0:
                 conv_layer_2 = tfp.layers.Convolution1DFlipout(
                     filters=self.filters_for_conv2, kernel_size=2, name='Conv2', padding='valid',
-                    activation=tf.nn.relu, seed=self.random_seed
+                    activation=tf.nn.elu, seed=self.random_seed
                 )(input_sequence_layer)
                 conv_layer_2 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling2')(conv_layer_2)
                 conv_layers.append(conv_layer_2)
             if self.filters_for_conv3 > 0:
                 conv_layer_3 = tfp.layers.Convolution1DFlipout(
                     filters=self.filters_for_conv3, kernel_size=3, name='Conv3', padding='valid',
-                    activation=tf.nn.relu, seed=self.random_seed
+                    activation=tf.nn.elu, seed=self.random_seed
                 )(input_sequence_layer)
                 conv_layer_3 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling3')(conv_layer_3)
                 conv_layers.append(conv_layer_3)
             if self.filters_for_conv4 > 0:
                 conv_layer_4 = tfp.layers.Convolution1DFlipout(
                     filters=self.filters_for_conv4, kernel_size=4, name='Conv4', padding='valid',
-                    activation=tf.nn.relu, seed=self.random_seed
+                    activation=tf.nn.elu, seed=self.random_seed
                 )(input_sequence_layer)
                 conv_layer_4 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling4')(conv_layer_4)
                 conv_layers.append(conv_layer_4)
             if self.filters_for_conv5 > 0:
                 conv_layer_5 = tfp.layers.Convolution1DFlipout(
                     filters=self.filters_for_conv5, kernel_size=5, name='Conv5', padding='valid',
-                    activation=tf.nn.relu, seed=self.random_seed
+                    activation=tf.nn.elu, seed=self.random_seed
                 )(input_sequence_layer)
                 conv_layer_5 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling5')(conv_layer_5)
                 conv_layers.append(conv_layer_5)
@@ -878,14 +878,14 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             if (self.hidden_layer_size > 0) and (self.n_hidden_layers > 0):
                 if self.n_hidden_layers > 1:
                     hidden_layer = tfp.layers.DenseFlipout(self.hidden_layer_size, seed=self.random_seed,
-                                                           name='HiddenLayer1', activation=tf.nn.relu)(concat_layer)
+                                                           name='HiddenLayer1', activation=tf.nn.elu)(concat_layer)
                     for layer_idx in range(1, self.n_hidden_layers):
                         hidden_layer = tfp.layers.DenseFlipout(self.hidden_layer_size, seed=self.random_seed,
                                                                name='HiddenLayer{0}'.format(layer_idx + 1),
-                                                               activation=tf.nn.relu)(hidden_layer)
+                                                               activation=tf.nn.elu)(hidden_layer)
                 else:
                     hidden_layer = tfp.layers.DenseFlipout(self.hidden_layer_size, seed=self.random_seed,
-                                                           name='HiddenLayer', activation=tf.nn.relu)(concat_layer)
+                                                           name='HiddenLayer', activation=tf.nn.elu)(concat_layer)
                 output_layer = tfp.layers.DenseFlipout(len(self.classes_), seed=self.random_seed, name='OutputLayer')(
                     hidden_layer)
             else:
@@ -899,55 +899,57 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             else:
                 labels_distribution = tfp.distributions.Categorical(logits=logits, name='LabelsDistribution')
             neg_log_likelihood = -tf.reduce_mean(input_tensor=labels_distribution.log_prob(y_ph))
-            kl = sum(model.losses)
+            kl = sum(model.losses) / float(n_train_samples)
             if abs(self.kl_weight_init - self.kl_weight_fin) > self.EPSILON:
                 kl_weight = tf.Variable(self.kl_weight_init, trainable=False, name='KL_weight', dtype=tf.float32)
-                elbo_loss = neg_log_likelihood + kl_weight * (kl / float(n_train_samples))
+                elbo_loss = neg_log_likelihood + kl_weight * kl
             else:
-                elbo_loss = neg_log_likelihood + self.kl_weight_init * (kl / float(n_train_samples))
+                elbo_loss = neg_log_likelihood + self.kl_weight_init * kl
                 kl_weight = None
             with tf.name_scope('train'):
                 MyAdamW = tf.contrib.opt.extend_with_decoupled_weight_decay(tf.compat.v1.train.AdamOptimizer)
-                optimizer = MyAdamW(weight_decay=0.0005, learning_rate=0.001)
+                optimizer = MyAdamW(weight_decay=0.001, learning_rate=0.001)
                 train_op = optimizer.minimize(elbo_loss)
             return train_op, elbo_loss, neg_log_likelihood, kl_weight
+        spatial_dropout = tf.keras.layers.SpatialDropout1D(rate=0.15, seed=self.random_seed,
+                                                           name='SpatialDropout')(sequence_output)
         if self.filters_for_conv1 > 0:
             conv_layer_1 = tf.keras.layers.Conv1D(
-                filters=self.filters_for_conv1, kernel_size=1, name='Conv1', padding='valid', activation=tf.nn.relu,
+                filters=self.filters_for_conv1, kernel_size=1, name='Conv1', padding='valid', activation=tf.nn.elu,
                 kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
-            )(sequence_output)
+            )(spatial_dropout)
             conv_layer_1 = tf.keras.layers.BatchNormalization(name='BatchNormConv1')(conv_layer_1)
             conv_layer_1 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling1')(conv_layer_1)
             conv_layers.append(conv_layer_1)
         if self.filters_for_conv2 > 0:
             conv_layer_2 = tf.keras.layers.Conv1D(
-                filters=self.filters_for_conv2, kernel_size=2, name='Conv2', padding='valid', activation=tf.nn.relu,
+                filters=self.filters_for_conv2, kernel_size=2, name='Conv2', padding='valid', activation=tf.nn.elu,
                 kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
-            )(sequence_output)
+            )(spatial_dropout)
             conv_layer_2 = tf.keras.layers.BatchNormalization(name='BatchNormConv2')(conv_layer_2)
             conv_layer_2 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling2')(conv_layer_2)
             conv_layers.append(conv_layer_2)
         if self.filters_for_conv3 > 0:
             conv_layer_3 = tf.keras.layers.Conv1D(
-                filters=self.filters_for_conv3, kernel_size=3, name='Conv3', padding='valid', activation=tf.nn.relu,
+                filters=self.filters_for_conv3, kernel_size=3, name='Conv3', padding='valid', activation=tf.nn.elu,
                 kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
-            )(sequence_output)
+            )(spatial_dropout)
             conv_layer_3 = tf.keras.layers.BatchNormalization(name='BatchNormConv3')(conv_layer_3)
             conv_layer_3 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling3')(conv_layer_3)
             conv_layers.append(conv_layer_3)
         if self.filters_for_conv4 > 0:
             conv_layer_4 = tf.keras.layers.Conv1D(
-                filters=self.filters_for_conv4, kernel_size=4, name='Conv4', padding='valid', activation=tf.nn.relu,
+                filters=self.filters_for_conv4, kernel_size=4, name='Conv4', padding='valid', activation=tf.nn.elu,
                 kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
-            )(sequence_output)
+            )(spatial_dropout)
             conv_layer_4 = tf.keras.layers.BatchNormalization(name='BatchNormConv4')(conv_layer_4)
             conv_layer_4 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling4')(conv_layer_4)
             conv_layers.append(conv_layer_4)
         if self.filters_for_conv5 > 0:
             conv_layer_5 = tf.keras.layers.Conv1D(
-                filters=self.filters_for_conv5, kernel_size=5, name='Conv5', padding='valid', activation=tf.nn.relu,
+                filters=self.filters_for_conv5, kernel_size=5, name='Conv5', padding='valid', activation=tf.nn.elu,
                 kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
-            )(sequence_output)
+            )(spatial_dropout)
             conv_layer_5 = tf.keras.layers.BatchNormalization(name='BatchNormConv5')(conv_layer_5)
             conv_layer_5 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling5')(conv_layer_5)
             conv_layers.append(conv_layer_5)
@@ -958,28 +960,36 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         glorot_init = tf.keras.initializers.glorot_uniform(seed=self.random_seed)
         if (self.hidden_layer_size > 0) and (self.n_hidden_layers > 0):
             if self.n_hidden_layers > 1:
+                hidden = tf.keras.layers.Dropout(rate=0.5, seed=self.random_seed, name='Dropout1')(concat_layer)
                 hidden = tf.keras.layers.Dense(
-                    units=self.hidden_layer_size, activation=tf.nn.relu, name='HiddenLayer1',
+                    units=self.hidden_layer_size, activation=tf.nn.elu, name='HiddenLayer1',
                     kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
-                )(concat_layer)
+                )(hidden)
                 hidden = tf.keras.layers.BatchNormalization(name='BatchNormLayer1')(hidden)
                 for layer_idx in range(1, self.n_hidden_layers):
+                    hidden = tf.keras.layers.Dropout(rate=0.5, seed=self.random_seed,
+                                                     name='Dropout{0}'.format(layer_idx + 1))(hidden)
                     hidden = tf.keras.layers.Dense(
-                        units=self.hidden_layer_size, activation=tf.nn.relu,
+                        units=self.hidden_layer_size, activation=tf.nn.elu,
                         name='HiddenLayer{0}'.format(layer_idx + 1),
                         kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
                     )(hidden)
                     hidden = tf.keras.layers.BatchNormalization(name='BatchNormLayer{0}'.format(layer_idx + 1))(hidden)
             else:
+                hidden = tf.keras.layers.Dropout(rate=0.5, seed=self.random_seed, name='Dropout')(concat_layer)
                 hidden = tf.keras.layers.Dense(
-                    units=self.hidden_layer_size, activation=tf.nn.relu, name='HiddenLayer',
+                    units=self.hidden_layer_size, activation=tf.nn.elu, name='HiddenLayer',
                     kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
-                )(concat_layer)
+                )(hidden)
                 hidden = tf.keras.layers.BatchNormalization(name='BatchNormLayer')(hidden)
-            logits = tf.layers.dense(hidden, units=len(self.classes_), kernel_initializer=glorot_init, name='Logits',
-                                     activation=(tf.nn.sigmoid if self.multioutput else tf.nn.softmax), reuse=False)
+            output_dropout = tf.keras.layers.Dropout(rate=0.5, seed=self.random_seed, name='OutputDropout')(hidden)
+            logits = tf.layers.dense(output_dropout, units=len(self.classes_), kernel_initializer=glorot_init,
+                                     name='Logits', activation=(tf.nn.sigmoid if self.multioutput else tf.nn.softmax),
+                                     reuse=False)
         else:
-            logits = tf.layers.dense(concat_layer, units=len(self.classes_), kernel_initializer=glorot_init,
+            output_dropout = tf.keras.layers.Dropout(rate=0.5, seed=self.random_seed,
+                                                     name='OutputDropout')(concat_layer)
+            logits = tf.layers.dense(output_dropout, units=len(self.classes_), kernel_initializer=glorot_init,
                                      name='Logits', activation=(tf.nn.sigmoid if self.multioutput else tf.nn.softmax),
                                      reuse=False)
         with tf.name_scope('loss'):
@@ -990,7 +1000,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             loss = tf.reduce_mean(loss, name='loss')
         with tf.name_scope('train'):
             MyAdamW = tf.contrib.opt.extend_with_decoupled_weight_decay(tf.compat.v1.train.AdamOptimizer)
-            optimizer = MyAdamW(weight_decay=0.0005, learning_rate=0.001)
+            optimizer = MyAdamW(weight_decay=0.001, learning_rate=0.001)
             train_op = optimizer.minimize(loss)
         return train_op, loss, None, None
 
