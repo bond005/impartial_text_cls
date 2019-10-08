@@ -209,8 +209,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         if abs(self.kl_weight_init - self.kl_weight_fin) > self.EPSILON:
                             feed_dict_for_batch = self.fill_feed_dict(
                                 X_batch, y_batch, kl_weight_variable=kl_weight_,
-                                kl_weight_value=self.calculate_kl_weight(epoch, self.max_epochs,
-                                                                         self.kl_weight_init, self.kl_weight_fin)
+                                kl_weight_value=self.calculate_kl_weight(
+                                    epoch=epoch, n_epochs=self.max_epochs,
+                                    init_kl_weight=self.kl_weight_init, fin_kl_weight=self.kl_weight_fin
+                                )
                             )
                         else:
                             feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
