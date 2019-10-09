@@ -22,10 +22,10 @@ import numpy as np
 from sklearn.datasets import fetch_20newsgroups
 
 try:
-    from impatial_text_cls.impatial_text_cls import ImpatialTextClassifier
+    from impartial_text_cls.impartial_text_cls import ImpatialTextClassifier
 except:
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-    from impatial_text_cls.impatial_text_cls import ImpatialTextClassifier
+    from impartial_text_cls.impartial_text_cls import ImpatialTextClassifier
 
 
 def load_data(subset_name: str) -> Tuple[np.ndarray, np.ndarray]:

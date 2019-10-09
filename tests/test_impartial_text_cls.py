@@ -27,10 +27,10 @@ from sklearn.metrics import f1_score
 from bert.tokenization import FullTokenizer
 
 try:
-    from impatial_text_cls.impatial_text_cls import ImpatialTextClassifier
+    from impartial_text_cls.impartial_text_cls import ImpatialTextClassifier
 except:
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-    from impatial_text_cls.impatial_text_cls import ImpatialTextClassifier
+    from impartial_text_cls.impartial_text_cls import ImpatialTextClassifier
 
 
 class TestClassifier(unittest.TestCase):
@@ -2387,6 +2387,62 @@ class TestClassifier(unittest.TestCase):
             self.assertEqual(classes_for_training, classes_for_testing)
             self.assertTrue(len(set(test_index.tolist()) & all_test_indices) == 0)
             all_test_indices |= set(test_index.tolist())
+
+    def test_calculate_kl_weight_positive01(self):
+        n_epochs = 10
+        init_kl_weight = 1.0
+        fin_kl_weight = 0.05
+        cur_epoch = 0
+        true_res = 1.0
+        self.assertAlmostEqual(
+            true_res,
+            ImpatialTextClassifier.calculate_kl_weight(
+                epoch=cur_epoch, n_epochs=n_epochs,
+                init_kl_weight=init_kl_weight, fin_kl_weight=fin_kl_weight
+            )
+        )
+
+    def test_calculate_kl_weight_positive02(self):
+        n_epochs = 10
+        init_kl_weight = 1.0
+        fin_kl_weight = 0.05
+        cur_epoch = 9
+        true_res = 0.05
+        self.assertAlmostEqual(
+            true_res,
+            ImpatialTextClassifier.calculate_kl_weight(
+                epoch=cur_epoch, n_epochs=n_epochs,
+                init_kl_weight=init_kl_weight, fin_kl_weight=fin_kl_weight
+            )
+        )
+
+    def test_calculate_kl_weight_positive03(self):
+        n_epochs = 10
+        init_kl_weight = 1.0
+        fin_kl_weight = 0.05
+        cur_epoch = 3
+        true_res = 0.4722222222
+        self.assertAlmostEqual(
+            true_res,
+            ImpatialTextClassifier.calculate_kl_weight(
+                epoch=cur_epoch, n_epochs=n_epochs,
+                init_kl_weight=init_kl_weight, fin_kl_weight=fin_kl_weight
+            )
+        )
+
+    def test_calculate_kl_weight_positive04(self):
+        n_epochs = 10
+        init_kl_weight = 1.0
+        fin_kl_weight = 1.0
+        cur_epoch = 3
+        true_res = 1.0
+        self.assertAlmostEqual(
+            true_res,
+            ImpatialTextClassifier.calculate_kl_weight(
+                epoch=cur_epoch, n_epochs=n_epochs,
+                init_kl_weight=init_kl_weight, fin_kl_weight=fin_kl_weight
+            )
+        )
 
 
 if __name__ == '__main__':

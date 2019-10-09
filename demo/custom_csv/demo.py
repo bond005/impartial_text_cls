@@ -26,12 +26,12 @@ from skopt.space import Integer, Real
 
 
 try:
-    from impatial_text_cls.impatial_text_cls import ImpatialTextClassifier
-    from impatial_text_cls.utils import read_csv
+    from impartial_text_cls.impartial_text_cls import ImpatialTextClassifier
+    from impartial_text_cls.utils import read_csv
 except:
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-    from impatial_text_cls.impatial_text_cls import ImpatialTextClassifier
-    from impatial_text_cls.utils import read_csv
+    from impartial_text_cls.impartial_text_cls import ImpatialTextClassifier
+    from impartial_text_cls.utils import read_csv
 
 
 def load_unlabeled_texts(file_name: str) -> np.ndarray:

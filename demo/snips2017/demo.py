@@ -27,12 +27,12 @@ from sklearn.metrics import classification_report
 
 
 try:
-    from impatial_text_cls.impatial_text_cls import ImpatialTextClassifier
-    from impatial_text_cls.utils import read_snips2017_data
+    from impartial_text_cls.impartial_text_cls import ImpatialTextClassifier
+    from impartial_text_cls.utils import read_snips2017_data, parse_hidden_layers_description
 except:
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-    from impatial_text_cls.impatial_text_cls import ImpatialTextClassifier
-    from impatial_text_cls.utils import read_snips2017_data
+    from impartial_text_cls.impartial_text_cls import ImpatialTextClassifier
+    from impartial_text_cls.utils import read_snips2017_data, parse_hidden_layers_description
 
 
 def load_brown_corpus() -> List[str]:
@@ -80,34 +80,6 @@ def generate_random_samples(texts: List[str], labels: List[str]):
         print('  Class `{0}`:'.format(cur_label))
         for cur_text in texts_by_classes[cur_label]:
             print('    {0}'.format(cur_text))
-
-
-def parse_hidden_layers_description(hidden_layer: Union[str, None]) -> Tuple[int, int]:
-    if hidden_layer is None:
-        return (0, 0)
-    if len(hidden_layer.strip()) == 0:
-        return (0, 0)
-    parts = list(map(lambda it: it.strip(), hidden_layer.split(':')))
-    if len(parts) < 1:
-        raise ValueError('Description of hidden layers is empty!')
-    if len(parts) > 2:
-        raise ValueError('`{0}` is wrong description of hidden layers!')
-    if not parts[0].isdigit():
-        raise ValueError('`{0}` is wrong description of hidden layers!')
-    hidden_layer_size = int(parts[0])
-    if hidden_layer_size < 0:
-        raise ValueError('`{0}` is wrong description of hidden layers!')
-    if len(parts) > 1:
-        if not parts[1].isdigit():
-            raise ValueError('`{0}` is wrong description of hidden layers!')
-        number_of_hidden_layers = int(parts[1])
-        if number_of_hidden_layers <= 0:
-            raise ValueError('`{0}` is wrong description of hidden layers!')
-    else:
-        number_of_hidden_layers = 1
-    if hidden_layer_size == 0:
-        number_of_hidden_layers = 0
-    return (hidden_layer_size, number_of_hidden_layers)
 
 
 def is_string(value: Union[str, int]) -> bool:
@@ -192,8 +164,8 @@ def main():
                                     hidden_layer_size=hidden_layer_size, n_hidden_layers=n_hidden_layers,
                                     num_monte_carlo=args.num_monte_carlo, gpu_memory_frac=args.gpu_memory_frac,
                                     verbose=True, multioutput=False, random_seed=random_seed, validation_fraction=0.15,
-                                    max_epochs=30, patience=5, bayesian=(args.nn_type == 'bayesian'),
-                                    kl_weight_init=1.0, kl_weight_fin=0.01)
+                                    max_epochs=50, patience=5, bayesian=(args.nn_type == 'bayesian'),
+                                    kl_weight_init=1.0, kl_weight_fin=0.001)
         nn.fit(train_texts, train_labels, validation_data=(val_texts, val_labels))
         print('')
         with open(model_name, 'wb') as fp:

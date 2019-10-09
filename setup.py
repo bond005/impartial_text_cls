@@ -14,7 +14,7 @@
 
 from setuptools import setup, find_packages
 
-import impatial_text_cls
+import impartial_text_cls
 
 long_description = '''
 Impartial Text Classifier
@@ -38,7 +38,7 @@ overfitting.
 
 setup(
     name='impartial-text-cls',
-    version=impatial_text_cls.__version__,
+    version=impartial_text_cls.__version__,
     packages=find_packages(exclude=['tests', 'demo']),
     include_package_data=True,
     description='Text classifier, based on the BERT and a Bayesian neural network, which can train on small labeled '

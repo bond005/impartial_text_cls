@@ -19,12 +19,12 @@ import sys
 
 
 try:
-    from impatial_text_cls.impatial_text_cls import ImpatialTextClassifier
-    from impatial_text_cls.utils import read_dstc2_data
+    from impartial_text_cls.impartial_text_cls import ImpatialTextClassifier
+    from impartial_text_cls.utils import read_dstc2_data
 except:
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-    from impatial_text_cls.impatial_text_cls import ImpatialTextClassifier
-    from impatial_text_cls.utils import read_dstc2_data
+    from impartial_text_cls.impartial_text_cls import ImpatialTextClassifier
+    from impartial_text_cls.utils import read_dstc2_data
 
 
 def main():

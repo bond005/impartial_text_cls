@@ -47,7 +47,7 @@ After installing the **Impartial Text Classifier** can be used as Python package
 import pickle
 from sklearn.datasets import fetch_20newsgroups  # import dataset for experiments
 from sklearn.metrics import classification_report  # import evaluation module
-from impatial_text_cls.impatial_text_cls import ImpatialTextClassifier  # import the module with classifier
+from impartial_text_cls.impartial_text_cls import ImpatialTextClassifier  # import the module with classifier
 
 # Create new classifier for English language
 cls = ImpatialTextClassifier(
