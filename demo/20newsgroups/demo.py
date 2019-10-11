@@ -78,7 +78,7 @@ def main():
                                     filters_for_conv5=args.size_of_conv5, hidden_layer_size=args.hidden_layer_size,
                                     batch_size=args.batch_size, num_monte_carlo=args.num_monte_carlo,
                                     gpu_memory_frac=args.gpu_memory_frac, verbose=True, multioutput=False,
-                                    random_seed=42, validation_fraction=0.15, max_epochs=100, patience=5,
+                                    random_seed=42, validation_fraction=0.15, max_iters=1000, patience=5,
                                     bayesian=(args.nn_type == 'bayesian'))
         nn.fit(train_texts, train_labels)
         print('')

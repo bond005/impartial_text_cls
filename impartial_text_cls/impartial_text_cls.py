@@ -44,10 +44,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                  bert_hub_module_handle: Union[str, None]='https://tfhub.dev/google/bert_uncased_L-12_H-768_A-12/1',
                  filters_for_conv1: int=100, filters_for_conv2: int=100, filters_for_conv3: int=100,
                  filters_for_conv4: int=100, filters_for_conv5: int=100, hidden_layer_size: int=500,
-                 n_hidden_layers: int=1, batch_size: int=32, validation_fraction: float=0.1, max_epochs: int=10,
-                 patience: int=3, num_monte_carlo: int=50, gpu_memory_frac: float=1.0, verbose: bool=False,
-                 multioutput: bool=False, bayesian: bool=True, kl_weight_init: float=1.0, kl_weight_fin: float=0.1,
-                 random_seed: Union[int, None]=None):
+                 n_hidden_layers: int=1, batch_size: int=32, validation_fraction: float=0.1, max_iters: int=1000,
+                 monitor_every: int=5, patience: int=3, num_monte_carlo: int=50, gpu_memory_frac: float=1.0,
+                 verbose: bool=False, multioutput: bool=False, bayesian: bool=True, kl_weight_init: float=1.0,
+                 kl_weight_fin: float=0.1, random_seed: Union[int, None]=None):
         self.batch_size = batch_size
         self.filters_for_conv1 = filters_for_conv1
         self.filters_for_conv2 = filters_for_conv2
@@ -57,7 +57,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         self.hidden_layer_size = hidden_layer_size
         self.n_hidden_layers = n_hidden_layers
         self.bert_hub_module_handle = bert_hub_module_handle
-        self.max_epochs = max_epochs
+        self.max_iters = max_iters
         self.num_monte_carlo = num_monte_carlo
         self.patience = patience
         self.random_seed = random_seed
@@ -68,6 +68,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         self.bayesian = bayesian
         self.kl_weight_init = kl_weight_init
         self.kl_weight_fin = kl_weight_fin
+        self.monitor_every = monitor_every
 
     def __del__(self):
         if hasattr(self, 'tokenizer_'):
@@ -168,6 +169,11 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             batch_start = iteration * self.batch_size
             batch_end = min(batch_start + self.batch_size, X_train_tokenized[0].shape[0])
             bounds_of_batches_for_training.append((batch_start, batch_end))
+        while len(bounds_of_batches_for_training) < self.max_iters:
+            bounds_of_batches_for_training += copy.copy(bounds_of_batches_for_training[0:n_batches])
+        random.shuffle(bounds_of_batches_for_training)
+        if len(bounds_of_batches_for_training) > self.max_iters:
+            bounds_of_batches_for_training = bounds_of_batches_for_training[0:self.max_iters]
         if X_val_tokenized is None:
             bounds_of_batches_for_validation = None
         else:
@@ -191,150 +197,149 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     print('Epoch      ELBO loss   Duration (secs)')
                 else:
                     print('Epoch           Loss   Duration (secs)')
-        n_epochs_without_improving = 0
+        n_iters_without_improving = 0
         try:
             best_acc = None
-            for epoch in range(self.max_epochs):
+            for iter in range(self.max_iters):
                 start_time = time.time()
-                random.shuffle(bounds_of_batches_for_training)
                 feed_dict_for_batch = None
-                train_loss = 0.0
                 value_of_kl_weight = self.calculate_kl_weight(
-                    epoch=epoch, n_epochs=self.max_epochs,
+                    epoch=iter, n_iters=self.max_iters,
                     init_kl_weight=self.kl_weight_init, fin_kl_weight=self.kl_weight_fin
                 )
-                for batch_counter, cur_batch in enumerate(bounds_of_batches_for_training):
-                    X_batch = [X_train_tokenized[channel_idx][cur_batch[0]:cur_batch[1]]
-                               for channel_idx in range(len(X_train_tokenized))]
-                    y_batch = y_train_tokenized[cur_batch[0]:cur_batch[1]]
-                    if feed_dict_for_batch is not None:
-                        del feed_dict_for_batch
-                    if self.bayesian:
-                        if abs(self.kl_weight_init - self.kl_weight_fin) > self.EPSILON:
-                            feed_dict_for_batch = self.fill_feed_dict(
-                                X_batch, y_batch, kl_weight_variable=kl_weight_,
-                                kl_weight_value=value_of_kl_weight
-                            )
-                        else:
-                            feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
+                cur_batch = bounds_of_batches_for_training[iter]
+                X_batch = [X_train_tokenized[channel_idx][cur_batch[0]:cur_batch[1]]
+                           for channel_idx in range(len(X_train_tokenized))]
+                y_batch = y_train_tokenized[cur_batch[0]:cur_batch[1]]
+                if feed_dict_for_batch is not None:
+                    del feed_dict_for_batch
+                if self.bayesian:
+                    if abs(self.kl_weight_init - self.kl_weight_fin) > self.EPSILON:
+                        feed_dict_for_batch = self.fill_feed_dict(
+                            X_batch, y_batch, kl_weight_variable=kl_weight_,
+                            kl_weight_value=value_of_kl_weight
+                        )
                     else:
                         feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
-                    _, train_loss_ = self.sess_.run([train_op, elbo_loss_], feed_dict=feed_dict_for_batch)
-                    train_loss += train_loss_ * self.batch_size
-                train_loss /= float(X_train_tokenized[0].shape[0])
+                else:
+                    feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
+                _, train_loss_ = self.sess_.run([train_op, elbo_loss_], feed_dict=feed_dict_for_batch)
+                train_loss = train_loss_
                 if bounds_of_batches_for_validation is not None:
-                    test_loss = 0.0
-                    y_pred = None
-                    for cur_batch in bounds_of_batches_for_validation:
-                        X_batch = [X_val_tokenized[channel_idx][cur_batch[0]:cur_batch[1]]
-                                   for channel_idx in range(len(X_val_tokenized))]
-                        y_batch = y_val_tokenized[cur_batch[0]:cur_batch[1]]
-                        feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
-                        test_loss_ = self.sess_.run(val_loss_, feed_dict=feed_dict_for_batch)
-                        test_loss += test_loss_ * self.batch_size
-                        if self.bayesian:
-                            features = self._calculate_features(X_batch)
-                            probs = np.asarray(
-                                [self.sess_.run(
-                                    'LabelsDistribution/probs:0',
-                                    feed_dict={'BERT_SequenceOutput:0': features[0], 'BERT_PooledOutput:0': features[1]}
-                                ) for _ in range(self.num_monte_carlo)]
-                            )
-                            del features
-                            mean_probs = np.mean(probs, axis=0)
-                            del probs
-                        else:
-                            if self.multioutput:
-                                mean_probs = self.sess_.run('Logits/Sigmoid:0', feed_dict=feed_dict_for_batch)
-                            else:
-                                mean_probs = self.sess_.run('Logits/Softmax:0', feed_dict=feed_dict_for_batch)
-                        del feed_dict_for_batch
-                        if self.multioutput:
-                            if y_pred is None:
-                                y_pred = mean_probs.copy()
-                            else:
-                                y_pred = np.vstack((y_pred, mean_probs))
-                        else:
-                            if y_pred is None:
-                                y_pred = mean_probs.argmax(axis=-1)
-                            else:
-                                y_pred = np.concatenate((y_pred, mean_probs.argmax(axis=-1)))
-                        del mean_probs
-                    test_loss /= float(X_val_tokenized[0].shape[0])
-                    if self.verbose:
-                        print('Epoch {0}'.format(epoch))
-                        print('  Duration is {0:.3f} seconds'.format(time.time() - start_time))
-                        if self.bayesian:
-                            print('  KL weight: {0:.6f}'.format(value_of_kl_weight))
-                            print('  Train ELBO loss: {0:>12.6f}'.format(train_loss))
-                        else:
-                            print('  Train loss:      {0:>12.6f}'.format(train_loss))
-                        print('  Val. loss:       {0:>12.6f}'.format(test_loss))
-                    quality_by_classes = self.calculate_quality(y_val_tokenized, y_pred[0:len(y_val_tokenized)])
-                    quality_test = 0.0
-                    if self.multioutput:
-                        for class_name in quality_by_classes.keys():
-                            quality_test += quality_by_classes[class_name]
-                        quality_test /= float(len(quality_by_classes))
-                        if self.verbose:
-                            print('  Val. ROC-AUC for all entities: {0:>6.4f}'.format(quality_test))
-                            max_text_width = 0
-                            for class_name in quality_by_classes.keys():
-                                text_width = len(class_name if (hasattr(class_name, 'split') and
-                                                                hasattr(class_name, 'strip')) else str(class_name))
-                                if text_width > max_text_width:
-                                    max_text_width = text_width
-                            for class_name in sorted(list(quality_by_classes.keys())):
-                                print('    ROC-AUC for {0:<{1}} {2:>6.4f}'.format(
-                                    str(class_name) + ':', max_text_width + 1, quality_by_classes[class_name]))
-                    else:
-                        precision_test = 0.0
-                        recall_test = 0.0
-                        for class_name in quality_by_classes.keys():
-                            precision_test += quality_by_classes[class_name][0]
-                            recall_test += quality_by_classes[class_name][1]
-                            quality_test += quality_by_classes[class_name][2]
-                        precision_test /= float(len(quality_by_classes))
-                        recall_test /= float(len(quality_by_classes))
-                        quality_test /= float(len(quality_by_classes))
-                        if self.verbose:
-                            print('  Val. quality for all entities:')
-                            print('    F1={0:>6.4f}, P={1:>6.4f}, R={2:>6.4f}'.format(
-                                quality_test, precision_test, recall_test))
-                            for class_name in sorted(list(quality_by_classes.keys())):
-                                print('      Val. quality for {0}:'.format(class_name))
-                                print('        F1={0:>6.4f}, P={1:>6.4f}, R={2:>6.4f}'.format(
-                                    quality_by_classes[class_name][2], quality_by_classes[class_name][0],
-                                    quality_by_classes[class_name][1])
+                    if (((iter + 1) % self.monitor_every) == 0) or ((iter + 1) == self.max_iters):
+                        test_loss = 0.0
+                        y_pred = None
+                        for cur_batch in bounds_of_batches_for_validation:
+                            X_batch = [X_val_tokenized[channel_idx][cur_batch[0]:cur_batch[1]]
+                                       for channel_idx in range(len(X_val_tokenized))]
+                            y_batch = y_val_tokenized[cur_batch[0]:cur_batch[1]]
+                            feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
+                            test_loss_ = self.sess_.run(val_loss_, feed_dict=feed_dict_for_batch)
+                            test_loss += test_loss_
+                            if self.bayesian:
+                                features = self._calculate_features(X_batch)
+                                probs = np.asarray(
+                                    [self.sess_.run(
+                                        'LabelsDistribution/probs:0',
+                                        feed_dict={'BERT_SequenceOutput:0': features[0],
+                                                   'BERT_PooledOutput:0': features[1]}
+                                    ) for _ in range(self.num_monte_carlo)]
                                 )
-                    if best_acc is None:
-                        best_acc = quality_test
-                        self.save_model(tmp_model_name)
-                        n_epochs_without_improving = 0
-                    elif quality_test > best_acc:
-                        best_acc = quality_test
-                        self.save_model(tmp_model_name)
-                        n_epochs_without_improving = 0
-                    else:
-                        n_epochs_without_improving += 1
-                    del y_pred, quality_by_classes
+                                del features
+                                mean_probs = np.mean(probs, axis=0)
+                                del probs
+                            else:
+                                if self.multioutput:
+                                    mean_probs = self.sess_.run('Logits/Sigmoid:0', feed_dict=feed_dict_for_batch)
+                                else:
+                                    mean_probs = self.sess_.run('Logits/Softmax:0', feed_dict=feed_dict_for_batch)
+                            del feed_dict_for_batch
+                            if self.multioutput:
+                                if y_pred is None:
+                                    y_pred = mean_probs.copy()
+                                else:
+                                    y_pred = np.vstack((y_pred, mean_probs))
+                            else:
+                                if y_pred is None:
+                                    y_pred = mean_probs.argmax(axis=-1)
+                                else:
+                                    y_pred = np.concatenate((y_pred, mean_probs.argmax(axis=-1)))
+                            del mean_probs
+                        test_loss /= float(len(bounds_of_batches_for_validation))
+                        if self.verbose:
+                            print('Epoch {0}'.format(iter + 1))
+                            print('  Duration is {0:.3f} seconds'.format(time.time() - start_time))
+                            if self.bayesian:
+                                print('  KL weight: {0:.6f}'.format(value_of_kl_weight))
+                                print('  Train ELBO loss: {0:>12.6f}'.format(train_loss))
+                            else:
+                                print('  Train loss:      {0:>12.6f}'.format(train_loss))
+                            print('  Val. loss:       {0:>12.6f}'.format(test_loss))
+                        quality_by_classes = self.calculate_quality(y_val_tokenized, y_pred[0:len(y_val_tokenized)])
+                        quality_test = 0.0
+                        if self.multioutput:
+                            for class_name in quality_by_classes.keys():
+                                quality_test += quality_by_classes[class_name]
+                            quality_test /= float(len(quality_by_classes))
+                            if self.verbose:
+                                print('  Val. ROC-AUC for all entities: {0:>6.4f}'.format(quality_test))
+                                max_text_width = 0
+                                for class_name in quality_by_classes.keys():
+                                    text_width = len(class_name if (hasattr(class_name, 'split') and
+                                                                    hasattr(class_name, 'strip')) else str(class_name))
+                                    if text_width > max_text_width:
+                                        max_text_width = text_width
+                                for class_name in sorted(list(quality_by_classes.keys())):
+                                    print('    ROC-AUC for {0:<{1}} {2:>6.4f}'.format(
+                                        str(class_name) + ':', max_text_width + 1, quality_by_classes[class_name]))
+                        else:
+                            precision_test = 0.0
+                            recall_test = 0.0
+                            for class_name in quality_by_classes.keys():
+                                precision_test += quality_by_classes[class_name][0]
+                                recall_test += quality_by_classes[class_name][1]
+                                quality_test += quality_by_classes[class_name][2]
+                            precision_test /= float(len(quality_by_classes))
+                            recall_test /= float(len(quality_by_classes))
+                            quality_test /= float(len(quality_by_classes))
+                            if self.verbose:
+                                print('  Val. quality for all entities:')
+                                print('    F1={0:>6.4f}, P={1:>6.4f}, R={2:>6.4f}'.format(
+                                    quality_test, precision_test, recall_test))
+                                for class_name in sorted(list(quality_by_classes.keys())):
+                                    print('      Val. quality for {0}:'.format(class_name))
+                                    print('        F1={0:>6.4f}, P={1:>6.4f}, R={2:>6.4f}'.format(
+                                        quality_by_classes[class_name][2], quality_by_classes[class_name][0],
+                                        quality_by_classes[class_name][1])
+                                    )
+                        if best_acc is None:
+                            best_acc = quality_test
+                            self.save_model(tmp_model_name)
+                            n_iters_without_improving = 0
+                        elif quality_test > best_acc:
+                            best_acc = quality_test
+                            self.save_model(tmp_model_name)
+                            n_iters_without_improving = 0
+                        else:
+                            n_iters_without_improving += 1
+                        del y_pred, quality_by_classes
                 else:
                     cur_acc = -train_loss
                     if best_acc is None:
                         best_acc = cur_acc
                         self.save_model(tmp_model_name)
-                        n_epochs_without_improving = 0
+                        n_iters_without_improving = 0
                     elif cur_acc > best_acc:
                         best_acc = cur_acc
                         self.save_model(tmp_model_name)
-                        n_epochs_without_improving = 0
+                        n_iters_without_improving = 0
                     else:
-                        n_epochs_without_improving += 1
+                        n_iters_without_improving += 1
                     if self.verbose:
-                        print('{0:>5}   {1:>12.6f}   {2:>15.3f}'.format(epoch, train_loss, time.time() - start_time))
-                if n_epochs_without_improving >= self.patience:
+                        print('{0:>5}   {1:>12.6f}   {2:>15.3f}'.format(iter + 1, train_loss, time.time() - start_time))
+                if n_iters_without_improving >= self.patience:
                     if self.verbose:
-                        print('Epoch %05d: early stopping' % (epoch + 1))
+                        print('Epoch %05d: early stopping' % (iter + 1))
                     break
             if best_acc is not None:
                 if hasattr(self, 'sess_'):
@@ -504,13 +509,14 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
     def predict_proba(self, X: Union[list, tuple, np.ndarray]) -> np.ndarray:
         self.check_params(
             bert_hub_module_handle=self.bert_hub_module_handle, batch_size=self.batch_size,
-            validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
-            gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
+            validation_fraction=self.validation_fraction, gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose,
+            max_iters=self.max_iters, monitor_every=self.monitor_every, patience=self.patience,
+            random_seed=self.random_seed, kl_weight_init=self.kl_weight_init, kl_weight_fin=self.kl_weight_fin,
             num_monte_carlo=self.num_monte_carlo, filters_for_conv1=self.filters_for_conv1,
             filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
             filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
             multioutput=self.multioutput, bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size,
-            n_hidden_layers=self.n_hidden_layers, kl_weight_init=self.kl_weight_init, kl_weight_fin=self.kl_weight_fin
+            n_hidden_layers=self.n_hidden_layers
         )
         self.check_X(X, 'X')
         self.is_fitted()
@@ -557,13 +563,14 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
     def score(self, X, y, sample_weight=None) -> float:
         self.check_params(
             bert_hub_module_handle=self.bert_hub_module_handle, batch_size=self.batch_size,
-            validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
-            gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
-            num_monte_carlo=self.num_monte_carlo, filters_for_conv1=self.filters_for_conv1,
-            filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
-            filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
-            multioutput=self.multioutput, bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size,
-            n_hidden_layers=self.n_hidden_layers, kl_weight_init=self.kl_weight_init, kl_weight_fin=self.kl_weight_fin
+            validation_fraction=self.validation_fraction, verbose=self.verbose, random_seed=self.random_seed,
+            max_iters=self.max_iters, monitor_every=self.monitor_every, patience=self.patience,
+            gpu_memory_frac=self.gpu_memory_frac, num_monte_carlo=self.num_monte_carlo,
+            filters_for_conv1=self.filters_for_conv1, filters_for_conv2=self.filters_for_conv2,
+            filters_for_conv3=self.filters_for_conv3, filters_for_conv4=self.filters_for_conv4,
+            filters_for_conv5=self.filters_for_conv5, hidden_layer_size=self.hidden_layer_size,
+            n_hidden_layers=self.n_hidden_layers, multioutput=self.multioutput, bayesian=self.bayesian,
+            kl_weight_init=self.kl_weight_init, kl_weight_fin=self.kl_weight_fin
         )
         self.is_fitted()
         classes_dict, classes_reverse_index = self.check_Xy(X, 'X', y, 'y', self.multioutput)
@@ -777,14 +784,14 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
 
     def get_params(self, deep=True) -> dict:
         return {'bert_hub_module_handle': self.bert_hub_module_handle, 'batch_size': self.batch_size,
-                'max_epochs': self.max_epochs, 'patience': self.patience, 'filters_for_conv1': self.filters_for_conv1,
-                'filters_for_conv2': self.filters_for_conv2, 'filters_for_conv3': self.filters_for_conv3,
-                'filters_for_conv4': self.filters_for_conv4, 'filters_for_conv5': self.filters_for_conv5,
-                'validation_fraction': self.validation_fraction, 'gpu_memory_frac': self.gpu_memory_frac,
-                'verbose': self.verbose, 'random_seed': self.random_seed, 'num_monte_carlo': self.num_monte_carlo,
-                'multioutput': self.multioutput, 'bayesian': self.bayesian, 'hidden_layer_size': self.hidden_layer_size,
-                'n_hidden_layers': self.n_hidden_layers, 'kl_weight_fin': self.kl_weight_fin,
-                'kl_weight_init': self.kl_weight_init}
+                'max_iters': self.max_iters, 'monitor_every': self.monitor_every, 'patience': self.patience,
+                'filters_for_conv1': self.filters_for_conv1, 'filters_for_conv2': self.filters_for_conv2,
+                'filters_for_conv3': self.filters_for_conv3, 'filters_for_conv4': self.filters_for_conv4,
+                'filters_for_conv5': self.filters_for_conv5, 'validation_fraction': self.validation_fraction,
+                'gpu_memory_frac': self.gpu_memory_frac, 'verbose': self.verbose, 'random_seed': self.random_seed,
+                'num_monte_carlo': self.num_monte_carlo, 'multioutput': self.multioutput, 'bayesian': self.bayesian,
+                'hidden_layer_size': self.hidden_layer_size, 'n_hidden_layers': self.n_hidden_layers,
+                'kl_weight_fin': self.kl_weight_fin, 'kl_weight_init': self.kl_weight_init}
 
     def set_params(self, **params):
         for parameter, value in params.items():
@@ -1080,9 +1087,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
             filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
             num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size, multioutput=self.multioutput,
-            validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
-            gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
-            bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size, n_hidden_layers=self.n_hidden_layers,
+            validation_fraction=self.validation_fraction, gpu_memory_frac=self.gpu_memory_frac,
+            max_iters=self.max_iters, monitor_every=self.monitor_every, patience=self.patience,
+            verbose=self.verbose, random_seed=self.random_seed, bayesian=self.bayesian,
+            hidden_layer_size=self.hidden_layer_size, n_hidden_layers=self.n_hidden_layers,
             kl_weight_init=self.kl_weight_init, kl_weight_fin=self.kl_weight_fin
         )
         try:
@@ -1106,9 +1114,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
             filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
             num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size, multioutput=self.multioutput,
-            validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
+            validation_fraction=self.validation_fraction, bayesian=self.bayesian,
+            max_iters=self.max_iters, monitor_every=self.monitor_every, patience=self.patience,
             gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
-            bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size, n_hidden_layers=self.n_hidden_layers,
+            hidden_layer_size=self.hidden_layer_size, n_hidden_layers=self.n_hidden_layers,
             kl_weight_init=self.kl_weight_init, kl_weight_fin=self.kl_weight_fin
         )
         try:
@@ -1238,18 +1247,31 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     type('abc'), type(kwargs['bert_hub_module_handle'])))
             if len(kwargs['bert_hub_module_handle']) < 1:
                 raise ValueError('`bert_hub_module_handle` is wrong! Expected a nonepty string.')
-        if 'max_epochs' not in kwargs:
-            raise ValueError('`max_epochs` is not specified!')
-        if (not isinstance(kwargs['max_epochs'], int)) and (not isinstance(kwargs['max_epochs'], np.int32)) and \
-                (not isinstance(kwargs['max_epochs'], np.uint32)):
-            raise ValueError('`max_epochs` is wrong! Expected `{0}`, got `{1}`.'.format(
-                type(3), type(kwargs['max_epochs'])))
-        if kwargs['max_epochs'] < 1:
-            raise ValueError('`max_epochs` is wrong! Expected a positive integer value, '
-                             'but {0} is not positive.'.format(kwargs['max_epochs']))
+        if 'max_iters' not in kwargs:
+            raise ValueError('`max_iters` is not specified!')
+        if (not isinstance(kwargs['max_iters'], int)) and (not isinstance(kwargs['max_iters'], np.int32)) and \
+                (not isinstance(kwargs['max_iters'], np.uint32)):
+            raise ValueError('`max_iters` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(3), type(kwargs['max_iters'])))
+        if kwargs['max_iters'] < 1:
+            raise ValueError('`max_iters` is wrong! Expected a positive integer value, '
+                             'but {0} is not positive.'.format(kwargs['max_iters']))
+        if 'monitor_every' not in kwargs:
+            raise ValueError('`monitor_every` is not specified!')
+        if (not isinstance(kwargs['monitor_every'], int)) and (not isinstance(kwargs['monitor_every'], np.int32)) and \
+                (not isinstance(kwargs['monitor_every'], np.uint32)):
+            raise ValueError('`monitor_every` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(3), type(kwargs['monitor_every'])))
+        if kwargs['monitor_every'] < 1:
+            raise ValueError('`monitor_every` is wrong! Expected a positive integer value, '
+                             'but {0} is not positive.'.format(kwargs['monitor_every']))
+        if kwargs['monitor_every'] > kwargs['max_iters']:
+            raise ValueError('`monitor_every` is wrong! It must be less than or equal to `max_iters`, '
+                             'but {0} > {1}.'.format(kwargs['monitor_every'], kwargs['max_iters']))
         if 'num_monte_carlo' not in kwargs:
             raise ValueError('`num_monte_carlo` is not specified!')
-        if (not isinstance(kwargs['num_monte_carlo'], int)) and (not isinstance(kwargs['max_epochs'], np.int32)) and \
+        if (not isinstance(kwargs['num_monte_carlo'], int)) and \
+                (not isinstance(kwargs['num_monte_carlo'], np.int32)) and \
                 (not isinstance(kwargs['num_monte_carlo'], np.uint32)):
             raise ValueError('`num_monte_carlo` is wrong! Expected `{0}`, got `{1}`.'.format(
                 type(3), type(kwargs['num_monte_carlo'])))
@@ -1677,13 +1699,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         return prep_y
 
     @staticmethod
-    def calculate_kl_weight(epoch: int, n_epochs: int, init_kl_weight: float, fin_kl_weight: float) -> float:
-        if n_epochs < 2:
+    def calculate_kl_weight(epoch: int, n_iters: int, init_kl_weight: float, fin_kl_weight: float) -> float:
+        if n_iters < 2:
             return init_kl_weight
         if abs(init_kl_weight - fin_kl_weight) <= ImpatialTextClassifier.EPSILON:
             return init_kl_weight
-        a = (init_kl_weight - fin_kl_weight) / (float(n_epochs - 1) * float(n_epochs - 1))
-        cur_kl_weight = a * float(epoch - (n_epochs - 1)) * float(epoch - (n_epochs - 1)) + fin_kl_weight
+        a = (init_kl_weight - fin_kl_weight) / (float(n_iters - 1) * float(n_iters - 1))
+        cur_kl_weight = a * float(epoch - (n_iters - 1)) * float(epoch - (n_iters - 1)) + fin_kl_weight
         return cur_kl_weight
 
     @staticmethod

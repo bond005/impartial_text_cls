@@ -89,7 +89,7 @@ def main():
                                          filters_for_conv1=conv1_, filters_for_conv2=conv2_, filters_for_conv3=conv3_,
                                          filters_for_conv4=conv4_, filters_for_conv5=conv5_, hidden_layer_size=hidden_,
                                          multioutput=multioutput, gpu_memory_frac=gpu_memory_frac,
-                                         num_monte_carlo=num_monte_carlo, verbose=False, random_seed=42, max_epochs=100,
+                                         num_monte_carlo=num_monte_carlo, verbose=False, random_seed=42, max_iters=100,
                                          patience=5, batch_size=16, bayesian=(nn_type == 'bayesian'),
                                          kl_weight_init=init_kl_weight, kl_weight_fin=fin_kl_weight)
             if os.path.exists(os.path.normpath(bert_handle)):
@@ -171,7 +171,7 @@ def main():
                                          filters_for_conv1=conv1_, filters_for_conv2=conv2_, filters_for_conv3=conv3_,
                                          filters_for_conv4=conv4_, filters_for_conv5=conv5_, hidden_layer_size=hidden_,
                                          batch_size=16, gpu_memory_frac=gpu_memory_frac, verbose=True, random_seed=42,
-                                         num_monte_carlo=num_monte_carlo, max_epochs=100, patience=5,
+                                         num_monte_carlo=num_monte_carlo, max_iters=100, patience=5,
                                          multioutput=multioutput, bayesian=(nn_type == 'bayesian'),
                                          kl_weight_init=init_kl_weight, kl_weight_fin=fin_kl_weight)
             if os.path.exists(os.path.normpath(bert_handle)):
@@ -272,7 +272,7 @@ def main():
                                      filters_for_conv1=conv1_, filters_for_conv2=conv2_, filters_for_conv3=conv3_,
                                      filters_for_conv4=conv4_, filters_for_conv5=conv5_, hidden_layer_size=hidden_,
                                      batch_size=16, gpu_memory_frac=gpu_memory_frac, num_monte_carlo=num_monte_carlo,
-                                     verbose=True, random_seed=42, max_epochs=100, patience=5, multioutput=multioutput,
+                                     verbose=True, random_seed=42, max_iters=1000, patience=5, multioutput=multioutput,
                                      bayesian=(nn_type == 'bayesian'),
                                      kl_weight_init=init_kl_weight, kl_weight_fin=fin_kl_weight)
         if os.path.exists(os.path.normpath(bert_handle)):

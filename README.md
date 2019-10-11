@@ -55,7 +55,7 @@ cls = ImpatialTextClassifier(
     filters_for_conv2=50, filters_for_conv3=50, filters_for_conv4=50, filters_for_conv5=50,
     hidden_layer_size=100, batch_size=16, num_monte_carlo=100, gpu_memory_frac=0.95,
     bayesian=True, multioutput=False, random_seed=42, validation_fraction=0.15,
-    max_epochs=100, patience=5, verbose=True
+    max_iters=100, patience=5, verbose=True
 )
 
 # Load and prepare dataset for training
@@ -86,7 +86,7 @@ BERT is used as generator of token embeddings, therefore we add convolutional ne
 
 The `num_monte_carlo` parameter corresponds to number of sampes from bayesian neural network in the inference mode. Large value of this parameter is better, but at the same time procedure of inference can become a little slower.
 
-In the training process we need early stopping: we calculate some quality criterion on independent subset of data, called as validation dataset, and monitor its changing by epochs. If value of this criterion become decrease during `patience` epochs on end, then we have to stop. Fraction of training data which will be randomly sinlge out for validation is determined by the `validation_fraction` parameter. But if early stopping will not work, then we continue training process no more than `max_epochs` epochs, whereupon we stop, in spite of everything.
+In the training process we need early stopping: we calculate some quality criterion on independent subset of data, called as validation dataset, and monitor its changing by iters. If value of this criterion become decrease during `patience` iters on end, then we have to stop. Fraction of training data which will be randomly sinlge out for validation is determined by the `validation_fraction` parameter. But if early stopping will not work, then we continue training process no more than `max_iters` iters, whereupon we stop, in spite of everything.
 
 In both modes (training and inference) we don't process whole dataset at once, but we divide it by fixed-size mini-batches. It is especially urgent for calculations on GPU, because large dataset can not be upload to the GPU memory, and we have to process such datasets by small parts (mini-batches). Used size of one mini-batch is described by the `batch_size` parameter. And value of the `gpu_memory_frac` parameter corresponds to fraction of all GPU memory which must be allowed for our neural network.
 
