@@ -45,7 +45,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                  filters_for_conv1: int=100, filters_for_conv2: int=100, filters_for_conv3: int=100,
                  filters_for_conv4: int=100, filters_for_conv5: int=100, hidden_layer_size: int=500,
                  n_hidden_layers: int=1, batch_size: int=32, validation_fraction: float=0.1, max_iters: int=1000,
-                 monitor_every: int=5, patience: int=3, num_monte_carlo: int=50, gpu_memory_frac: float=1.0,
+                 validate_every: int=5, patience: int=3, num_monte_carlo: int=50, gpu_memory_frac: float=1.0,
                  verbose: bool=False, multioutput: bool=False, bayesian: bool=True, kl_weight_init: float=1.0,
                  kl_weight_fin: float=0.1, random_seed: Union[int, None]=None):
         self.batch_size = batch_size
@@ -68,7 +68,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         self.bayesian = bayesian
         self.kl_weight_init = kl_weight_init
         self.kl_weight_fin = kl_weight_fin
-        self.monitor_every = monitor_every
+        self.validate_every = validate_every
 
     def __del__(self):
         if hasattr(self, 'tokenizer_'):
@@ -226,7 +226,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 _, train_loss_ = self.sess_.run([train_op, elbo_loss_], feed_dict=feed_dict_for_batch)
                 train_loss = train_loss_
                 if bounds_of_batches_for_validation is not None:
-                    if (((iter + 1) % self.monitor_every) == 0) or ((iter + 1) == self.max_iters):
+                    if (((iter + 1) % self.validate_every) == 0) or ((iter + 1) == self.max_iters):
                         test_loss = 0.0
                         y_pred = None
                         for cur_batch in bounds_of_batches_for_validation:
@@ -510,7 +510,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         self.check_params(
             bert_hub_module_handle=self.bert_hub_module_handle, batch_size=self.batch_size,
             validation_fraction=self.validation_fraction, gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose,
-            max_iters=self.max_iters, monitor_every=self.monitor_every, patience=self.patience,
+            max_iters=self.max_iters, validate_every=self.validate_every, patience=self.patience,
             random_seed=self.random_seed, kl_weight_init=self.kl_weight_init, kl_weight_fin=self.kl_weight_fin,
             num_monte_carlo=self.num_monte_carlo, filters_for_conv1=self.filters_for_conv1,
             filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
@@ -564,7 +564,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         self.check_params(
             bert_hub_module_handle=self.bert_hub_module_handle, batch_size=self.batch_size,
             validation_fraction=self.validation_fraction, verbose=self.verbose, random_seed=self.random_seed,
-            max_iters=self.max_iters, monitor_every=self.monitor_every, patience=self.patience,
+            max_iters=self.max_iters, validate_every=self.validate_every, patience=self.patience,
             gpu_memory_frac=self.gpu_memory_frac, num_monte_carlo=self.num_monte_carlo,
             filters_for_conv1=self.filters_for_conv1, filters_for_conv2=self.filters_for_conv2,
             filters_for_conv3=self.filters_for_conv3, filters_for_conv4=self.filters_for_conv4,
@@ -784,7 +784,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
 
     def get_params(self, deep=True) -> dict:
         return {'bert_hub_module_handle': self.bert_hub_module_handle, 'batch_size': self.batch_size,
-                'max_iters': self.max_iters, 'monitor_every': self.monitor_every, 'patience': self.patience,
+                'max_iters': self.max_iters, 'validate_every': self.validate_every, 'patience': self.patience,
                 'filters_for_conv1': self.filters_for_conv1, 'filters_for_conv2': self.filters_for_conv2,
                 'filters_for_conv3': self.filters_for_conv3, 'filters_for_conv4': self.filters_for_conv4,
                 'filters_for_conv5': self.filters_for_conv5, 'validation_fraction': self.validation_fraction,
@@ -1088,7 +1088,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
             num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size, multioutput=self.multioutput,
             validation_fraction=self.validation_fraction, gpu_memory_frac=self.gpu_memory_frac,
-            max_iters=self.max_iters, monitor_every=self.monitor_every, patience=self.patience,
+            max_iters=self.max_iters, validate_every=self.validate_every, patience=self.patience,
             verbose=self.verbose, random_seed=self.random_seed, bayesian=self.bayesian,
             hidden_layer_size=self.hidden_layer_size, n_hidden_layers=self.n_hidden_layers,
             kl_weight_init=self.kl_weight_init, kl_weight_fin=self.kl_weight_fin
@@ -1115,7 +1115,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
             num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size, multioutput=self.multioutput,
             validation_fraction=self.validation_fraction, bayesian=self.bayesian,
-            max_iters=self.max_iters, monitor_every=self.monitor_every, patience=self.patience,
+            max_iters=self.max_iters, validate_every=self.validate_every, patience=self.patience,
             gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
             hidden_layer_size=self.hidden_layer_size, n_hidden_layers=self.n_hidden_layers,
             kl_weight_init=self.kl_weight_init, kl_weight_fin=self.kl_weight_fin
@@ -1256,18 +1256,18 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         if kwargs['max_iters'] < 1:
             raise ValueError('`max_iters` is wrong! Expected a positive integer value, '
                              'but {0} is not positive.'.format(kwargs['max_iters']))
-        if 'monitor_every' not in kwargs:
-            raise ValueError('`monitor_every` is not specified!')
-        if (not isinstance(kwargs['monitor_every'], int)) and (not isinstance(kwargs['monitor_every'], np.int32)) and \
-                (not isinstance(kwargs['monitor_every'], np.uint32)):
-            raise ValueError('`monitor_every` is wrong! Expected `{0}`, got `{1}`.'.format(
-                type(3), type(kwargs['monitor_every'])))
-        if kwargs['monitor_every'] < 1:
-            raise ValueError('`monitor_every` is wrong! Expected a positive integer value, '
-                             'but {0} is not positive.'.format(kwargs['monitor_every']))
-        if kwargs['monitor_every'] > kwargs['max_iters']:
-            raise ValueError('`monitor_every` is wrong! It must be less than or equal to `max_iters`, '
-                             'but {0} > {1}.'.format(kwargs['monitor_every'], kwargs['max_iters']))
+        if 'validate_every' not in kwargs:
+            raise ValueError('`validate_every` is not specified!')
+        if (not isinstance(kwargs['validate_every'], int)) and (not isinstance(kwargs['validate_every'], np.int32)) and \
+                (not isinstance(kwargs['validate_every'], np.uint32)):
+            raise ValueError('`validate_every` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(3), type(kwargs['validate_every'])))
+        if kwargs['validate_every'] < 1:
+            raise ValueError('`validate_every` is wrong! Expected a positive integer value, '
+                             'but {0} is not positive.'.format(kwargs['validate_every']))
+        if kwargs['validate_every'] > kwargs['max_iters']:
+            raise ValueError('`validate_every` is wrong! It must be less than or equal to `max_iters`, '
+                             'but {0} > {1}.'.format(kwargs['validate_every'], kwargs['max_iters']))
         if 'num_monte_carlo' not in kwargs:
             raise ValueError('`num_monte_carlo` is not specified!')
         if (not isinstance(kwargs['num_monte_carlo'], int)) and \

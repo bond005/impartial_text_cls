@@ -56,7 +56,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.cls, 'batch_size'))
         self.assertTrue(hasattr(self.cls, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(self.cls, 'max_iters'))
-        self.assertTrue(hasattr(self.cls, 'monitor_every'))
+        self.assertTrue(hasattr(self.cls, 'validate_every'))
         self.assertTrue(hasattr(self.cls, 'patience'))
         self.assertTrue(hasattr(self.cls, 'random_seed'))
         self.assertTrue(hasattr(self.cls, 'gpu_memory_frac'))
@@ -77,7 +77,7 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(self.cls.batch_size, int)
         self.assertIsInstance(self.cls.bert_hub_module_handle, str)
         self.assertIsInstance(self.cls.max_iters, int)
-        self.assertIsInstance(self.cls.monitor_every, int)
+        self.assertIsInstance(self.cls.validate_every, int)
         self.assertIsInstance(self.cls.patience, int)
         self.assertIsNone(self.cls.random_seed)
         self.assertIsInstance(self.cls.gpu_memory_frac, float)
@@ -94,7 +94,7 @@ class TestClassifier(unittest.TestCase):
             bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
             filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
             filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=30,
-            monitor_every=4, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
+            validate_every=4, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
             bayesian=True, kl_weight_init=1e-1, kl_weight_fin=1e-2, hidden_layer_size=50, n_hidden_layers=2
         )
         self.assertTrue(True)
@@ -105,7 +105,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=30,
-                monitor_every=4, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
+                validate_every=4, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
                 bayesian=True, hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
@@ -117,7 +117,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle=1,
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0,
-                max_iters=30, monitor_every=4, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42,
+                max_iters=30, validate_every=4, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42,
                 multioutput=False, bayesian=True, hidden_layer_size=50, n_hidden_layers=2,
                 kl_weight_init=1e-1, kl_weight_fin=1e-2
             )
@@ -128,7 +128,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
-                filters_for_conv5=10, num_monte_carlo=100, validation_fraction=0.0, max_iters=30, monitor_every=4,
+                filters_for_conv5=10, num_monte_carlo=100, validation_fraction=0.0, max_iters=30, validate_every=4,
                 patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
                 hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
@@ -141,7 +141,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size='32', validation_fraction=0.0, max_iters=30,
-                monitor_every=4, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
+                validate_every=4, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
                 bayesian=True, hidden_layer_size=50, n_hidden_layers=2, kl_weight_init=1e-1, kl_weight_fin=1e-2
             )
 
@@ -152,7 +152,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=-3, validation_fraction=0.0, max_iters=30,
-                monitor_every=4, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
+                validate_every=4, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
                 bayesian=True, hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
@@ -162,7 +162,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
-                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, monitor_every=4,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, validate_every=4,
                 patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
                 hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
@@ -175,7 +175,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters='10',
-                monitor_every=4, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
+                validate_every=4, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
                 bayesian=True, hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
@@ -185,7 +185,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10, filters_for_conv5=10,
-                num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=-3, monitor_every=4, patience=3,
+                num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=-3, validate_every=4, patience=3,
                 gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
                 hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
@@ -197,7 +197,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=10,
-                monitor_every=4, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
+                validate_every=4, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
                 hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
@@ -209,7 +209,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=10,
-                monitor_every=4, patience='3', gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
+                validate_every=4, patience='3', gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
                 bayesian=True, hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
@@ -220,7 +220,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=10,
-                monitor_every=4, patience=-3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
+                validate_every=4, patience=-3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
                 bayesian=True, hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
@@ -230,7 +230,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
-                filters_for_conv5=10, batch_size=32, validation_fraction=0.0, max_iters=10, monitor_every=4, patience=3,
+                filters_for_conv5=10, batch_size=32, validation_fraction=0.0, max_iters=10, validate_every=4, patience=3,
                 gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
                 hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
@@ -243,7 +243,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo='100', batch_size=32, validation_fraction=0.0, max_iters=30,
-                monitor_every=4, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
+                validate_every=4, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
                 bayesian=True, hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
@@ -255,7 +255,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=0, batch_size=32, validation_fraction=0.0, max_iters=30,
-                monitor_every=4, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
+                validate_every=4, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
                 bayesian=True, hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
@@ -265,7 +265,7 @@ class TestClassifier(unittest.TestCase):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
-                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, max_iters=30, monitor_every=4, patience=3,
+                filters_for_conv5=10, num_monte_carlo=100, batch_size=32, max_iters=30, validate_every=4, patience=3,
                 gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
                 hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
@@ -278,7 +278,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction='0.1', max_iters=30,
-                monitor_every=4, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
+                validate_every=4, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
                 bayesian=True, hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
@@ -290,7 +290,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=-0.1, max_iters=30,
-                monitor_every=4, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
+                validate_every=4, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
                 bayesian=True, hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
@@ -302,7 +302,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=1.1, max_iters=30,
-                monitor_every=4, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
+                validate_every=4, patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
                 bayesian=True, hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
@@ -313,7 +313,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=30,
-                monitor_every=4, patience=3, verbose=False, random_seed=42, multioutput=False, bayesian=True,
+                validate_every=4, patience=3, verbose=False, random_seed=42, multioutput=False, bayesian=True,
                 hidden_layer_size=50, n_hidden_layers=2, kl_weight_init=1e-1, kl_weight_fin=1e-2
             )
 
@@ -325,7 +325,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=30,
-                monitor_every=4, patience=3, gpu_memory_frac='1.0', verbose=False, random_seed=42, multioutput=False,
+                validate_every=4, patience=3, gpu_memory_frac='1.0', verbose=False, random_seed=42, multioutput=False,
                 bayesian=True, hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
@@ -337,7 +337,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=30,
-                monitor_every=4, patience=3, gpu_memory_frac=-1.0, verbose=False, random_seed=42, multioutput=False,
+                validate_every=4, patience=3, gpu_memory_frac=-1.0, verbose=False, random_seed=42, multioutput=False,
                 bayesian=True, hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
@@ -349,7 +349,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=30,
-                monitor_every=4, patience=3, gpu_memory_frac=1.3, verbose=False, random_seed=42, multioutput=False,
+                validate_every=4, patience=3, gpu_memory_frac=1.3, verbose=False, random_seed=42, multioutput=False,
                 bayesian=True, hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
@@ -360,7 +360,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=30,
-                monitor_every=4, patience=3, gpu_memory_frac=1.0, random_seed=42, multioutput=False, bayesian=True,
+                validate_every=4, patience=3, gpu_memory_frac=1.0, random_seed=42, multioutput=False, bayesian=True,
                 hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
@@ -371,7 +371,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=30,
-                monitor_every=4, patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, bayesian=True,
+                validate_every=4, patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, bayesian=True,
                 hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
@@ -382,7 +382,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=0, filters_for_conv2=0, filters_for_conv3=0, filters_for_conv4=0,
                 filters_for_conv5=0, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=30,
-                monitor_every=4, patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=False,
+                validate_every=4, patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=False,
                 bayesian=True, hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
@@ -393,7 +393,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=30,
-                monitor_every=4, patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=True,
+                validate_every=4, patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=True,
                 hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
@@ -404,7 +404,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=30,
-                monitor_every=4, patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=True,
+                validate_every=4, patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=True,
                 bayesian=True, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
@@ -416,7 +416,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=30,
-                monitor_every=4, patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=True,
+                validate_every=4, patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=True,
                 bayesian=True, hidden_layer_size=-1, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
@@ -427,7 +427,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=30,
-                monitor_every=4, patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=True,
+                validate_every=4, patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=True,
                 bayesian=True, hidden_layer_size=50.3, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
@@ -438,7 +438,7 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=30,
-                monitor_every=4, patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=True,
+                validate_every=4, patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=True,
                 hidden_layer_size=50, bayesian=False, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
@@ -449,12 +449,12 @@ class TestClassifier(unittest.TestCase):
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=30,
-                monitor_every=4, patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=True,
+                validate_every=4, patience=3, gpu_memory_frac=1.0, random_seed=42, verbose=False, multioutput=True,
                 hidden_layer_size=50, bayesian=False, kl_weight_init=1e-1, n_hidden_layers=2
             )
 
     def test_check_params_negative032(self):
-        true_err_msg = re.escape('`monitor_every` is not specified!')
+        true_err_msg = re.escape('`validate_every` is not specified!')
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
@@ -465,34 +465,34 @@ class TestClassifier(unittest.TestCase):
             )
 
     def test_check_params_negative033(self):
-        true_err_msg = re.escape('`monitor_every` is wrong! Expected `{0}`, got `{1}`.'.format(type(3), type('3')))
+        true_err_msg = re.escape('`validate_every` is wrong! Expected `{0}`, got `{1}`.'.format(type(3), type('3')))
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv1=10, filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10,
                 filters_for_conv5=10, num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=30,
-                monitor_every='4', patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
+                validate_every='4', patience=3, gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False,
                 bayesian=True, hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
     def test_check_params_negative034(self):
-        true_err_msg = re.escape('`monitor_every` is wrong! Expected a positive integer value, but -3 is not positive.')
+        true_err_msg = re.escape('`validate_every` is wrong! Expected a positive integer value, but -3 is not positive.')
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10, filters_for_conv5=10,
-                num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=30, monitor_every=-3, patience=3,
+                num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=30, validate_every=-3, patience=3,
                 gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
                 hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
 
     def test_check_params_negative035(self):
-        true_err_msg = re.escape('`monitor_every` is wrong! It must be less than or equal to `max_iters`, but 31 > 30.')
+        true_err_msg = re.escape('`validate_every` is wrong! It must be less than or equal to `max_iters`, but 31 > 30.')
         with self.assertRaisesRegex(ValueError, true_err_msg):
             ImpatialTextClassifier.check_params(
                 bert_hub_module_handle='https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/1',
                 filters_for_conv2=10, filters_for_conv3=10, filters_for_conv4=10, filters_for_conv5=10,
-                num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=30, monitor_every=31, patience=3,
+                num_monte_carlo=100, batch_size=32, validation_fraction=0.0, max_iters=30, validate_every=31, patience=3,
                 gpu_memory_frac=1.0, verbose=False, random_seed=42, multioutput=False, bayesian=True,
                 hidden_layer_size=50, kl_weight_init=1e-1, kl_weight_fin=1e-2, n_hidden_layers=2
             )
@@ -835,7 +835,7 @@ class TestClassifier(unittest.TestCase):
         old_batch_size = self.cls.batch_size
         old_bert_hub_module_handle = self.cls.bert_hub_module_handle
         old_max_iters = self.cls.max_iters
-        old_monitor_every = self.cls.monitor_every
+        old_validate_every = self.cls.validate_every
         old_patience = self.cls.patience
         old_random_seed = self.cls.random_seed
         old_gpu_memory_frac = self.cls.gpu_memory_frac
@@ -856,7 +856,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.cls, 'batch_size'))
         self.assertTrue(hasattr(self.cls, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(self.cls, 'max_iters'))
-        self.assertTrue(hasattr(self.cls, 'monitor_every'))
+        self.assertTrue(hasattr(self.cls, 'validate_every'))
         self.assertTrue(hasattr(self.cls, 'patience'))
         self.assertTrue(hasattr(self.cls, 'random_seed'))
         self.assertTrue(hasattr(self.cls, 'gpu_memory_frac'))
@@ -885,7 +885,7 @@ class TestClassifier(unittest.TestCase):
         self.assertAlmostEqual(self.cls.n_hidden_layers, old_n_hidden_layers)
         self.assertEqual(self.cls.bert_hub_module_handle, old_bert_hub_module_handle)
         self.assertEqual(self.cls.max_iters, old_max_iters)
-        self.assertEqual(self.cls.monitor_every, old_monitor_every)
+        self.assertEqual(self.cls.validate_every, old_validate_every)
         self.assertEqual(self.cls.patience, old_patience)
         self.assertAlmostEqual(self.cls.gpu_memory_frac, old_gpu_memory_frac)
         self.assertAlmostEqual(self.cls.validation_fraction, old_validation_fraction)
@@ -977,7 +977,7 @@ class TestClassifier(unittest.TestCase):
         old_batch_size = self.cls.batch_size
         old_bert_hub_module_handle = self.cls.bert_hub_module_handle
         old_max_iters = self.cls.max_iters
-        old_monitor_every = self.cls.monitor_every
+        old_validate_every = self.cls.validate_every
         old_patience = self.cls.patience
         old_random_seed = self.cls.random_seed
         old_gpu_memory_frac = self.cls.gpu_memory_frac
@@ -1003,7 +1003,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.cls, 'batch_size'))
         self.assertTrue(hasattr(self.cls, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(self.cls, 'max_iters'))
-        self.assertTrue(hasattr(self.cls, 'monitor_every'))
+        self.assertTrue(hasattr(self.cls, 'validate_every'))
         self.assertTrue(hasattr(self.cls, 'patience'))
         self.assertTrue(hasattr(self.cls, 'random_seed'))
         self.assertTrue(hasattr(self.cls, 'gpu_memory_frac'))
@@ -1032,7 +1032,7 @@ class TestClassifier(unittest.TestCase):
         self.assertAlmostEqual(self.cls.n_hidden_layers, old_n_hidden_layers)
         self.assertEqual(self.cls.bert_hub_module_handle, old_bert_hub_module_handle)
         self.assertEqual(self.cls.max_iters, old_max_iters)
-        self.assertEqual(self.cls.monitor_every, old_monitor_every)
+        self.assertEqual(self.cls.validate_every, old_validate_every)
         self.assertEqual(self.cls.patience, old_patience)
         self.assertAlmostEqual(self.cls.gpu_memory_frac, old_gpu_memory_frac)
         self.assertAlmostEqual(self.cls.validation_fraction, old_validation_fraction)
@@ -1076,7 +1076,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.another_cls, 'num_monte_carlo'))
         self.assertTrue(hasattr(self.another_cls, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(self.another_cls, 'max_iters'))
-        self.assertTrue(hasattr(self.another_cls, 'monitor_every'))
+        self.assertTrue(hasattr(self.another_cls, 'validate_every'))
         self.assertTrue(hasattr(self.another_cls, 'patience'))
         self.assertTrue(hasattr(self.another_cls, 'random_seed'))
         self.assertTrue(hasattr(self.another_cls, 'gpu_memory_frac'))
@@ -1097,7 +1097,7 @@ class TestClassifier(unittest.TestCase):
         self.assertAlmostEqual(self.cls.n_hidden_layers, self.another_cls.n_hidden_layers)
         self.assertEqual(self.cls.bert_hub_module_handle, self.another_cls.bert_hub_module_handle)
         self.assertEqual(self.cls.max_iters, self.another_cls.max_iters)
-        self.assertEqual(self.cls.monitor_every, self.another_cls.monitor_every)
+        self.assertEqual(self.cls.validate_every, self.another_cls.validate_every)
         self.assertEqual(self.cls.patience, self.another_cls.patience)
         self.assertEqual(self.cls.random_seed, self.another_cls.random_seed)
         self.assertAlmostEqual(self.cls.gpu_memory_frac, self.another_cls.gpu_memory_frac)
@@ -1192,7 +1192,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(self.another_cls, 'num_monte_carlo'))
         self.assertTrue(hasattr(self.another_cls, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(self.another_cls, 'max_iters'))
-        self.assertTrue(hasattr(self.another_cls, 'monitor_every'))
+        self.assertTrue(hasattr(self.another_cls, 'validate_every'))
         self.assertTrue(hasattr(self.another_cls, 'patience'))
         self.assertTrue(hasattr(self.another_cls, 'random_seed'))
         self.assertTrue(hasattr(self.another_cls, 'gpu_memory_frac'))
@@ -1218,7 +1218,7 @@ class TestClassifier(unittest.TestCase):
         self.assertAlmostEqual(self.cls.n_hidden_layers, self.another_cls.n_hidden_layers)
         self.assertEqual(self.cls.bert_hub_module_handle, self.another_cls.bert_hub_module_handle)
         self.assertEqual(self.cls.max_iters, self.another_cls.max_iters)
-        self.assertEqual(self.cls.monitor_every, self.another_cls.monitor_every)
+        self.assertEqual(self.cls.validate_every, self.another_cls.validate_every)
         self.assertEqual(self.cls.patience, self.another_cls.patience)
         self.assertEqual(self.cls.random_seed, self.another_cls.random_seed)
         self.assertAlmostEqual(self.cls.gpu_memory_frac, self.another_cls.gpu_memory_frac)
@@ -1318,7 +1318,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(res, 'batch_size'))
         self.assertTrue(hasattr(res, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(res, 'max_iters'))
-        self.assertTrue(hasattr(res, 'monitor_every'))
+        self.assertTrue(hasattr(res, 'validate_every'))
         self.assertTrue(hasattr(res, 'patience'))
         self.assertTrue(hasattr(res, 'random_seed'))
         self.assertTrue(hasattr(res, 'gpu_memory_frac'))
@@ -1339,7 +1339,7 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.batch_size, int)
         self.assertIsInstance(res.bert_hub_module_handle, str)
         self.assertIsInstance(res.max_iters, int)
-        self.assertIsInstance(res.monitor_every, int)
+        self.assertIsInstance(res.validate_every, int)
         self.assertIsInstance(res.patience, int)
         self.assertIsNotNone(res.random_seed)
         self.assertIsInstance(res.gpu_memory_frac, float)
@@ -1483,7 +1483,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(res, 'batch_size'))
         self.assertTrue(hasattr(res, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(res, 'max_iters'))
-        self.assertTrue(hasattr(res, 'monitor_every'))
+        self.assertTrue(hasattr(res, 'validate_every'))
         self.assertTrue(hasattr(res, 'patience'))
         self.assertTrue(hasattr(res, 'random_seed'))
         self.assertTrue(hasattr(res, 'gpu_memory_frac'))
@@ -1504,7 +1504,7 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.batch_size, int)
         self.assertIsInstance(res.bert_hub_module_handle, str)
         self.assertIsInstance(res.max_iters, int)
-        self.assertIsInstance(res.monitor_every, int)
+        self.assertIsInstance(res.validate_every, int)
         self.assertIsInstance(res.patience, int)
         self.assertIsNotNone(res.random_seed)
         self.assertIsInstance(res.gpu_memory_frac, float)
@@ -1638,7 +1638,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(res, 'batch_size'))
         self.assertTrue(hasattr(res, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(res, 'max_iters'))
-        self.assertTrue(hasattr(res, 'monitor_every'))
+        self.assertTrue(hasattr(res, 'validate_every'))
         self.assertTrue(hasattr(res, 'patience'))
         self.assertTrue(hasattr(res, 'random_seed'))
         self.assertTrue(hasattr(res, 'gpu_memory_frac'))
@@ -1659,7 +1659,7 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.batch_size, int)
         self.assertIsInstance(res.bert_hub_module_handle, str)
         self.assertIsInstance(res.max_iters, int)
-        self.assertIsInstance(res.monitor_every, int)
+        self.assertIsInstance(res.validate_every, int)
         self.assertIsInstance(res.patience, int)
         self.assertIsNotNone(res.random_seed)
         self.assertIsInstance(res.gpu_memory_frac, float)
@@ -1806,7 +1806,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(res, 'batch_size'))
         self.assertTrue(hasattr(res, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(res, 'max_iters'))
-        self.assertTrue(hasattr(res, 'monitor_every'))
+        self.assertTrue(hasattr(res, 'validate_every'))
         self.assertTrue(hasattr(res, 'patience'))
         self.assertTrue(hasattr(res, 'random_seed'))
         self.assertTrue(hasattr(res, 'gpu_memory_frac'))
@@ -1827,7 +1827,7 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.batch_size, int)
         self.assertIsInstance(res.bert_hub_module_handle, str)
         self.assertIsInstance(res.max_iters, int)
-        self.assertIsInstance(res.monitor_every, int)
+        self.assertIsInstance(res.validate_every, int)
         self.assertIsInstance(res.patience, int)
         self.assertIsNotNone(res.random_seed)
         self.assertIsInstance(res.gpu_memory_frac, float)
@@ -1968,7 +1968,7 @@ class TestClassifier(unittest.TestCase):
         self.assertTrue(hasattr(res, 'batch_size'))
         self.assertTrue(hasattr(res, 'bert_hub_module_handle'))
         self.assertTrue(hasattr(res, 'max_iters'))
-        self.assertTrue(hasattr(res, 'monitor_every'))
+        self.assertTrue(hasattr(res, 'validate_every'))
         self.assertTrue(hasattr(res, 'patience'))
         self.assertTrue(hasattr(res, 'random_seed'))
         self.assertTrue(hasattr(res, 'gpu_memory_frac'))
@@ -1989,7 +1989,7 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(res.batch_size, int)
         self.assertIsInstance(res.bert_hub_module_handle, str)
         self.assertIsInstance(res.max_iters, int)
-        self.assertIsInstance(res.monitor_every, int)
+        self.assertIsInstance(res.validate_every, int)
         self.assertIsInstance(res.patience, int)
         self.assertIsNotNone(res.random_seed)
         self.assertIsInstance(res.gpu_memory_frac, float)
