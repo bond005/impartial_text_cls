@@ -194,9 +194,9 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         if self.verbose:
             if X_val_tokenized is None:
                 if self.bayesian:
-                    print('Epoch      ELBO loss   Duration (secs)')
+                    print('Iteration      ELBO loss   Duration (secs)')
                 else:
-                    print('Epoch           Loss   Duration (secs)')
+                    print('Iteration           Loss   Duration (secs)')
         n_iters_without_improving = 0
         try:
             best_acc = None
@@ -267,7 +267,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                             del mean_probs
                         test_loss /= float(len(bounds_of_batches_for_validation))
                         if self.verbose:
-                            print('Epoch {0}'.format(iter + 1))
+                            print('Iteration {0}'.format(iter + 1))
                             print('  Duration is {0:.3f} seconds'.format(time.time() - start_time))
                             if self.bayesian:
                                 print('  KL weight: {0:.6f}'.format(value_of_kl_weight))
@@ -336,7 +336,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     else:
                         n_iters_without_improving += 1
                     if self.verbose:
-                        print('{0:>5}   {1:>12.6f}   {2:>15.3f}'.format(iter + 1, train_loss, time.time() - start_time))
+                        print('{0:>9}   {1:>12.6f}   {2:>15.3f}'.format(iter + 1, train_loss, time.time() - start_time))
                 if n_iters_without_improving >= self.patience:
                     if self.verbose:
                         print('Epoch %05d: early stopping' % (iter + 1))
@@ -909,8 +909,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 labels_distribution = tfp.distributions.Bernoulli(logits=logits, name='LabelsDistribution')
             else:
                 labels_distribution = tfp.distributions.Categorical(logits=logits, name='LabelsDistribution')
-            neg_log_likelihood = -tf.reduce_sum(input_tensor=labels_distribution.log_prob(y_ph))
-            kl = sum(model.losses)
+            neg_log_likelihood = -tf.reduce_mean(input_tensor=labels_distribution.log_prob(y_ph))
+            kl = sum(model.losses) / self.batch_size
             if abs(self.kl_weight_init - self.kl_weight_fin) > self.EPSILON:
                 kl_weight = tf.Variable(self.kl_weight_init, trainable=False, name='KL_weight', dtype=tf.float32)
                 elbo_loss = neg_log_likelihood + kl_weight * kl
@@ -1015,7 +1015,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=y_ph, logits=logits)
             else:
                 loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y_ph, logits=logits)
-            loss = tf.reduce_sum(loss, name='loss')
+            loss = tf.reduce_mean(loss, name='loss')
         with tf.name_scope('train'):
             optimizer = tf.contrib.opt.GGTOptimizer()
             train_op = optimizer.minimize(loss)

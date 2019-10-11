@@ -964,7 +964,8 @@ class TestClassifier(unittest.TestCase):
             'Most of Northern European Russia and Siberia has a subarctic climate'
         ]
         valid_labels = [0, 0, 1, 1, 2, 2, 4, -1, -1, -1]
-        self.cls = ImpatialTextClassifier(random_seed=31, batch_size=4, validation_fraction=0.0, verbose=True)
+        self.cls = ImpatialTextClassifier(random_seed=31, batch_size=4, validation_fraction=0.0, verbose=True,
+                                          max_iters=50)
         old_filters_for_conv1 = self.cls.filters_for_conv1
         old_filters_for_conv2 = self.cls.filters_for_conv2
         old_filters_for_conv3 = self.cls.filters_for_conv3
