@@ -169,6 +169,11 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             batch_start = iteration * self.batch_size
             batch_end = min(batch_start + self.batch_size, X_train_tokenized[0].shape[0])
             bounds_of_batches_for_training.append((batch_start, batch_end))
+        indices_of_trainset = self.shuffle_indices(y_train_tokenized, bounds_of_batches_for_training)
+        X_train_tokenized = [X_train_tokenized[channel_idx][indices_of_trainset]
+                             for channel_idx in range(len(X_train_tokenized))]
+        y_train_tokenized = y_train_tokenized[indices_of_trainset]
+        del indices_of_trainset
         while len(bounds_of_batches_for_training) < self.max_iters:
             bounds_of_batches_for_training += copy.copy(bounds_of_batches_for_training[0:n_batches])
         random.shuffle(bounds_of_batches_for_training)
@@ -1723,3 +1728,37 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         if not os.path.isfile(os.path.join(dir_name, 'bert_config.json')):
             return False
         return True
+
+    @staticmethod
+    def shuffle_indices(labels: np.ndarray, bounds_of_batches: List[Tuple[int, int]]) -> List[int]:
+        best_indices = list(range(len(labels)))
+        classes_list = sorted(list(set(labels.tolist())))
+        total_distribution = np.zeros((len(classes_list),), dtype=np.float64)
+        for sample_idx in range(labels.shape[0]):
+            total_distribution[classes_list.index(labels[sample_idx])] += 1.0
+        for class_idx in range(total_distribution.shape[0]):
+            total_distribution[class_idx] /= float(labels.shape[0])
+        best_distance = 0.0
+        for batch_start, batch_end in bounds_of_batches:
+            instant_distribution = np.zeros((len(classes_list),), dtype=np.float64)
+            for sample_idx in range(batch_start, batch_end):
+                sample_idx_ = best_indices[sample_idx]
+                instant_distribution[classes_list.index(labels[sample_idx_])] += 1.0
+            best_distance += np.sqrt(np.sum(np.square(instant_distribution - total_distribution)))
+            del instant_distribution
+        for _ in range(10):
+            cur_indices = copy.copy(best_indices)
+            random.shuffle(cur_indices)
+            distance = 0.0
+            for batch_start, batch_end in bounds_of_batches:
+                instant_distribution = np.zeros((len(classes_list),), dtype=np.float64)
+                for sample_idx in range(batch_start, batch_end):
+                    sample_idx_ = cur_indices[sample_idx]
+                    instant_distribution[classes_list.index(labels[sample_idx_])] += 1.0
+                distance += np.sqrt(np.sum(np.square(instant_distribution - total_distribution)))
+                del instant_distribution
+            if distance < best_distance:
+                best_distance = distance
+                best_indices = copy.copy(cur_indices)
+            del cur_indices
+        return best_indices
