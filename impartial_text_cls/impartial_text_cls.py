@@ -207,10 +207,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     epoch=iter, n_iters=self.max_iters,
                     init_kl_weight=self.kl_weight_init, fin_kl_weight=self.kl_weight_fin
                 )
-                cur_batch = bounds_of_batches_for_training[iter]
-                X_batch = [X_train_tokenized[channel_idx][cur_batch[0]:cur_batch[1]]
+                batch_start, batch_end = bounds_of_batches_for_training[iter]
+                X_batch = [X_train_tokenized[channel_idx][batch_start:batch_end]
                            for channel_idx in range(len(X_train_tokenized))]
-                y_batch = y_train_tokenized[cur_batch[0]:cur_batch[1]]
+                y_batch = y_train_tokenized[batch_start:batch_end]
                 if feed_dict_for_batch is not None:
                     del feed_dict_for_batch
                 if self.bayesian:
@@ -229,10 +229,10 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     if (((iter + 1) % self.validate_every) == 0) or ((iter + 1) == self.max_iters):
                         test_loss = 0.0
                         y_pred = None
-                        for cur_batch in bounds_of_batches_for_validation:
-                            X_batch = [X_val_tokenized[channel_idx][cur_batch[0]:cur_batch[1]]
+                        for batch_start, batch_end in bounds_of_batches_for_validation:
+                            X_batch = [X_val_tokenized[channel_idx][batch_start:batch_end]
                                        for channel_idx in range(len(X_val_tokenized))]
-                            y_batch = y_val_tokenized[cur_batch[0]:cur_batch[1]]
+                            y_batch = y_val_tokenized[batch_start:batch_end]
                             feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
                             test_loss_ = self.sess_.run(val_loss_, feed_dict=feed_dict_for_batch)
                             test_loss += test_loss_
@@ -910,7 +910,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             else:
                 labels_distribution = tfp.distributions.Categorical(logits=logits, name='LabelsDistribution')
             neg_log_likelihood = -tf.reduce_mean(input_tensor=labels_distribution.log_prob(y_ph))
-            kl = sum(model.losses) / n_train_samples
+            kl = sum(model.losses) / self.batch_size
             if abs(self.kl_weight_init - self.kl_weight_fin) > self.EPSILON:
                 kl_weight = tf.Variable(self.kl_weight_init, trainable=False, name='KL_weight', dtype=tf.float32)
                 elbo_loss = neg_log_likelihood + kl_weight * kl
@@ -918,7 +918,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 elbo_loss = neg_log_likelihood + self.kl_weight_init * kl
                 kl_weight = None
             with tf.name_scope('train'):
-                optimizer = tf.contrib.opt.AdamWOptimizer(learning_rate=3e-4, weight_decay=1e-5)
+                optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=3e-4)
                 train_op = optimizer.minimize(elbo_loss)
             return train_op, elbo_loss, neg_log_likelihood, kl_weight
         spatial_dropout = tf.keras.layers.SpatialDropout1D(rate=0.15, seed=self.random_seed,
@@ -1017,7 +1017,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y_ph, logits=logits)
             loss = tf.reduce_mean(loss, name='loss')
         with tf.name_scope('train'):
-            optimizer = tf.contrib.opt.AdamWOptimizer(learning_rate=3e-4, weight_decay=1e-5)
+            optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=3e-4)
             train_op = optimizer.minimize(loss)
         return train_op, loss, None, None
 
