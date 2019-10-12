@@ -1731,22 +1731,42 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
 
     @staticmethod
     def shuffle_indices(labels: np.ndarray, bounds_of_batches: List[Tuple[int, int]], verbose: bool) -> List[int]:
-        best_indices = list(range(len(labels)))
-        classes_list = sorted(list(set(labels.tolist() if isinstance(labels, np.ndarray) else labels)))
-        total_distribution = np.zeros((len(classes_list),), dtype=np.float64)
-        for sample_idx in range(len(labels)):
-            total_distribution[classes_list.index(labels[sample_idx])] += 1.0
+        best_indices = list(range(labels.shape[0]))
+        random.shuffle(best_indices)
+        if len(labels.shape) == 1:
+            classes_list = sorted(list(set(labels.tolist())))
+            total_distribution = np.zeros((len(classes_list),), dtype=np.float64)
+            for sample_idx in range(labels.shape[0]):
+                total_distribution[classes_list.index(labels[sample_idx])] += 1.0
+        else:
+            classes_list = sorted(list(set(range(labels.shape[1]))))
+            total_distribution = np.zeros((len(classes_list),), dtype=np.float64)
+            for sample_idx in range(labels.shape[0]):
+                for class_idx in range(labels.shape[1]):
+                    if labels[sample_idx][class_idx] > 0:
+                        total_distribution[class_idx] += 1.0
+        distribution_sum = np.sum(total_distribution)
         for class_idx in range(total_distribution.shape[0]):
-            total_distribution[class_idx] /= float(labels.shape[0])
+            total_distribution[class_idx] /= distribution_sum
         best_distance = 0.0
         if verbose:
             print('')
             print('Shuffling of train data is started...')
         for batch_start, batch_end in bounds_of_batches:
             instant_distribution = np.zeros((len(classes_list),), dtype=np.float64)
-            for sample_idx in range(batch_start, batch_end):
-                sample_idx_ = best_indices[sample_idx]
-                instant_distribution[classes_list.index(labels[sample_idx_])] += 1.0
+            if len(labels.shape) == 1:
+                for sample_idx in range(batch_start, batch_end):
+                    sample_idx_ = best_indices[sample_idx]
+                    instant_distribution[classes_list.index(labels[sample_idx_])] += 1.0
+            else:
+                for sample_idx in range(batch_start, batch_end):
+                    sample_idx_ = best_indices[sample_idx]
+                    for class_idx in range(labels.shape[1]):
+                        if labels[sample_idx_][class_idx] > 0:
+                            instant_distribution[class_idx] += 1.0
+            distribution_sum = np.sum(instant_distribution)
+            for class_idx in range(instant_distribution.shape[0]):
+                instant_distribution[class_idx] /= distribution_sum
             best_distance += np.sqrt(np.sum(np.square(instant_distribution - total_distribution)))
             del instant_distribution
         if verbose:
@@ -1757,9 +1777,19 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             distance = 0.0
             for batch_start, batch_end in bounds_of_batches:
                 instant_distribution = np.zeros((len(classes_list),), dtype=np.float64)
-                for sample_idx in range(batch_start, batch_end):
-                    sample_idx_ = cur_indices[sample_idx]
-                    instant_distribution[classes_list.index(labels[sample_idx_])] += 1.0
+                if len(labels.shape) == 1:
+                    for sample_idx in range(batch_start, batch_end):
+                        sample_idx_ = best_indices[sample_idx]
+                        instant_distribution[classes_list.index(labels[sample_idx_])] += 1.0
+                else:
+                    for sample_idx in range(batch_start, batch_end):
+                        sample_idx_ = best_indices[sample_idx]
+                        for class_idx in range(labels.shape[1]):
+                            if labels[sample_idx_][class_idx] > 0:
+                                instant_distribution[class_idx] += 1.0
+                distribution_sum = np.sum(instant_distribution)
+                for class_idx in range(instant_distribution.shape[0]):
+                    instant_distribution[class_idx] /= distribution_sum
                 distance += np.sqrt(np.sum(np.square(instant_distribution - total_distribution)))
                 del instant_distribution
             if distance < best_distance:
