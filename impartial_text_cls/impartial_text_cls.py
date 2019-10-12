@@ -185,7 +185,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 bounds_of_batches_for_validation.append((batch_start, batch_end))
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            train_op, elbo_loss_, val_loss_, kl_weight_ = self.build_model()
+            train_op, elbo_loss_, val_loss_, kl_weight_ = self.build_model(X_train_tokenized[0].shape[0])
         if not self.bayesian:
             val_loss_ = elbo_loss_
         init = tf.group(tf.compat.v1.global_variables_initializer(), tf.compat.v1.local_variables_initializer())
@@ -798,7 +798,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             self.__setattr__(parameter, value)
         return self
 
-    def build_model(self):
+    def build_model(self, n_train_samples: int):
         config = tf.compat.v1.ConfigProto()
         config.gpu_options.per_process_gpu_memory_fraction = self.gpu_memory_frac
         self.sess_ = tf.compat.v1.Session(config=config)
@@ -910,7 +910,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             else:
                 labels_distribution = tfp.distributions.Categorical(logits=logits, name='LabelsDistribution')
             neg_log_likelihood = -tf.reduce_mean(input_tensor=labels_distribution.log_prob(y_ph))
-            kl = sum(model.losses) / self.batch_size
+            kl = sum(model.losses) / n_train_samples
             if abs(self.kl_weight_init - self.kl_weight_fin) > self.EPSILON:
                 kl_weight = tf.Variable(self.kl_weight_init, trainable=False, name='KL_weight', dtype=tf.float32)
                 elbo_loss = neg_log_likelihood + kl_weight * kl
