@@ -169,7 +169,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             batch_start = iteration * self.batch_size
             batch_end = min(batch_start + self.batch_size, X_train_tokenized[0].shape[0])
             bounds_of_batches_for_training.append((batch_start, batch_end))
-        indices_of_trainset = self.shuffle_indices(y_train_tokenized, bounds_of_batches_for_training)
+        indices_of_trainset = self.shuffle_indices(y_train_tokenized, bounds_of_batches_for_training, self.verbose)
         X_train_tokenized = [X_train_tokenized[channel_idx][indices_of_trainset]
                              for channel_idx in range(len(X_train_tokenized))]
         y_train_tokenized = y_train_tokenized[indices_of_trainset]
