@@ -1732,9 +1732,9 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
     @staticmethod
     def shuffle_indices(labels: np.ndarray, bounds_of_batches: List[Tuple[int, int]], verbose: bool) -> List[int]:
         best_indices = list(range(len(labels)))
-        classes_list = sorted(list(set(labels.tolist())))
+        classes_list = sorted(list(set(labels.tolist() if isinstance(labels, np.ndarray) else labels)))
         total_distribution = np.zeros((len(classes_list),), dtype=np.float64)
-        for sample_idx in range(labels.shape[0]):
+        for sample_idx in range(len(labels)):
             total_distribution[classes_list.index(labels[sample_idx])] += 1.0
         for class_idx in range(total_distribution.shape[0]):
             total_distribution[class_idx] /= float(labels.shape[0])
