@@ -36,7 +36,7 @@ def load_data(subset_name: str) -> Tuple[List[str], List[str]]:
     return [' '.join(list(filter(
         lambda it2: len(it2) > 0,
         map(lambda it1: it1.strip(), cur.lower().split())
-    ))) for cur in data['data']], [data['target_names'][target_idx] for target_idx data['target']]
+    ))) for cur in data['data']], [data['target_names'][target_idx] for target_idx in data['target']]
 
 
 def main():
