@@ -2444,6 +2444,48 @@ class TestClassifier(unittest.TestCase):
             )
         )
 
+    def test_calculate_kl_weight_positive05(self):
+        n_epochs = 10
+        init_kl_weight = 0.05
+        fin_kl_weight = 1.0
+        cur_epoch = 0
+        true_res = 0.05
+        self.assertAlmostEqual(
+            true_res,
+            ImpatialTextClassifier.calculate_kl_weight(
+                epoch=cur_epoch, n_epochs=n_epochs,
+                init_kl_weight=init_kl_weight, fin_kl_weight=fin_kl_weight
+            )
+        )
+
+    def test_calculate_kl_weight_positive06(self):
+        n_epochs = 10
+        init_kl_weight = 0.05
+        fin_kl_weight = 1.0
+        cur_epoch = 9
+        true_res = 1.0
+        self.assertAlmostEqual(
+            true_res,
+            ImpatialTextClassifier.calculate_kl_weight(
+                epoch=cur_epoch, n_epochs=n_epochs,
+                init_kl_weight=init_kl_weight, fin_kl_weight=fin_kl_weight
+            )
+        )
+
+    def test_calculate_kl_weight_positive07(self):
+        n_epochs = 10
+        init_kl_weight = 0.05
+        fin_kl_weight = 1.0
+        cur_epoch = 6
+        true_res = 0.4722222222
+        self.assertAlmostEqual(
+            true_res,
+            ImpatialTextClassifier.calculate_kl_weight(
+                epoch=cur_epoch, n_epochs=n_epochs,
+                init_kl_weight=init_kl_weight, fin_kl_weight=fin_kl_weight
+            )
+        )
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
