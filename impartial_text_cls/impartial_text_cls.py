@@ -196,7 +196,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             best_acc = None
             for epoch in range(self.max_epochs):
                 start_time = time.time()
-                random.shuffle(bounds_of_batches_for_training)
+                X_train_tokenized, y_train_tokenized = self.shuffle_train_data(X_train_tokenized, y_train_tokenized)
                 feed_dict_for_batch = None
                 train_loss = 0.0
                 value_of_kl_weight = self.calculate_kl_weight(
@@ -1701,3 +1701,9 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         if not os.path.isfile(os.path.join(dir_name, 'bert_config.json')):
             return False
         return True
+
+    @staticmethod
+    def shuffle_train_data(X: List[np.ndarray], y: np.ndarray) -> Tuple[List[np.ndarray], np.ndarray]:
+        indices = np.arange(0, X[0].shape[0], 1, dtype=np.int32)
+        np.random.shuffle(indices)
+        return [X[channel_idx][indices] for channel_idx in range(len(X))], y[indices]
