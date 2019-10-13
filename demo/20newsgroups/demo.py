@@ -16,9 +16,8 @@ from argparse import ArgumentParser
 import os
 import pickle
 import sys
-from typing import Tuple
+from typing import Tuple, List
 
-import numpy as np
 from sklearn.datasets import fetch_20newsgroups
 
 try:
@@ -30,16 +29,14 @@ except:
     from impartial_text_cls.utils import parse_hidden_layers_description
 
 
-def load_data(subset_name: str) -> Tuple[np.ndarray, np.ndarray]:
+def load_data(subset_name: str) -> Tuple[List[str], List[str]]:
     data = fetch_20newsgroups(data_home=os.path.join(os.path.dirname(__file__), 'data'), subset=subset_name)
     if data is None:
         raise ValueError('Data for training and testing cannot be downloaded!')
-    return np.array(
-        [' '.join(list(filter(
-            lambda it2: len(it2) > 0,
-            map(lambda it1: it1.strip(), cur.lower().split())
-        ))) for cur in data['data']], dtype=object
-    ), data['target']
+    return [' '.join(list(filter(
+        lambda it2: len(it2) > 0,
+        map(lambda it1: it1.strip(), cur.lower().split())
+    ))) for cur in data['data']], [data['target_names'][target_idx] for target_idx data['target']]
 
 
 def main():

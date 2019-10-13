@@ -62,7 +62,8 @@ cls = ImpatialTextClassifier(
 # Load and prepare dataset for training
 data_for_training = fetch_20newsgroups(subset='train')
 X_train = [' '.join(cur.split()) for cur in data_for_training['data']]
-y_train = data_for_training['target']
+y_train = [data_for_training['target_names'][class_idx]
+           for class_idx in data_for_training['target']]
 
 # Load and prepare dataset for final testing
 data_for_testing = fetch_20newsgroups(subset='test')
