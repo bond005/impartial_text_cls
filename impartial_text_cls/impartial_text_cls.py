@@ -1682,8 +1682,11 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             return init_kl_weight
         if abs(init_kl_weight - fin_kl_weight) <= ImpatialTextClassifier.EPSILON:
             return init_kl_weight
-        a = (init_kl_weight - fin_kl_weight) / (float(n_epochs - 1) * float(n_epochs - 1))
-        cur_kl_weight = a * float(epoch - (n_epochs - 1)) * float(epoch - (n_epochs - 1)) + fin_kl_weight
+        a = abs(init_kl_weight - fin_kl_weight) / (float(n_epochs - 1) * float(n_epochs - 1))
+        if init_kl_weight > fin_kl_weight:
+            cur_kl_weight = a * float(epoch - (n_epochs - 1)) * float(epoch - (n_epochs - 1)) + fin_kl_weight
+        else:
+            cur_kl_weight = a * float(epoch) * float(epoch) + init_kl_weight
         return cur_kl_weight
 
     @staticmethod
