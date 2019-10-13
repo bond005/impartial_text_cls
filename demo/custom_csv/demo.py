@@ -27,11 +27,11 @@ from skopt.space import Integer, Real
 
 try:
     from impartial_text_cls.impartial_text_cls import ImpatialTextClassifier
-    from impartial_text_cls.utils import read_csv
+    from impartial_text_cls.utils import read_csv, parse_hidden_layers_description
 except:
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
     from impartial_text_cls.impartial_text_cls import ImpatialTextClassifier
-    from impartial_text_cls.utils import read_csv
+    from impartial_text_cls.utils import read_csv, parse_hidden_layers_description
 
 
 def load_unlabeled_texts(file_name: str) -> np.ndarray:
@@ -67,15 +67,20 @@ def main():
         conv3_ = int(args[2])
         conv4_ = int(args[3])
         conv5_ = int(args[4])
-        hidden_ = int(args[5])
+        hidden_layer_size_ = int(args[5])
+        n_hidden_layers_ = int(args[6])
+        if (n_hidden_layers_ == 0) or (hidden_layer_size_ == 0):
+            hidden_layer_size_ = 0
+            n_hidden_layers_ = 0
         quality = 0.0
         print('Filters number for different convolution kernels: ({0}, {1}, {2}, {3}, {4})'.format(
             conv1_, conv2_, conv3_, conv4_, conv5_))
-        if hidden_ > 0:
-            print('Hidden layer size is {0}.'.format(hidden_))
+        if n_hidden_layers_ > 0:
+            print('Hidden layer size is {0}.'.format(hidden_layer_size_))
+            print('Number of hidden layers is {0}.'.format(n_hidden_layers_))
         if nn_type == 'bayesian':
-            init_kl_weight = float(args[6])
-            fin_kl_weight = float(args[7])
+            init_kl_weight = float(args[7])
+            fin_kl_weight = float(args[8])
             print('Optimal value of initial KL weight is {0:.6f}.'.format(init_kl_weight))
             print('Optimal value of final KL weight is {0:.6f}.'.format(fin_kl_weight))
         else:
@@ -87,7 +92,8 @@ def main():
             cls = ImpatialTextClassifier(bert_hub_module_handle=(None if os.path.exists(os.path.normpath(bert_handle))
                                                                  else bert_handle),
                                          filters_for_conv1=conv1_, filters_for_conv2=conv2_, filters_for_conv3=conv3_,
-                                         filters_for_conv4=conv4_, filters_for_conv5=conv5_, hidden_layer_size=hidden_,
+                                         filters_for_conv4=conv4_, filters_for_conv5=conv5_,
+                                         hidden_layer_size=hidden_layer_size_, n_hidden_layers=n_hidden_layers_,
                                          multioutput=multioutput, gpu_memory_frac=gpu_memory_frac,
                                          num_monte_carlo=num_monte_carlo, verbose=False, random_seed=42, max_epochs=100,
                                          patience=5, batch_size=16, bayesian=(nn_type == 'bayesian'),
@@ -148,14 +154,19 @@ def main():
         conv3_ = int(args[2])
         conv4_ = int(args[3])
         conv5_ = int(args[4])
-        hidden_ = int(args[5])
+        hidden_layer_size_ = int(args[5])
+        n_hidden_layers_ = int(args[6])
+        if (n_hidden_layers_ == 0) or (hidden_layer_size_ == 0):
+            hidden_layer_size_ = 0
+            n_hidden_layers_ = 0
         print('Optimal filters number for different convolution kernels: ({0}, {1}, {2}, {3}, {4})'.format(
             conv1_, conv2_, conv3_, conv4_, conv5_))
-        if hidden_ > 0:
-            print('Optimal size of the hidden layer is {0}.'.format(hidden_))
+        if n_hidden_layers_ > 0:
+            print('Optimal size of the hidden layer is {0}.'.format(hidden_layer_size_))
+            print('Optimal number of hidden layers is {0}.'.format(n_hidden_layers_))
         if nn_type == 'bayesian':
-            init_kl_weight = float(args[6])
-            fin_kl_weight = float(args[7])
+            init_kl_weight = float(args[7])
+            fin_kl_weight = float(args[8])
             print('Optimal value of initial KL weight is {0:.6f}.'.format(init_kl_weight))
             print('Optimal value of final KL weight is {0:.6f}.'.format(fin_kl_weight))
         else:
@@ -169,7 +180,8 @@ def main():
             cls = ImpatialTextClassifier(bert_hub_module_handle=(None if os.path.exists(os.path.normpath(bert_handle))
                                                                  else bert_handle),
                                          filters_for_conv1=conv1_, filters_for_conv2=conv2_, filters_for_conv3=conv3_,
-                                         filters_for_conv4=conv4_, filters_for_conv5=conv5_, hidden_layer_size=hidden_,
+                                         filters_for_conv4=conv4_, filters_for_conv5=conv5_,
+                                         hidden_layer_size=hidden_layer_size_, n_hidden_layers=n_hidden_layers_,
                                          batch_size=16, gpu_memory_frac=gpu_memory_frac, verbose=True, random_seed=42,
                                          num_monte_carlo=num_monte_carlo, max_epochs=100, patience=5,
                                          multioutput=multioutput, bayesian=(nn_type == 'bayesian'),
@@ -241,10 +253,14 @@ def main():
         conv3_ = int(args[2])
         conv4_ = int(args[3])
         conv5_ = int(args[4])
-        hidden_ = int(args[5])
+        hidden_layer_size_ = int(args[5])
+        n_hidden_layers_ = int(args[6])
+        if (n_hidden_layers_ == 0) or (hidden_layer_size_ == 0):
+            hidden_layer_size_ = 0
+            n_hidden_layers_ = 0
         if nn_type == 'bayesian':
-            init_kl_weight = float(args[6])
-            fin_kl_weight = float(args[7])
+            init_kl_weight = float(args[7])
+            fin_kl_weight = float(args[8])
         else:
             init_kl_weight = 1.0
             fin_kl_weight = 1.0
@@ -270,7 +286,8 @@ def main():
         cls = ImpatialTextClassifier(bert_hub_module_handle=(None if os.path.exists(os.path.normpath(bert_handle))
                                                              else bert_handle),
                                      filters_for_conv1=conv1_, filters_for_conv2=conv2_, filters_for_conv3=conv3_,
-                                     filters_for_conv4=conv4_, filters_for_conv5=conv5_, hidden_layer_size=hidden_,
+                                     filters_for_conv4=conv4_, filters_for_conv5=conv5_,
+                                     hidden_layer_size=hidden_layer_size_, n_hidden_layers=n_hidden_layers_,
                                      batch_size=16, gpu_memory_frac=gpu_memory_frac, num_monte_carlo=num_monte_carlo,
                                      verbose=True, random_seed=42, max_epochs=100, patience=5, multioutput=multioutput,
                                      bayesian=(nn_type == 'bayesian'),
@@ -309,8 +326,8 @@ def main():
                         help='Size of the Bayesian convolution layer with kernel size 4.')
     parser.add_argument('--conv5', dest='size_of_conv5', type=int, required=False, default=20,
                         help='Size of the Bayesian convolution layer with kernel size 5.')
-    parser.add_argument('--hidden', dest='hidden_layer_size', type=int, required=False, default=500,
-                        help='Hidden layer size.')
+    parser.add_argument('--hidden', dest='hidden_layer_size', type=str, required=False, default='500',
+                        help='Size of each hidden layer and total number of hidden layers (separate them with colons).')
     parser.add_argument('--init_kl_weight', dest='init_kl_weight', type=float, required=False, default=1e-1,
                         help='Initial value of KL weight.')
     parser.add_argument('--fin_kl_weight', dest='fin_kl_weight', type=float, required=False, default=1e-2,
@@ -326,6 +343,7 @@ def main():
     model_name = os.path.normpath(cmd_args.model_name)
     labeled_data_name = os.path.normpath(cmd_args.csv_data_file)
     unlabeled_train_data_name = cmd_args.train_file_name.strip()
+    hidden_layer_size, n_hidden_layers = parse_hidden_layers_description(cmd_args.hidden_layer_size)
     if len(unlabeled_train_data_name) > 0:
         unlabeled_train_data_name = os.path.normpath(unlabeled_train_data_name)
         unlabeled_texts_for_training = load_unlabeled_texts(unlabeled_train_data_name)
@@ -353,7 +371,7 @@ def main():
     indices_for_cv = ImpatialTextClassifier.cv_split(labels, 5)
     if cmd_args.search_hyperparameters:
         dimensions = [Integer(0, 300), Integer(0, 300), Integer(0, 300), Integer(0, 300), Integer(0, 300),
-                      Integer(100, 2000)]
+                      Integer(100, 2000), Integer(0, 3)]
         if nn_type == 'bayesian':
             dimensions += [Real(1e-5, 1.0, prior='log-uniform'), Real(1e-5, 1.0, prior='log-uniform')]
         optimal_res = gp_minimize(
@@ -364,7 +382,7 @@ def main():
         hyperparameters = optimal_res.x
     else:
         hyperparameters = [cmd_args.size_of_conv1, cmd_args.size_of_conv2, cmd_args.size_of_conv3,
-                           cmd_args.size_of_conv4, cmd_args.size_of_conv5, cmd_args.hidden_layer_size,
+                           cmd_args.size_of_conv4, cmd_args.size_of_conv5, hidden_layer_size, n_hidden_layers,
                            cmd_args.init_kl_weight, cmd_args.fin_kl_weight]
     score(hyperparameters)
     with open(model_name, 'wb') as fp:

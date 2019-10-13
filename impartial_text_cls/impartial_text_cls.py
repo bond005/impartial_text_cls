@@ -911,7 +911,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 elbo_loss = neg_log_likelihood + self.kl_weight_init * kl
                 kl_weight = None
             with tf.name_scope('train'):
-                optimizer = tf.contrib.opt.GGTOptimizer()
+                optimizer = tf.contrib.opt.GGTOptimizer(learning_rate=0.01)
                 train_op = optimizer.minimize(elbo_loss)
             return train_op, elbo_loss, neg_log_likelihood, kl_weight
         spatial_dropout = tf.keras.layers.SpatialDropout1D(rate=0.15, seed=self.random_seed,
@@ -1010,7 +1010,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y_ph, logits=logits)
             loss = tf.reduce_sum(loss, name='loss')
         with tf.name_scope('train'):
-            optimizer = tf.contrib.opt.GGTOptimizer()
+            optimizer = tf.contrib.opt.GGTOptimizer(learning_rate=0.01)
             train_op = optimizer.minimize(loss)
         return train_op, loss, None, None
 

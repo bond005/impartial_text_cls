@@ -53,9 +53,10 @@ from impartial_text_cls.impartial_text_cls import ImpatialTextClassifier  # impo
 cls = ImpatialTextClassifier(
     bert_hub_module_handle='https://tfhub.dev/google/bert_uncased_L-12_H-768_A-12/1',
     filters_for_conv2=50, filters_for_conv3=50, filters_for_conv4=50, filters_for_conv5=50,
-    hidden_layer_size=100, batch_size=16, num_monte_carlo=100, gpu_memory_frac=0.95,
+    hidden_layer_size=1000, n_hidden_layers=2, batch_size=16, num_monte_carlo=100,
     bayesian=True, multioutput=False, random_seed=42, validation_fraction=0.15,
-    max_epochs=100, patience=5, verbose=True
+    max_epochs=100, patience=5, verbose=True, gpu_memory_frac=0.95,
+    kl_weight_init=0.5, kl_weight_fin=1e-2
 )
 
 # Load and prepare dataset for training
@@ -82,9 +83,11 @@ with open('bert_bayesian_for_20newsgroups.pkl', 'wb') as fp:
 
 In this example we created classifier with special pre-trained BERT for English language from the **TensorFlow Hub**, and we specified path to this BERT in the `bert_hub_module_handle` parameter of constructor.
 
-BERT is used as generator of token embeddings, therefore we add convolutional neural network in [Yoon Kim's style](https://arxiv.org/abs/1408.5882) after this BERT. First and only convolutional layer of this network contains feature maps with multiple filter widths from 1 to 5. Feature map quanity for each filter width is specified by the `filters_for_conv1` ... `filters_for_conv5` paramaters. Besides, boolean parameter `bayesian` specifies kind of all weights in the above described convolutional network: if `bayesian` is True, then these weights are bayesian, i.e. stohastic, else they are usual.
+BERT is used as generator of token embeddings and whole text embedding. The sequence output of BERT is used for token embeddings calculation, and the pooled output generates text embedding. Therefore we add convolutional neural network in [Yoon Kim's style](https://arxiv.org/abs/1408.5882) after BERT's sequence output and concatenate outputs of this convolutional neural network with BERT's pooled output. First and only convolutional layer of this network contains feature maps with multiple filter widths from 1 to 5. Feature map quanity for each filter width is specified by the `filters_for_conv1` ... `filters_for_conv5` paramaters. After max-over-time pooling all outputs of convolutional layer are concatenated with the pooled output of BERT, and a resulting signal are processed by sequence of hidden layers ((optionally, because number of hidden layers can be zero)). Besides, boolean parameter `bayesian` specifies kind of all weights in the above described convolutional network: if `bayesian` is True, then these weights are bayesian, i.e. stohastic, else they are usual.
 
 The `num_monte_carlo` parameter corresponds to number of sampes from bayesian neural network in the inference mode. Large value of this parameter is better, but at the same time procedure of inference can become a little slower.
+
+The `kl_weight_init` and `kl_weight_fin` determine initial and final points of a KL weight changing schedule for the bayesian neural network (see chapter 3.4 of [Weight Uncertainty in Neural Networks](https://arxiv.org/abs/1505.05424v2) about the KL weighting). If these values are same, then the KL weight is constant.
 
 In the training process we need early stopping: we calculate some quality criterion on independent subset of data, called as validation dataset, and monitor its changing by epochs. If value of this criterion become decrease during `patience` epochs on end, then we have to stop. Fraction of training data which will be randomly sinlge out for validation is determined by the `validation_fraction` parameter. But if early stopping will not work, then we continue training process no more than `max_epochs` epochs, whereupon we stop, in spite of everything.
 
@@ -137,7 +140,10 @@ Breaking Changes
 -----
 
 **Breaking changes in version 0.0.3**
-- a hidden layer has been added (but its size can be zero, and in this case structure of neural network come same as previous version).
+- hidden layers has been added (but number of hidden layers can be zero, and in this case structure of neural network come same as previous version);
+- all outputs of BERT are used now: sequence outputs are processed by convolution neurons with various kernel sizes, as it was in previous version, and pooled outputs of BERT are concatenated with outputs of convolutional neurons after their max-over-time pooling;
+- the GGT algorithm has become applied instead of the Adam, because this algorithm is better suited for training of large CNNs and neural models for text processing (see [The Case for Full-Matrix Adaptive Regularization](https://arxiv.org/abs/1806.02958)); we set initial learning rate as 1e-2 and window size as 10;
+- the SNIPS-2017 demo has been improved; in particular, a special shell script to run experiment series with various hyper-parameters of NN has been implemented, and more appropriate text corpuses have become used as "foreign" texts.
 
 **Breaking changes in version 0.0.2**
 - logging become more pretty: particulary, full class names may be printed instead of class indices in the training process (if you specify `y` as sequence of text labels).
