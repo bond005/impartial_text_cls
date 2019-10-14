@@ -79,7 +79,8 @@ def main():
                                     n_hidden_layers=n_hidden_layers, batch_size=args.batch_size,
                                     num_monte_carlo=args.num_monte_carlo, gpu_memory_frac=args.gpu_memory_frac,
                                     verbose=True, multioutput=False, random_seed=42, validation_fraction=0.15,
-                                    max_epochs=100, patience=5, bayesian=(args.nn_type == 'bayesian'))
+                                    max_epochs=100, patience=5, bayesian=(args.nn_type == 'bayesian'),
+                                    kl_weight_init=0.05, kl_weight_fin=0.05)
         nn.fit(train_texts, train_labels)
         print('')
         with open(model_name, 'wb') as fp:
