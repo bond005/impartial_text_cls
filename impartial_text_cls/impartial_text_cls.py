@@ -846,7 +846,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     input_sequence_layer,
                     tf.keras.backend.repeat_elements(
                         tf.keras.backend.reshape(tf.keras.backend.cast(input_mask_layer, 'float32'),
-                                                 shape=list(tf.keras.backend.int_shape(input_mask_layer)) + [1]),
+                                                 shape=tf.keras.backend.shape(input_mask_layer) + [1]),
                         axis=-1, rep=feature_vector_size
                     )
                 ]
@@ -932,7 +932,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 sequence_output,
                 tf.keras.backend.repeat_elements(
                     tf.keras.backend.reshape(tf.keras.backend.cast(input_mask, 'float32'),
-                                             shape=list(tf.keras.backend.int_shape(input_mask)) + [1]),
+                                             shape=tf.keras.backend.shape(input_mask) + [1]),
                     axis=-1, rep=feature_vector_size
                 )
             ]
