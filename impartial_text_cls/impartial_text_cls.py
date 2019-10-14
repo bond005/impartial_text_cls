@@ -364,7 +364,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 probs = np.asarray(
                     [self.sess_.run(
                         'LabelsDistribution/probs:0',
-                        feed_dict={'BERT_SequenceOutput:0': features[0], 'BERT_PooledOutput:0': features[1]}
+                        feed_dict={'BERT_SequenceOutput:0': features[0], 'input_mask:0': X[1],
+                                   'BERT_PooledOutput:0': features[1]}
                     ) for _ in range(self.num_monte_carlo)]
                 )
                 del features
@@ -839,11 +840,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         feature_vector_size = sequence_output.shape[-1].value
         if self.bayesian:
             input_sequence_layer = tf.keras.Input((self.MAX_SEQ_LENGTH, feature_vector_size), name='InputForConv')
+            input_mask_layer = tf.keras.Input((self.MAX_SEQ_LENGTH,), name='InputMaskForConv', dtype='int32')
             prepared_sequence_layer = tf.keras.layers.Multiply(name='MaskedInputForConv')(
                 [
                     input_sequence_layer,
                     tf.keras.backend.repeat_elements(
-                        tf.keras.backend.reshape(input_mask, shape=list(tf.keras.backend.int_shape(input_mask)) + [1]),
+                        tf.keras.backend.reshape(tf.keras.backend.cast_to_floatx(input_mask_layer),
+                                                 shape=list(tf.keras.backend.int_shape(input_mask_layer)) + [1]),
                         axis=-1, rep=feature_vector_size
                     )
                 ]
@@ -905,9 +908,9 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             else:
                 output_layer = tfp.layers.DenseFlipout(len(self.classes_), seed=self.random_seed, name='OutputLayer')(
                     concat_layer)
-            model = tf.keras.Model([input_sequence_layer, input_pooled_layer], output_layer,
+            model = tf.keras.Model([input_sequence_layer, input_mask_layer, input_pooled_layer], output_layer,
                                    name='BayesianNetworkModel')
-            logits = model([sequence_output, pooled_output])
+            logits = model([sequence_output, input_mask, pooled_output])
             if self.multioutput:
                 labels_distribution = tfp.distributions.Bernoulli(logits=logits, name='LabelsDistribution')
             else:
@@ -928,7 +931,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             [
                 sequence_output,
                 tf.keras.backend.repeat_elements(
-                    tf.keras.backend.reshape(input_mask, shape=list(tf.keras.backend.int_shape(input_mask)) + [1]),
+                    tf.keras.backend.reshape(tf.keras.backend.cast_to_floatx(input_mask),
+                                             shape=list(tf.keras.backend.int_shape(input_mask)) + [1]),
                     axis=-1, rep=feature_vector_size
                 )
             ]
