@@ -19,11 +19,11 @@ import sys
 
 
 try:
-    from impartial_text_cls.impartial_text_cls import ImpatialTextClassifier
+    from impartial_text_cls.impartial_text_cls import ImpartialTextClassifier
     from impartial_text_cls.utils import read_dstc2_data, parse_hidden_layers_description
 except:
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-    from impartial_text_cls.impartial_text_cls import ImpatialTextClassifier
+    from impartial_text_cls.impartial_text_cls import ImpartialTextClassifier
     from impartial_text_cls.utils import read_dstc2_data, parse_hidden_layers_description
 
 
@@ -71,7 +71,7 @@ def main():
         train_texts, train_labels, train_classes = read_dstc2_data(train_file_name)
         print('Classes list: {0}'.format(train_classes))
         print('Number of samples for training is {0}.'.format(len(train_texts)))
-        nn = ImpatialTextClassifier(filters_for_conv1=args.size_of_conv1, filters_for_conv2=args.size_of_conv2,
+        nn = ImpartialTextClassifier(filters_for_conv1=args.size_of_conv1, filters_for_conv2=args.size_of_conv2,
                                     filters_for_conv3=args.size_of_conv3, filters_for_conv4=args.size_of_conv4,
                                     filters_for_conv5=args.size_of_conv5,
                                     hidden_layer_size=hidden_layer_size, n_hidden_layers=n_hidden_layers,

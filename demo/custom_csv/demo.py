@@ -26,11 +26,11 @@ from skopt.space import Integer, Real
 
 
 try:
-    from impartial_text_cls.impartial_text_cls import ImpatialTextClassifier
+    from impartial_text_cls.impartial_text_cls import ImpartialTextClassifier
     from impartial_text_cls.utils import read_csv, parse_hidden_layers_description
 except:
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-    from impartial_text_cls.impartial_text_cls import ImpatialTextClassifier
+    from impartial_text_cls.impartial_text_cls import ImpartialTextClassifier
     from impartial_text_cls.utils import read_csv, parse_hidden_layers_description
 
 
@@ -89,7 +89,7 @@ def main():
         if sum(args) == 0:
             return 1.0
         for fold_idx, (train_index, test_index) in enumerate(indices_for_cv):
-            cls = ImpatialTextClassifier(bert_hub_module_handle=(None if os.path.exists(os.path.normpath(bert_handle))
+            cls = ImpartialTextClassifier(bert_hub_module_handle=(None if os.path.exists(os.path.normpath(bert_handle))
                                                                  else bert_handle),
                                          filters_for_conv1=conv1_, filters_for_conv2=conv2_, filters_for_conv3=conv3_,
                                          filters_for_conv4=conv4_, filters_for_conv5=conv5_,
@@ -177,7 +177,7 @@ def main():
         y_true = []
         unlabeled_is_added = False
         for train_index, test_index in indices_for_cv:
-            cls = ImpatialTextClassifier(bert_hub_module_handle=(None if os.path.exists(os.path.normpath(bert_handle))
+            cls = ImpartialTextClassifier(bert_hub_module_handle=(None if os.path.exists(os.path.normpath(bert_handle))
                                                                  else bert_handle),
                                          filters_for_conv1=conv1_, filters_for_conv2=conv2_, filters_for_conv3=conv3_,
                                          filters_for_conv4=conv4_, filters_for_conv5=conv5_,
@@ -247,7 +247,7 @@ def main():
             print(classification_report(y_true, y_pred, target_names=classes_list + ['UNKNOWN'], digits=4))
             print('')
 
-    def train(args) -> ImpatialTextClassifier:
+    def train(args) -> ImpartialTextClassifier:
         conv1_ = int(args[0])
         conv2_ = int(args[1])
         conv3_ = int(args[2])
@@ -264,7 +264,7 @@ def main():
         else:
             init_kl_weight = 1.0
             fin_kl_weight = 1.0
-        train_index, val_index = ImpatialTextClassifier.train_test_split(labels, 0.1)
+        train_index, val_index = ImpartialTextClassifier.train_test_split(labels, 0.1)
         if unlabeled_texts_for_training is None:
             train_texts = labeled_texts[train_index]
             train_labels = labels[train_index]
@@ -283,7 +283,7 @@ def main():
             )
         val_texts = labeled_texts[val_index]
         val_labels = labels[val_index]
-        cls = ImpatialTextClassifier(bert_hub_module_handle=(None if os.path.exists(os.path.normpath(bert_handle))
+        cls = ImpartialTextClassifier(bert_hub_module_handle=(None if os.path.exists(os.path.normpath(bert_handle))
                                                              else bert_handle),
                                      filters_for_conv1=conv1_, filters_for_conv2=conv2_, filters_for_conv3=conv3_,
                                      filters_for_conv4=conv4_, filters_for_conv5=conv5_,
@@ -368,7 +368,7 @@ def main():
     print('')
     print_classes_distribution(labels, classes_list)
     np.random.seed(42)
-    indices_for_cv = ImpatialTextClassifier.cv_split(labels, 5)
+    indices_for_cv = ImpartialTextClassifier.cv_split(labels, 5)
     if cmd_args.search_hyperparameters:
         dimensions = [Integer(0, 300), Integer(0, 300), Integer(0, 300), Integer(0, 300), Integer(0, 300),
                       Integer(100, 2000), Integer(0, 3)]

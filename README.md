@@ -47,10 +47,10 @@ After installing the **Impartial Text Classifier** can be used as Python package
 import pickle
 from sklearn.datasets import fetch_20newsgroups  # import dataset for experiments
 from sklearn.metrics import classification_report  # import evaluation module
-from impartial_text_cls.impartial_text_cls import ImpatialTextClassifier  # import the module with classifier
+from impartial_text_cls.impartial_text_cls import ImpartialTextClassifier  # import the module with classifier
 
 # Create new classifier for English language
-cls = ImpatialTextClassifier(
+cls = ImpartialTextClassifier(
     bert_hub_module_handle='https://tfhub.dev/google/bert_uncased_L-12_H-768_A-12/1',
     filters_for_conv2=50, filters_for_conv3=50, filters_for_conv4=50, filters_for_conv5=50,
     hidden_layer_size=1000, n_hidden_layers=2, batch_size=16, num_monte_carlo=100,

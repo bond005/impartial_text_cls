@@ -27,11 +27,11 @@ from sklearn.metrics import classification_report
 
 
 try:
-    from impartial_text_cls.impartial_text_cls import ImpatialTextClassifier
+    from impartial_text_cls.impartial_text_cls import ImpartialTextClassifier
     from impartial_text_cls.utils import read_snips2017_data, parse_hidden_layers_description
 except:
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-    from impartial_text_cls.impartial_text_cls import ImpatialTextClassifier
+    from impartial_text_cls.impartial_text_cls import ImpartialTextClassifier
     from impartial_text_cls.utils import read_snips2017_data, parse_hidden_layers_description
 
 
@@ -158,7 +158,7 @@ def main():
             train_labels = train_data[1] + [-1 for _ in range(len(unlabeled_texts_for_training))]
             val_texts = val_data[0]
             val_labels = val_data[1]
-        nn = ImpatialTextClassifier(filters_for_conv1=args.size_of_conv1, filters_for_conv2=args.size_of_conv2,
+        nn = ImpartialTextClassifier(filters_for_conv1=args.size_of_conv1, filters_for_conv2=args.size_of_conv2,
                                     filters_for_conv3=args.size_of_conv3, filters_for_conv4=args.size_of_conv4,
                                     filters_for_conv5=args.size_of_conv5, batch_size=args.batch_size,
                                     hidden_layer_size=hidden_layer_size, n_hidden_layers=n_hidden_layers,

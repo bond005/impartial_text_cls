@@ -35,7 +35,7 @@ from bert.modeling import BertModel, BertConfig, get_assignment_map_from_checkpo
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
-class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
+class ImpartialTextClassifier(BaseEstimator, ClassifierMixin):
     MAX_SEQ_LENGTH = 512
     PATH_TO_BERT = None
     EPSILON = 1e-6
@@ -1367,7 +1367,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             raise ValueError('`kl_weight_init` is wrong! Expected a non-negative floating-point value, '
                              'but {0} is {1}.'.format(
                 kwargs['kl_weight_init'],
-                'zero' if abs(kwargs['kl_weight_init']) <= ImpatialTextClassifier.EPSILON else 'negative'
+                'zero' if abs(kwargs['kl_weight_init']) <= ImpartialTextClassifier.EPSILON else 'negative'
             ))
         if 'kl_weight_fin' not in kwargs:
             raise ValueError('`kl_weight_fin` is not specified!')
@@ -1381,7 +1381,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             raise ValueError('`kl_weight_fin` is wrong! Expected a non-negative floating-point value, '
                              'but {0} is {1}.'.format(
                 kwargs['kl_weight_fin'],
-                'zero' if abs(kwargs['kl_weight_fin']) <= ImpatialTextClassifier.EPSILON else 'negative'
+                'zero' if abs(kwargs['kl_weight_fin']) <= ImpartialTextClassifier.EPSILON else 'negative'
             ))
         if 'filters_for_conv1' not in kwargs:
             raise ValueError('`filters_for_conv1` is not specified!')
@@ -1455,7 +1455,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
     @staticmethod
     def check_Xy(X: Union[list, tuple, np.ndarray], X_name: str,
                  y: Union[list, tuple, np.ndarray], y_name: str, multioutput: bool=False) -> Tuple[dict, list]:
-        ImpatialTextClassifier.check_X(X, X_name)
+        ImpartialTextClassifier.check_X(X, X_name)
         if (not hasattr(y, '__len__')) or (not hasattr(y, '__getitem__')):
             raise ValueError('`{0}` is wrong, because it is not a list-like object!'.format(y_name))
         if isinstance(y, np.ndarray):
@@ -1524,7 +1524,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
 
     @staticmethod
     def train_test_split(y: Union[list, tuple, np.ndarray], test_part: float) -> Tuple[np.ndarray, np.ndarray]:
-        y_prep = ImpatialTextClassifier.prepare_y(y)
+        y_prep = ImpartialTextClassifier.prepare_y(y)
         n = len(y_prep)
         n_test = int(round(n * test_part))
         if n_test < 1:
@@ -1602,7 +1602,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                  random_state: int=None) -> List[Tuple[np.ndarray, np.ndarray]]:
         if cv < 2:
             raise ValueError('{0} is too small for the CV parameter!'.format(cv))
-        y_prep = ImpatialTextClassifier.prepare_y(y)
+        y_prep = ImpartialTextClassifier.prepare_y(y)
         all_classes_list = set()
         is_multioutput = False
         for cur in y_prep:
@@ -1697,7 +1697,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
     def calculate_kl_weight(epoch: int, n_epochs: int, init_kl_weight: float, fin_kl_weight: float) -> float:
         if n_epochs < 2:
             return init_kl_weight
-        if abs(init_kl_weight - fin_kl_weight) <= ImpatialTextClassifier.EPSILON:
+        if abs(init_kl_weight - fin_kl_weight) <= ImpartialTextClassifier.EPSILON:
             return init_kl_weight
         a = abs(init_kl_weight - fin_kl_weight) / (float(n_epochs - 1) * float(n_epochs - 1))
         if init_kl_weight > fin_kl_weight:
