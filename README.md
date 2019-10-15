@@ -142,8 +142,8 @@ Breaking Changes
 
 **Breaking changes in version 0.0.3**
 - hidden layers has been added (but number of hidden layers can be zero, and in this case structure of neural network come same as previous version);
-- all outputs of BERT are used now: sequence outputs are processed by convolution neurons with various kernel sizes, as it was in previous version, and pooled outputs of BERT are concatenated with outputs of convolutional neurons after their max-over-time pooling;
-- the GGT algorithm has become applied instead of the Adam, because this algorithm is better suited for training of large CNNs and neural models for text processing (see [The Case for Full-Matrix Adaptive Regularization](https://arxiv.org/abs/1806.02958)); we set initial learning rate as 1e-2 and window size as 10;
+- an average-over-time pooling with masking has been come to use now instead of a max-over-time one (special masks are apllied after convolution layer output for more correctly averaging);
+- all outputs of BERT are used now: sequence outputs are processed by convolution neurons with various kernel sizes, as it was in previous version, and pooled outputs of BERT are concatenated with outputs of convolutional neurons after their average-over-time pooling;
 - the SNIPS-2017 demo has been improved; in particular, a special shell script to run experiment series with various hyper-parameters of NN has been implemented, and more appropriate text corpuses have become used as "foreign" texts.
 
 **Breaking changes in version 0.0.2**

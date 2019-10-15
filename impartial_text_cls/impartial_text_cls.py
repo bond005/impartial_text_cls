@@ -237,7 +237,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                             probs = np.asarray(
                                 [self.sess_.run(
                                     'LabelsDistribution/probs:0',
-                                    feed_dict={'BERT_SequenceOutput:0': features[0], 'BERT_PooledOutput:0': features[1]}
+                                    feed_dict={'BERT_SequenceOutput:0': features[0], 'input_mask:0': X_batch[1],
+                                               'BERT_PooledOutput:0': features[1]}
                                 ) for _ in range(self.num_monte_carlo)]
                             )
                             del features
@@ -364,7 +365,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 probs = np.asarray(
                     [self.sess_.run(
                         'LabelsDistribution/probs:0',
-                        feed_dict={'BERT_SequenceOutput:0': features[0], 'input_mask:0': X[1],
+                        feed_dict={'BERT_SequenceOutput:0': features[0], 'input_mask:0': X_batch[1],
                                    'BERT_PooledOutput:0': features[1]}
                     ) for _ in range(self.num_monte_carlo)]
                 )
@@ -841,57 +842,53 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         if self.bayesian:
             input_sequence_layer = tf.keras.Input((self.MAX_SEQ_LENGTH, feature_vector_size), name='InputForConv')
             input_mask_layer = tf.keras.Input((self.MAX_SEQ_LENGTH,), name='InputMaskForConv', dtype='int32')
-            prepared_sequence_layer = tf.keras.layers.Multiply(name='MaskedInputForConv')(
-                [
-                    input_sequence_layer,
-                    tf.keras.backend.repeat_elements(
-                        tf.keras.backend.reshape(tf.keras.backend.cast(input_mask_layer, 'float32'),
-                                                 shape=tf.keras.backend.shape(input_mask_layer) + [1]),
-                        axis=-1, rep=feature_vector_size
-                    )
-                ]
-            )
-            prepared_sequence_layer = tf.keras.layers.Masking(name='MaskedInputForConv2')(prepared_sequence_layer)
             input_pooled_layer = tf.keras.Input((feature_vector_size,), name='InputForDense')
+            mask_layer = MaskingMultiplicationLayer(
+                feature_vector_size=self.filters_for_conv1 + self.filters_for_conv2 + self.filters_for_conv3 +
+                                    self.filters_for_conv4 + self.filters_for_conv5,
+                name='MaskingMultiplicationLayer'
+            )(input_mask_layer)
             if self.filters_for_conv1 > 0:
                 conv_layer_1 = tfp.layers.Convolution1DFlipout(
-                    filters=self.filters_for_conv1, kernel_size=1, name='Conv1', padding='valid',
+                    filters=self.filters_for_conv1, kernel_size=1, name='Conv1', padding='same',
                     activation=tf.nn.elu, seed=self.random_seed
-                )(prepared_sequence_layer)
-                conv_layer_1 = tf.keras.layers.GlobalAveragePooling1D(name='MaxPooling1')(conv_layer_1)
+                )(input_sequence_layer)
                 conv_layers.append(conv_layer_1)
             if self.filters_for_conv2 > 0:
                 conv_layer_2 = tfp.layers.Convolution1DFlipout(
-                    filters=self.filters_for_conv2, kernel_size=2, name='Conv2', padding='valid',
+                    filters=self.filters_for_conv2, kernel_size=2, name='Conv2', padding='same',
                     activation=tf.nn.elu, seed=self.random_seed
-                )(prepared_sequence_layer)
-                conv_layer_2 = tf.keras.layers.GlobalAveragePooling1D(name='MaxPooling2')(conv_layer_2)
+                )(input_sequence_layer)
                 conv_layers.append(conv_layer_2)
             if self.filters_for_conv3 > 0:
                 conv_layer_3 = tfp.layers.Convolution1DFlipout(
-                    filters=self.filters_for_conv3, kernel_size=3, name='Conv3', padding='valid',
+                    filters=self.filters_for_conv3, kernel_size=3, name='Conv3', padding='same',
                     activation=tf.nn.elu, seed=self.random_seed
-                )(prepared_sequence_layer)
-                conv_layer_3 = tf.keras.layers.GlobalAveragePooling1D(name='MaxPooling3')(conv_layer_3)
+                )(input_sequence_layer)
                 conv_layers.append(conv_layer_3)
             if self.filters_for_conv4 > 0:
                 conv_layer_4 = tfp.layers.Convolution1DFlipout(
-                    filters=self.filters_for_conv4, kernel_size=4, name='Conv4', padding='valid',
+                    filters=self.filters_for_conv4, kernel_size=4, name='Conv4', padding='same',
                     activation=tf.nn.elu, seed=self.random_seed
-                )(prepared_sequence_layer)
-                conv_layer_4 = tf.keras.layers.GlobalAveragePooling1D(name='MaxPooling4')(conv_layer_4)
+                )(input_sequence_layer)
                 conv_layers.append(conv_layer_4)
             if self.filters_for_conv5 > 0:
                 conv_layer_5 = tfp.layers.Convolution1DFlipout(
-                    filters=self.filters_for_conv5, kernel_size=5, name='Conv5', padding='valid',
+                    filters=self.filters_for_conv5, kernel_size=5, name='Conv5', padding='same',
                     activation=tf.nn.elu, seed=self.random_seed
-                )(prepared_sequence_layer)
-                conv_layer_5 = tf.keras.layers.GlobalAveragePooling1D(name='MaxPooling5')(conv_layer_5)
+                )(input_sequence_layer)
                 conv_layers.append(conv_layer_5)
             if len(conv_layers) > 1:
-                concat_layer = tf.keras.layers.Concatenate(name='Concat')(conv_layers + [input_pooled_layer])
+                pooling_layer = tf.keras.layers.Concatenate(name='Concat1')(conv_layers)
+                pooling_layer = tf.keras.layers.Multiply(name='ConvZeroPaddedOutput')([pooling_layer, mask_layer])
+                pooling_layer = tf.keras.layers.Masking(name='ConvMaskedOutput')(pooling_layer)
+                pooling_layer = tf.keras.layers.GlobalAveragePooling1D(name='AvePooling')(pooling_layer)
+                concat_layer = tf.keras.layers.Concatenate(name='Concat2')([pooling_layer, input_pooled_layer])
             else:
-                concat_layer = tf.keras.layers.Concatenate(name='Concat')([conv_layers[0], input_pooled_layer])
+                pooling_layer = tf.keras.layers.Multiply(name='ConvZeroPaddedOutput')([conv_layers[0], mask_layer])
+                pooling_layer = tf.keras.layers.Masking(name='ConvMaskedOutput')(pooling_layer)
+                pooling_layer = tf.keras.layers.GlobalAveragePooling1D(name='AvePooling')(pooling_layer)
+                concat_layer = tf.keras.layers.Concatenate(name='Concat')([pooling_layer, input_pooled_layer])
             if (self.hidden_layer_size > 0) and (self.n_hidden_layers > 0):
                 if self.n_hidden_layers > 1:
                     hidden_layer = tfp.layers.DenseFlipout(self.hidden_layer_size, seed=self.random_seed,
@@ -924,71 +921,67 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 elbo_loss = neg_log_likelihood + self.kl_weight_init * kl
                 kl_weight = None
             with tf.name_scope('train'):
-                optimizer = tf.contrib.opt.GGTOptimizer(learning_rate=0.01)
+                optimizer = tf.contrib.opt.AdamWOptimizer(learning_rate=3e-4, weight_decay=1e-5)
                 train_op = optimizer.minimize(elbo_loss)
             return train_op, elbo_loss, neg_log_likelihood, kl_weight
-        prepared_sequence_layer = tf.keras.layers.Multiply(name='MaskedInputForConv')(
-            [
-                sequence_output,
-                tf.keras.backend.repeat_elements(
-                    tf.keras.backend.reshape(tf.keras.backend.cast(input_mask, 'float32'),
-                                             shape=tf.keras.backend.shape(input_mask) + [1]),
-                    axis=-1, rep=feature_vector_size
-                )
-            ]
-        )
-        prepared_sequence_layer = tf.keras.layers.Masking(name='MaskedInputForConv2')(prepared_sequence_layer)
+        mask_layer = MaskingMultiplicationLayer(
+            feature_vector_size=self.filters_for_conv1 + self.filters_for_conv2 + self.filters_for_conv3 +
+                                self.filters_for_conv4 + self.filters_for_conv5,
+            name='MaskingMultiplicationLayer'
+        )(input_mask)
         spatial_dropout = tf.keras.layers.SpatialDropout1D(rate=0.15, seed=self.random_seed,
-                                                           name='SpatialDropout')(prepared_sequence_layer)
+                                                           name='SpatialDropout')(sequence_output)
         if self.filters_for_conv1 > 0:
             conv_layer_1 = tf.keras.layers.Conv1D(
-                filters=self.filters_for_conv1, kernel_size=1, name='Conv1', padding='valid', activation=None,
+                filters=self.filters_for_conv1, kernel_size=1, name='Conv1', padding='same', activation=None,
                 kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
             )(spatial_dropout)
             conv_layer_1 = tf.keras.layers.BatchNormalization(name='BatchNormConv1')(conv_layer_1)
             conv_layer_1 = tf.keras.layers.Activation(name='ActivationConv1', activation=tf.nn.elu)(conv_layer_1)
-            conv_layer_1 = tf.keras.layers.GlobalAveragePooling1D(name='MaxPooling1')(conv_layer_1)
             conv_layers.append(conv_layer_1)
         if self.filters_for_conv2 > 0:
             conv_layer_2 = tf.keras.layers.Conv1D(
-                filters=self.filters_for_conv2, kernel_size=2, name='Conv2', padding='valid', activation=None,
+                filters=self.filters_for_conv2, kernel_size=2, name='Conv2', padding='same', activation=None,
                 kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
             )(spatial_dropout)
             conv_layer_2 = tf.keras.layers.BatchNormalization(name='BatchNormConv2')(conv_layer_2)
             conv_layer_2 = tf.keras.layers.Activation(name='ActivationConv2', activation=tf.nn.elu)(conv_layer_2)
-            conv_layer_2 = tf.keras.layers.GlobalAveragePooling1D(name='MaxPooling2')(conv_layer_2)
             conv_layers.append(conv_layer_2)
         if self.filters_for_conv3 > 0:
             conv_layer_3 = tf.keras.layers.Conv1D(
-                filters=self.filters_for_conv3, kernel_size=3, name='Conv3', padding='valid', activation=None,
+                filters=self.filters_for_conv3, kernel_size=3, name='Conv3', padding='same', activation=None,
                 kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
             )(spatial_dropout)
             conv_layer_3 = tf.keras.layers.BatchNormalization(name='BatchNormConv3')(conv_layer_3)
             conv_layer_3 = tf.keras.layers.Activation(name='ActivationConv3', activation=tf.nn.elu)(conv_layer_3)
-            conv_layer_3 = tf.keras.layers.GlobalAveragePooling1D(name='MaxPooling3')(conv_layer_3)
             conv_layers.append(conv_layer_3)
         if self.filters_for_conv4 > 0:
             conv_layer_4 = tf.keras.layers.Conv1D(
-                filters=self.filters_for_conv4, kernel_size=4, name='Conv4', padding='valid', activation=None,
+                filters=self.filters_for_conv4, kernel_size=4, name='Conv4', padding='same', activation=None,
                 kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
             )(spatial_dropout)
             conv_layer_4 = tf.keras.layers.BatchNormalization(name='BatchNormConv4')(conv_layer_4)
             conv_layer_4 = tf.keras.layers.Activation(name='ActivationConv4', activation=tf.nn.elu)(conv_layer_4)
-            conv_layer_4 = tf.keras.layers.GlobalAveragePooling1D(name='MaxPooling4')(conv_layer_4)
             conv_layers.append(conv_layer_4)
         if self.filters_for_conv5 > 0:
             conv_layer_5 = tf.keras.layers.Conv1D(
-                filters=self.filters_for_conv5, kernel_size=5, name='Conv5', padding='valid', activation=None,
+                filters=self.filters_for_conv5, kernel_size=5, name='Conv5', padding='same', activation=None,
                 kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
             )(spatial_dropout)
             conv_layer_5 = tf.keras.layers.BatchNormalization(name='BatchNormConv5')(conv_layer_5)
             conv_layer_5 = tf.keras.layers.Activation(name='ActivationConv5', activation=tf.nn.elu)(conv_layer_5)
-            conv_layer_5 = tf.keras.layers.GlobalAveragePooling1D(name='MaxPooling5')(conv_layer_5)
             conv_layers.append(conv_layer_5)
         if len(conv_layers) > 1:
-            concat_layer = tf.keras.layers.Concatenate(name='Concat')(conv_layers + [pooled_output])
+            pooling_layer = tf.keras.layers.Concatenate(name='Concat1')(conv_layers)
+            pooling_layer = tf.keras.layers.Multiply(name='ConvZeroPaddedOutput')([pooling_layer, mask_layer])
+            pooling_layer = tf.keras.layers.Masking(name='ConvMaskedOutput')(pooling_layer)
+            pooling_layer = tf.keras.layers.GlobalAveragePooling1D(name='AvePooling')(pooling_layer)
+            concat_layer = tf.keras.layers.Concatenate(name='Concat2')([pooling_layer, pooled_output])
         else:
-            concat_layer = tf.keras.layers.Concatenate(name='Concat')([conv_layers[0], pooled_output])
+            pooling_layer = tf.keras.layers.Multiply(name='ConvZeroPaddedOutput')([conv_layers[0], mask_layer])
+            pooling_layer = tf.keras.layers.Masking(name='ConvMaskedOutput')(pooling_layer)
+            pooling_layer = tf.keras.layers.GlobalAveragePooling1D(name='AvePooling')(pooling_layer)
+            concat_layer = tf.keras.layers.Concatenate(name='Concat')([pooling_layer, pooled_output])
         glorot_init = tf.keras.initializers.glorot_uniform(seed=self.random_seed)
         if (self.hidden_layer_size > 0) and (self.n_hidden_layers > 0):
             if self.n_hidden_layers > 1:
@@ -1034,7 +1027,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y_ph, logits=logits)
             loss = tf.reduce_mean(loss, name='loss')
         with tf.name_scope('train'):
-            optimizer = tf.contrib.opt.GGTOptimizer(learning_rate=0.01)
+            optimizer = tf.contrib.opt.AdamWOptimizer(learning_rate=3e-4, weight_decay=1e-5)
             train_op = optimizer.minimize(loss)
         return train_op, loss, None, None
 
@@ -1734,3 +1727,22 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         indices = np.arange(0, X[0].shape[0], 1, dtype=np.int32)
         np.random.shuffle(indices)
         return [X[channel_idx][indices] for channel_idx in range(len(X))], y[indices]
+
+
+class MaskingMultiplicationLayer(tf.keras.layers.Layer):
+
+    def __init__(self, feature_vector_size, **kwargs):
+        self.feature_vector_size = feature_vector_size
+        super(MaskingMultiplicationLayer, self).__init__(**kwargs)
+
+    def call(self, inputs, **kwargs):
+        new_masking_shape = tf.keras.backend.concatenate(
+            [tf.keras.backend.shape(inputs), tf.keras.backend.ones(shape=(1,), dtype='int32')],
+            axis=-1
+        )
+        mask = tf.keras.backend.reshape(tf.keras.backend.cast(inputs, 'float32'), shape=new_masking_shape)
+        return tf.keras.backend.repeat_elements(mask, rep=self.feature_vector_size, axis=-1)
+
+    def compute_output_shape(self, input_shape):
+        shape = list(input_shape)
+        return tuple(shape + [self.feature_vector_size])
