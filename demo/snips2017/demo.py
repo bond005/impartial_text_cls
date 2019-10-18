@@ -18,7 +18,7 @@ import pickle
 import random
 import sys
 import time
-from typing import List, Tuple, Union
+from typing import List, Union
 
 import nltk
 from nltk.corpus import brown, reuters
@@ -195,6 +195,13 @@ def main():
         ('usual neural network' if args.nn_type == 'usual' else 'usual neural network with additional class')
     ))
     print(classification_report(test_labels, y_pred, digits=4))
+    if args.nn_type != 'additional_class':
+        print('')
+        print('Results of {0} without UNKNOWN class:'.format(
+            'bayesian neural network' if args.nn_type == 'bayesian' else 'usual neural network'
+        ))
+        y_pred = [nn.classes_reverse_index_[class_idx] for class_idx in nn.predict_proba(test_data[0]).argmax(axis=1)]
+        print(classification_report(test_data[1], y_pred, digits=4))
 
 
 if __name__ == '__main__':
