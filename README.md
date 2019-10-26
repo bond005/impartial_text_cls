@@ -84,7 +84,13 @@ with open('bert_bayesian_for_20newsgroups.pkl', 'wb') as fp:
 
 In this example we created classifier with special pre-trained BERT for English language from the **TensorFlow Hub**, and we specified path to this BERT in the `bert_hub_module_handle` parameter of constructor.
 
-BERT is used as generator of token embeddings and whole text embedding. The sequence output of BERT is used for token embeddings calculation, and the pooled output generates text embedding. Therefore we add convolutional neural network in [Yoon Kim's style](https://arxiv.org/abs/1408.5882) after BERT's sequence output and concatenate outputs of this convolutional neural network with BERT's pooled output. First and only convolutional layer of this network contains feature maps with multiple filter widths from 1 to 5. Feature map quanity for each filter width is specified by the `filters_for_conv1` ... `filters_for_conv5` paramaters. After max-over-time pooling all outputs of convolutional layer are concatenated with the pooled output of BERT, and a resulting signal are processed by sequence of hidden layers ((optionally, because number of hidden layers can be zero)). Besides, boolean parameter `bayesian` specifies kind of all weights in the above described convolutional network: if `bayesian` is True, then these weights are bayesian, i.e. stohastic, else they are usual.
+Neural architecture of the impartial text classifier is shown in the next figure (source of the BERT image can be found in [this paper](https://arxiv.org/pdf/1810.04805.pdf)). 
+
+![][nn_structure]
+
+[nn_structure]: images/bert_bayesian_nn.png "Structure of the convolutional bayesian neural network with BERT as feature extractor"
+
+BERT is used as generator of token embeddings and whole text embedding. The sequence output of BERT is used for token embeddings calculation, and the pooled output generates text embedding. Therefore we add convolutional neural network in [Yoon Kim's style](https://arxiv.org/abs/1408.5882) after BERT's sequence output and concatenate outputs of this convolutional neural network with BERT's pooled output. First and only convolutional layer of this network contains feature maps with multiple filter widths from 1 to 5. Feature map quanity for each filter width is specified by the `filters_for_conv1` ... `filters_for_conv5` paramaters. After average-over-time pooling all outputs of convolutional layer are concatenated with the pooled output of BERT, and a resulting signal are processed by sequence of hidden layers the size of the `hidden_layer_size` (optionally, because number of hidden layers, specified by the `n_hidden_layers`, can be zero). Besides, boolean parameter `bayesian` specifies kind of all weights in the above described convolutional network: if `bayesian` is True, then these weights are bayesian, i.e. stohastic, else they are usual.
 
 The `num_monte_carlo` parameter corresponds to number of sampes from bayesian neural network in the inference mode. Large value of this parameter is better, but at the same time procedure of inference can become a little slower.
 
@@ -111,29 +117,29 @@ We realized three experiments:
 
 3. With usual neural network and modeling of non-intents as yet another class (i.e. we trained neural network to recognize 8 classes instead of 7 ones)
 
-We used F1 measure as quality criterion for final testing, at that we accounted non-intents as additional class. The results of final testing with micro- and macro-averaging are described in following table.
+We used F1 measure as quality criterion for final testing, at that we accounted non-intents as additional class. The results of final testing with macro-averaging for all intents and for the non-intent class are described in following table.
 
-| Algorithm name | F1-micro | F1-macro |
-| -------------- | -------: | -------: |
-| Bayesian neural network with rejecting at recognition | 0.99 | 0.88 |
-| Usual neural network with rejecting at recognition | 0.98 | 0.89 |
-| Usual neural network with yet another class for non-intents | 0.97 | 0.86 |
+| Algorithm name | F1-macro for intents only | F1-macro for intents and non-intents |
+| -------------- | ------------------------: | ----------------------------: |
+| Bayesian neural network with rejecting at recognition | 0.9771 | 0.7192 |
+| Usual neural network with rejecting at recognition | 0.9728 | 0.5108 |
+| Usual neural network with yet another class for non-intents | - | 0.5309 |
 
 Also you can see more detailed results by separate classes:
 
 | F1 by intents | Bayesian neural network with rejecting at recognition | Usual neural network with rejecting at recognition | Usual neural network with yet another class for non-intents |
 | ------------- | ----------------------------------------------------: | -------------------------------------------------: | ----------------------------------------------------------: |
-| _AddToPlaylist_ | 0.95 | 0.99 | 0.97 |
-| _BookRestaurant_ | 0.81 | 0.91 | 0.98 |
-| _GetWeather_ | 0.97 | 0.96 | 0.58 |
-| _PlayMusic_ | 0.77 | 0.65 | 0.48 |
-| _RateBook_ | 0.98 | 0.97 | 1.00 |
-| _SearchCreativeWork_ | 0.75 | 0.73 | 0.97 |
-| _SearchScreeningEvent_ | 0.79 | 0.93 | 0.91 |
-| FOREIGN (non-intent) | 0.99 | 0.99 | 0.98 |   
+| _AddToPlaylist_ | 0.8506 | 0.7671 | 0.4962 |
+| _BookRestaurant_ | 0.7841 | 0.4541 | 0.6978 |
+| _GetWeather_ | 0.8526 | 0.5289 | 0.6092 |
+| _PlayMusic_ | 0.7152 | 0.4863 | 0.4569 |
+| _RateBook_ | 0.7036 | 0.3745 | 0.4808 |
+| _SearchCreativeWork_ | 0.1812 | 0.0248 | 0.0715 |
+| _SearchScreeningEvent_ | 0.6750 | 0.5455 | 0.4759 |
+| FOREIGN (non-intent) | 0.9914 | 0.9050 | 0.9589 |   
 
 
-As you see, rejecting at recognition by probability of recognized class is better than modeling of foreign data as additional class in training set. Results of Bayesian and usual neural networks with rejecting at recognition are like, but, as is well known, micro-averaging of F1-measure is more significant in case of class imbalance. Our dataset for final testing is sufficiently imbalanced, because it includes 100 test samples per each intent and more than 10000 unlabeled test samples from the Genesis corpus considered as non-intents. So, there is reason to suppose that described experiments corroborate initial hypothesis about effectiveness of the Bayesian neural network.
+As you see, rejecting at recognition by probability of recognized class with the Bayesian neural network is better than any variant with the usual neural network. Both types of neural network (Bayesian and usual) are same if we don't account non-intents. But if we add non-intents as additional class in the test set, then there are evident differences between various types of neural networks. So, there is reason to suppose that described experiments corroborate initial hypothesis about effectiveness of the Bayesian neural network.
 
 All aforecited experiments organize as special Python script which is available in the `demo/snips2017` subdirectory. Also, in the `demo` subdirectory there are several another demo-scripts, which may be helpful for various experiments and for better understanding of working with the **Impartial Text Classifier**.
 
