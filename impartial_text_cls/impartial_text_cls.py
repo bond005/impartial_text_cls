@@ -35,16 +35,18 @@ from bert.modeling import BertModel, BertConfig, get_assignment_map_from_checkpo
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
-class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
+class ImpartialTextClassifier(BaseEstimator, ClassifierMixin):
     MAX_SEQ_LENGTH = 512
     PATH_TO_BERT = None
+    EPSILON = 1e-6
 
     def __init__(self,
                  bert_hub_module_handle: Union[str, None]='https://tfhub.dev/google/bert_uncased_L-12_H-768_A-12/1',
                  filters_for_conv1: int=100, filters_for_conv2: int=100, filters_for_conv3: int=100,
-                 filters_for_conv4: int=100, filters_for_conv5: int=100, batch_size: int=32,
-                 validation_fraction: float=0.1, max_epochs: int=10, patience: int=3, num_monte_carlo: int=50,
-                 gpu_memory_frac: float=1.0, verbose: bool=False, multioutput: bool=False, bayesian: bool=True,
+                 filters_for_conv4: int=100, filters_for_conv5: int=100, hidden_layer_size: int=500,
+                 n_hidden_layers: int=1, batch_size: int=32, validation_fraction: float=0.1, max_epochs: int=10,
+                 patience: int=3, num_monte_carlo: int=50, gpu_memory_frac: float=1.0, verbose: bool=False,
+                 multioutput: bool=False, bayesian: bool=True, kl_weight_init: float=1.0, kl_weight_fin: float=0.1,
                  random_seed: Union[int, None]=None):
         self.batch_size = batch_size
         self.filters_for_conv1 = filters_for_conv1
@@ -52,6 +54,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         self.filters_for_conv3 = filters_for_conv3
         self.filters_for_conv4 = filters_for_conv4
         self.filters_for_conv5 = filters_for_conv5
+        self.hidden_layer_size = hidden_layer_size
+        self.n_hidden_layers = n_hidden_layers
         self.bert_hub_module_handle = bert_hub_module_handle
         self.max_epochs = max_epochs
         self.num_monte_carlo = num_monte_carlo
@@ -62,6 +66,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         self.verbose = verbose
         self.multioutput = multioutput
         self.bayesian = bayesian
+        self.kl_weight_init = kl_weight_init
+        self.kl_weight_fin = kl_weight_fin
 
     def __del__(self):
         if hasattr(self, 'tokenizer_'):
@@ -173,7 +179,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 bounds_of_batches_for_validation.append((batch_start, batch_end))
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            train_op, elbo_loss_, val_loss_, pi_ = self.build_model()
+            train_op, elbo_loss_, val_loss_, kl_weight_ = self.build_model(X_train_tokenized[0].shape[0])
         if not self.bayesian:
             val_loss_ = elbo_loss_
         init = tf.group(tf.compat.v1.global_variables_initializer(), tf.compat.v1.local_variables_initializer())
@@ -181,15 +187,22 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         tmp_model_name = self.get_temp_model_name()
         if self.verbose:
             if X_val_tokenized is None:
-                print('Epoch      ELBO loss   Duration (secs)')
+                if self.bayesian:
+                    print('Epoch      ELBO loss   Duration (secs)')
+                else:
+                    print('Epoch           Loss   Duration (secs)')
         n_epochs_without_improving = 0
         try:
             best_acc = None
             for epoch in range(self.max_epochs):
                 start_time = time.time()
-                random.shuffle(bounds_of_batches_for_training)
+                X_train_tokenized, y_train_tokenized = self.shuffle_train_data(X_train_tokenized, y_train_tokenized)
                 feed_dict_for_batch = None
                 train_loss = 0.0
+                value_of_kl_weight = self.calculate_kl_weight(
+                    epoch=epoch, n_epochs=self.max_epochs,
+                    init_kl_weight=self.kl_weight_init, fin_kl_weight=self.kl_weight_fin
+                )
                 for batch_counter, cur_batch in enumerate(bounds_of_batches_for_training):
                     X_batch = [X_train_tokenized[channel_idx][cur_batch[0]:cur_batch[1]]
                                for channel_idx in range(len(X_train_tokenized))]
@@ -197,14 +210,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     if feed_dict_for_batch is not None:
                         del feed_dict_for_batch
                     if self.bayesian:
-                        feed_dict_for_batch = self.fill_feed_dict(
-                            X_batch, y_batch, pi_variable=pi_,
-                            pi_value=self.calculate_pi_value(
-                                epoch + float(batch_counter + 1) / float(len(bounds_of_batches_for_training)),
-                                max(2, self.patience - 1),
-                                1e-1, 1e-5
+                        if abs(self.kl_weight_init - self.kl_weight_fin) > self.EPSILON:
+                            feed_dict_for_batch = self.fill_feed_dict(
+                                X_batch, y_batch, kl_weight_variable=kl_weight_,
+                                kl_weight_value=value_of_kl_weight
                             )
-                        )
+                        else:
+                            feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
                     else:
                         feed_dict_for_batch = self.fill_feed_dict(X_batch, y_batch)
                     _, train_loss_ = self.sess_.run([train_op, elbo_loss_], feed_dict=feed_dict_for_batch)
@@ -222,9 +234,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                         test_loss += test_loss_ * self.batch_size
                         if self.bayesian:
                             features = self._calculate_features(X_batch)
-                            probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0',
-                                                               feed_dict={'BERT_SequenceOutput:0': features})
-                                                for _ in range(self.num_monte_carlo)])
+                            probs = np.asarray(
+                                [self.sess_.run(
+                                    'LabelsDistribution/probs:0',
+                                    feed_dict={'BERT_SequenceOutput:0': features[0], 'input_mask:0': X_batch[1],
+                                               'BERT_PooledOutput:0': features[1]}
+                                ) for _ in range(self.num_monte_carlo)]
+                            )
                             del features
                             mean_probs = np.mean(probs, axis=0)
                             del probs
@@ -249,7 +265,11 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                     if self.verbose:
                         print('Epoch {0}'.format(epoch))
                         print('  Duration is {0:.3f} seconds'.format(time.time() - start_time))
-                        print('  Train ELBO loss: {0:>12.6f}'.format(train_loss))
+                        if self.bayesian:
+                            print('  KL weight: {0:.6f}'.format(value_of_kl_weight))
+                            print('  Train ELBO loss: {0:>12.6f}'.format(train_loss))
+                        else:
+                            print('  Train loss:      {0:>12.6f}'.format(train_loss))
                         print('  Val. loss:       {0:>12.6f}'.format(test_loss))
                     quality_by_classes = self.calculate_quality(y_val_tokenized, y_pred[0:len(y_val_tokenized)])
                     quality_test = 0.0
@@ -342,9 +362,13 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                        for channel_idx in range(len(X))]
             if self.bayesian:
                 features = self._calculate_features(X_batch)
-                probs = np.asarray([self.sess_.run('LabelsDistribution/probs:0',
-                                                   feed_dict={'BERT_SequenceOutput:0': features})
-                                    for _ in range(self.num_monte_carlo)])
+                probs = np.asarray(
+                    [self.sess_.run(
+                        'LabelsDistribution/probs:0',
+                        feed_dict={'BERT_SequenceOutput:0': features[0], 'input_mask:0': X_batch[1],
+                                   'BERT_PooledOutput:0': features[1]}
+                    ) for _ in range(self.num_monte_carlo)]
+                )
                 del features
                 mean_probs = np.mean(probs, axis=0)
                 probabilities[batch_start:batch_end] = mean_probs[0:(batch_end - batch_start)]
@@ -360,24 +384,35 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 del feed_dict_for_batch
         return probabilities
 
-    def _calculate_features(self, X: List[np.ndarray]) -> np.ndarray:
+    def _calculate_features(self, X: List[np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
         feed_dict = self.fill_feed_dict(X)
-        features = self.sess_.run('BERT_SequenceOutput:0', feed_dict=feed_dict)
-        if len(features.shape) != 3:
-            raise ValueError('Features are wrong! Expected a 3-D array, but got a {0}-D one.'.format(
-                len(features.shape)))
-        if features.shape[1] < self.MAX_SEQ_LENGTH:
-            features = np.concatenate(
+        sequence_features, pooled_features = self.sess_.run(['BERT_SequenceOutput:0', 'BERT_PooledOutput:0'],
+                                                            feed_dict=feed_dict)
+        if len(sequence_features.shape) != 3:
+            raise ValueError('Sequence features are wrong! Expected a 3-D array, but got a {0}-D one.'.format(
+                len(sequence_features.shape)))
+        if sequence_features.shape[1] < self.MAX_SEQ_LENGTH:
+            sequence_features = np.concatenate(
                 (
-                    features,
-                    np.zeros((features.shape[0], self.MAX_SEQ_LENGTH - features.shape[1], features.shape[2]),
-                             dtype=np.float32)
+                    sequence_features,
+                    np.zeros(
+                        (
+                            sequence_features.shape[0],
+                            self.MAX_SEQ_LENGTH - sequence_features.shape[1],
+                            sequence_features.shape[2]
+                        ),
+                        dtype=np.float32
+                    )
                 ),
                 axis=1
             )
-        elif features.shape[1] > self.MAX_SEQ_LENGTH:
-            features = features[0:features.shape[0]][0:self.MAX_SEQ_LENGTH][0:features.shape[2]]
-        return features
+        elif sequence_features.shape[1] > self.MAX_SEQ_LENGTH:
+            sequence_features = sequence_features[0:sequence_features.shape[0]][0:self.MAX_SEQ_LENGTH][
+                                0:sequence_features.shape[2]]
+        if len(pooled_features.shape) != 2:
+            raise ValueError('Pooled features are wrong! Expected a 2-D array, but got a {0}-D one.'.format(
+                len(pooled_features.shape)))
+        return (sequence_features, pooled_features)
 
     def calculate_certainty_treshold(self, X_train: List[np.ndarray], y_train: np.ndarray,
                                      X_val: Union[List[np.ndarray], None], y_val: Union[np.ndarray, None],
@@ -476,7 +511,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             num_monte_carlo=self.num_monte_carlo, filters_for_conv1=self.filters_for_conv1,
             filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
             filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
-            multioutput=self.multioutput, bayesian=self.bayesian
+            multioutput=self.multioutput, bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size,
+            n_hidden_layers=self.n_hidden_layers, kl_weight_init=self.kl_weight_init, kl_weight_fin=self.kl_weight_fin
         )
         self.check_X(X, 'X')
         self.is_fitted()
@@ -528,7 +564,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             num_monte_carlo=self.num_monte_carlo, filters_for_conv1=self.filters_for_conv1,
             filters_for_conv2=self.filters_for_conv2, filters_for_conv3=self.filters_for_conv3,
             filters_for_conv4=self.filters_for_conv4, filters_for_conv5=self.filters_for_conv5,
-            multioutput=self.multioutput, bayesian=self.bayesian
+            multioutput=self.multioutput, bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size,
+            n_hidden_layers=self.n_hidden_layers, kl_weight_init=self.kl_weight_init, kl_weight_fin=self.kl_weight_fin
         )
         self.is_fitted()
         classes_dict, classes_reverse_index = self.check_Xy(X, 'X', y, 'y', self.multioutput)
@@ -577,7 +614,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         check_is_fitted(self, ['classes_', 'classes_reverse_index_', 'tokenizer_', 'sess_', 'certainty_threshold_'])
 
     def fill_feed_dict(self, X: List[np.ndarray], y: np.ndarray = None,
-                       pi_variable: tf.Variable=None, pi_value: float=None) -> dict:
+                       kl_weight_variable: tf.Variable=None, kl_weight_value: float=None) -> dict:
         assert len(X) == 3
         assert len(X[0]) == self.batch_size
         feed_dict = {
@@ -585,8 +622,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         }
         if y is not None:
             feed_dict['y_ph:0'] = np.asarray(y, dtype=np.float32) if self.multioutput else y
-        if (pi_variable is not None) and (pi_value is not None):
-            feed_dict[pi_variable] = pi_value
+        if (kl_weight_variable is not None) and (kl_weight_value is not None):
+            feed_dict[kl_weight_variable] = kl_weight_value
         return feed_dict
 
     def extend_Xy(self, X: List[np.ndarray], y: np.ndarray=None, shuffle: bool=False) -> \
@@ -747,14 +784,16 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 'filters_for_conv4': self.filters_for_conv4, 'filters_for_conv5': self.filters_for_conv5,
                 'validation_fraction': self.validation_fraction, 'gpu_memory_frac': self.gpu_memory_frac,
                 'verbose': self.verbose, 'random_seed': self.random_seed, 'num_monte_carlo': self.num_monte_carlo,
-                'multioutput': self.multioutput, 'bayesian': self.bayesian}
+                'multioutput': self.multioutput, 'bayesian': self.bayesian, 'hidden_layer_size': self.hidden_layer_size,
+                'n_hidden_layers': self.n_hidden_layers, 'kl_weight_fin': self.kl_weight_fin,
+                'kl_weight_init': self.kl_weight_init}
 
     def set_params(self, **params):
         for parameter, value in params.items():
             self.__setattr__(parameter, value)
         return self
 
-    def build_model(self):
+    def build_model(self, n_train_samples: int):
         config = tf.compat.v1.ConfigProto()
         config.gpu_options.per_process_gpu_memory_fraction = self.gpu_memory_frac
         self.sess_ = tf.compat.v1.Session(config=config)
@@ -784,6 +823,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             bert_model = BertModel(config=bert_config, is_training=False, input_ids=input_ids, input_mask=input_mask,
                                    token_type_ids=segment_ids, use_one_hot_embeddings=False)
             sequence_output = tf.stop_gradient(bert_model.sequence_output, name='BERT_SequenceOutput')
+            pooled_output = tf.stop_gradient(bert_model.pooled_output, name='BERT_PooledOutput')
             tvars = tf.trainable_variables()
             init_checkpoint = os.path.join(self.PATH_TO_BERT, 'bert_model.ckpt')
             (assignment_map, initialized_variable_names) = get_assignment_map_from_checkpoint(tvars, init_checkpoint)
@@ -794,122 +834,200 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             bert_module = tfhub.Module(self.bert_hub_module_handle, trainable=True, name='BERT_module')
             bert_outputs = bert_module(bert_inputs, signature='tokens', as_dict=True)
             sequence_output = tf.stop_gradient(bert_outputs['sequence_output'], name='BERT_SequenceOutput')
+            pooled_output = tf.stop_gradient(bert_outputs['pooled_output'], name='BERT_PooledOutput')
             if self.verbose:
                 print('The BERT model has been loaded from the TF-Hub.')
         conv_layers = []
+        feature_vector_size = sequence_output.shape[-1].value
         if self.bayesian:
-            feature_vector_size = sequence_output.shape[-1].value
             input_sequence_layer = tf.keras.Input((self.MAX_SEQ_LENGTH, feature_vector_size), name='InputForConv')
+            input_mask_layer = tf.keras.Input((self.MAX_SEQ_LENGTH,), name='InputMaskForConv', dtype='int32')
+            input_pooled_layer = tf.keras.Input((feature_vector_size,), name='InputForDense')
+            mask_layer = MaskingMultiplicationLayer(
+                feature_vector_size=self.filters_for_conv1 + self.filters_for_conv2 + self.filters_for_conv3 +
+                                    self.filters_for_conv4 + self.filters_for_conv5,
+                name='MaskingMultiplicationLayer'
+            )(input_mask_layer)
             if self.filters_for_conv1 > 0:
                 conv_layer_1 = tfp.layers.Convolution1DFlipout(
-                    filters=self.filters_for_conv1, kernel_size=1, name='Conv1', padding='valid',
-                    activation=tf.nn.tanh,
-                    seed=self.random_seed
+                    filters=self.filters_for_conv1, kernel_size=1, name='Conv1', padding='same',
+                    activation=tf.nn.elu, seed=self.random_seed
                 )(input_sequence_layer)
-                conv_layer_1 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling1')(conv_layer_1)
                 conv_layers.append(conv_layer_1)
             if self.filters_for_conv2 > 0:
                 conv_layer_2 = tfp.layers.Convolution1DFlipout(
-                    filters=self.filters_for_conv2, kernel_size=2, name='Conv2', padding='valid',
-                    activation=tf.nn.tanh,
-                    seed=self.random_seed
+                    filters=self.filters_for_conv2, kernel_size=2, name='Conv2', padding='same',
+                    activation=tf.nn.elu, seed=self.random_seed
                 )(input_sequence_layer)
-                conv_layer_2 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling2')(conv_layer_2)
                 conv_layers.append(conv_layer_2)
             if self.filters_for_conv3 > 0:
                 conv_layer_3 = tfp.layers.Convolution1DFlipout(
-                    filters=self.filters_for_conv3, kernel_size=3, name='Conv3', padding='valid',
-                    activation=tf.nn.tanh,
-                    seed=self.random_seed
+                    filters=self.filters_for_conv3, kernel_size=3, name='Conv3', padding='same',
+                    activation=tf.nn.elu, seed=self.random_seed
                 )(input_sequence_layer)
-                conv_layer_3 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling3')(conv_layer_3)
                 conv_layers.append(conv_layer_3)
             if self.filters_for_conv4 > 0:
                 conv_layer_4 = tfp.layers.Convolution1DFlipout(
-                    filters=self.filters_for_conv4, kernel_size=4, name='Conv4', padding='valid',
-                    activation=tf.nn.tanh,
-                    seed=self.random_seed
+                    filters=self.filters_for_conv4, kernel_size=4, name='Conv4', padding='same',
+                    activation=tf.nn.elu, seed=self.random_seed
                 )(input_sequence_layer)
-                conv_layer_4 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling4')(conv_layer_4)
                 conv_layers.append(conv_layer_4)
             if self.filters_for_conv5 > 0:
                 conv_layer_5 = tfp.layers.Convolution1DFlipout(
-                    filters=self.filters_for_conv5, kernel_size=5, name='Conv5', padding='valid',
-                    activation=tf.nn.tanh,
-                    seed=self.random_seed
+                    filters=self.filters_for_conv5, kernel_size=5, name='Conv5', padding='same',
+                    activation=tf.nn.elu, seed=self.random_seed
                 )(input_sequence_layer)
-                conv_layer_5 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling5')(conv_layer_5)
                 conv_layers.append(conv_layer_5)
             if len(conv_layers) > 1:
-                concat_layer = tf.keras.layers.Concatenate(name='Concat')(conv_layers)
+                pooling_layer = tf.keras.layers.Concatenate(name='Concat1')(conv_layers)
+                pooling_layer = tf.keras.layers.Multiply(name='ConvZeroPaddedOutput')([pooling_layer, mask_layer])
+                pooling_layer = tf.keras.layers.Masking(name='ConvMaskedOutput')(pooling_layer)
+                pooling_layer = tf.keras.layers.GlobalAveragePooling1D(name='AvePooling')(pooling_layer)
+                concat_layer = tf.keras.layers.Concatenate(name='Concat2')([pooling_layer, input_pooled_layer])
             else:
-                concat_layer = conv_layers[0]
-            output_layer = tfp.layers.DenseFlipout(len(self.classes_), seed=self.random_seed, name='OutputLayer')(
-                concat_layer)
-            model = tf.keras.Model(input_sequence_layer, output_layer, name='BayesianNetworkModel')
-            logits = model(sequence_output)
+                pooling_layer = tf.keras.layers.Multiply(name='ConvZeroPaddedOutput')([conv_layers[0], mask_layer])
+                pooling_layer = tf.keras.layers.Masking(name='ConvMaskedOutput')(pooling_layer)
+                pooling_layer = tf.keras.layers.GlobalAveragePooling1D(name='AvePooling')(pooling_layer)
+                concat_layer = tf.keras.layers.Concatenate(name='Concat')([pooling_layer, input_pooled_layer])
+            if (self.hidden_layer_size > 0) and (self.n_hidden_layers > 0):
+                if self.n_hidden_layers > 1:
+                    hidden_layer = tfp.layers.DenseFlipout(self.hidden_layer_size, seed=self.random_seed,
+                                                           name='HiddenLayer1', activation=tf.nn.elu)(concat_layer)
+                    for layer_idx in range(1, self.n_hidden_layers):
+                        hidden_layer = tfp.layers.DenseFlipout(self.hidden_layer_size, seed=self.random_seed,
+                                                               name='HiddenLayer{0}'.format(layer_idx + 1),
+                                                               activation=tf.nn.elu)(hidden_layer)
+                else:
+                    hidden_layer = tfp.layers.DenseFlipout(self.hidden_layer_size, seed=self.random_seed,
+                                                           name='HiddenLayer', activation=tf.nn.elu)(concat_layer)
+                output_layer = tfp.layers.DenseFlipout(len(self.classes_), seed=self.random_seed, name='OutputLayer')(
+                    hidden_layer)
+            else:
+                output_layer = tfp.layers.DenseFlipout(len(self.classes_), seed=self.random_seed, name='OutputLayer')(
+                    concat_layer)
+            model = tf.keras.Model([input_sequence_layer, input_mask_layer, input_pooled_layer], output_layer,
+                                   name='BayesianNetworkModel')
+            logits = model([sequence_output, input_mask, pooled_output])
             if self.multioutput:
                 labels_distribution = tfp.distributions.Bernoulli(logits=logits, name='LabelsDistribution')
             else:
                 labels_distribution = tfp.distributions.Categorical(logits=logits, name='LabelsDistribution')
-            neg_log_likelihood = -tf.reduce_sum(input_tensor=labels_distribution.log_prob(y_ph))
-            pi = tf.Variable(0.0, trainable=False, name='Pi_for_ELBO_loss', dtype=tf.float32)
-            kl = sum(model.losses)
-            elbo_loss = neg_log_likelihood + pi * kl
+            neg_log_likelihood = -tf.reduce_mean(input_tensor=labels_distribution.log_prob(y_ph))
+            kl = sum(model.losses) / float(n_train_samples)
+            if abs(self.kl_weight_init - self.kl_weight_fin) > self.EPSILON:
+                kl_weight = tf.Variable(self.kl_weight_init, trainable=False, name='KL_weight', dtype=tf.float32)
+                elbo_loss = neg_log_likelihood + kl_weight * kl
+            else:
+                elbo_loss = neg_log_likelihood + self.kl_weight_init * kl
+                kl_weight = None
             with tf.name_scope('train'):
-                optimizer = tf.compat.v1.train.AdamOptimizer()
+                optimizer = tf.contrib.opt.AdamWOptimizer(learning_rate=3e-4, weight_decay=1e-5)
                 train_op = optimizer.minimize(elbo_loss)
-            return train_op, elbo_loss, neg_log_likelihood, pi
+            return train_op, elbo_loss, neg_log_likelihood, kl_weight
+        mask_layer = MaskingMultiplicationLayer(
+            feature_vector_size=self.filters_for_conv1 + self.filters_for_conv2 + self.filters_for_conv3 +
+                                self.filters_for_conv4 + self.filters_for_conv5,
+            name='MaskingMultiplicationLayer'
+        )(input_mask)
+        spatial_dropout = tf.keras.layers.SpatialDropout1D(rate=0.15, seed=self.random_seed,
+                                                           name='SpatialDropout')(sequence_output)
         if self.filters_for_conv1 > 0:
             conv_layer_1 = tf.keras.layers.Conv1D(
-                filters=self.filters_for_conv1, kernel_size=1, name='Conv1', padding='valid', activation=tf.nn.tanh,
-                kernel_initializer=tf.keras.initializers.glorot_uniform(seed=self.random_seed)
-            )(sequence_output)
-            conv_layer_1 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling1')(conv_layer_1)
+                filters=self.filters_for_conv1, kernel_size=1, name='Conv1', padding='same', activation=None,
+                kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
+            )(spatial_dropout)
+            conv_layer_1 = tf.keras.layers.BatchNormalization(name='BatchNormConv1')(conv_layer_1)
+            conv_layer_1 = tf.keras.layers.Activation(name='ActivationConv1', activation=tf.nn.elu)(conv_layer_1)
             conv_layers.append(conv_layer_1)
         if self.filters_for_conv2 > 0:
             conv_layer_2 = tf.keras.layers.Conv1D(
-                filters=self.filters_for_conv2, kernel_size=2, name='Conv2', padding='valid', activation=tf.nn.tanh,
-                kernel_initializer=tf.keras.initializers.glorot_uniform(seed=self.random_seed)
-            )(sequence_output)
-            conv_layer_2 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling2')(conv_layer_2)
+                filters=self.filters_for_conv2, kernel_size=2, name='Conv2', padding='same', activation=None,
+                kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
+            )(spatial_dropout)
+            conv_layer_2 = tf.keras.layers.BatchNormalization(name='BatchNormConv2')(conv_layer_2)
+            conv_layer_2 = tf.keras.layers.Activation(name='ActivationConv2', activation=tf.nn.elu)(conv_layer_2)
             conv_layers.append(conv_layer_2)
         if self.filters_for_conv3 > 0:
             conv_layer_3 = tf.keras.layers.Conv1D(
-                filters=self.filters_for_conv3, kernel_size=3, name='Conv3', padding='valid', activation=tf.nn.tanh,
-                kernel_initializer=tf.keras.initializers.glorot_uniform(seed=self.random_seed)
-            )(sequence_output)
-            conv_layer_3 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling3')(conv_layer_3)
+                filters=self.filters_for_conv3, kernel_size=3, name='Conv3', padding='same', activation=None,
+                kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
+            )(spatial_dropout)
+            conv_layer_3 = tf.keras.layers.BatchNormalization(name='BatchNormConv3')(conv_layer_3)
+            conv_layer_3 = tf.keras.layers.Activation(name='ActivationConv3', activation=tf.nn.elu)(conv_layer_3)
             conv_layers.append(conv_layer_3)
         if self.filters_for_conv4 > 0:
             conv_layer_4 = tf.keras.layers.Conv1D(
-                filters=self.filters_for_conv4, kernel_size=4, name='Conv4', padding='valid', activation=tf.nn.tanh,
-                kernel_initializer=tf.keras.initializers.glorot_uniform(seed=self.random_seed)
-            )(sequence_output)
-            conv_layer_4 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling4')(conv_layer_4)
+                filters=self.filters_for_conv4, kernel_size=4, name='Conv4', padding='same', activation=None,
+                kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
+            )(spatial_dropout)
+            conv_layer_4 = tf.keras.layers.BatchNormalization(name='BatchNormConv4')(conv_layer_4)
+            conv_layer_4 = tf.keras.layers.Activation(name='ActivationConv4', activation=tf.nn.elu)(conv_layer_4)
             conv_layers.append(conv_layer_4)
         if self.filters_for_conv5 > 0:
             conv_layer_5 = tf.keras.layers.Conv1D(
-                filters=self.filters_for_conv5, kernel_size=5, name='Conv5', padding='valid', activation=tf.nn.tanh,
-                kernel_initializer=tf.keras.initializers.glorot_uniform(seed=self.random_seed)
-            )(sequence_output)
-            conv_layer_5 = tf.keras.layers.GlobalMaxPooling1D(name='MaxPooling5')(conv_layer_5)
+                filters=self.filters_for_conv5, kernel_size=5, name='Conv5', padding='same', activation=None,
+                kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
+            )(spatial_dropout)
+            conv_layer_5 = tf.keras.layers.BatchNormalization(name='BatchNormConv5')(conv_layer_5)
+            conv_layer_5 = tf.keras.layers.Activation(name='ActivationConv5', activation=tf.nn.elu)(conv_layer_5)
             conv_layers.append(conv_layer_5)
         if len(conv_layers) > 1:
-            concat_layer = tf.keras.layers.Concatenate(name='Concat')(conv_layers)
+            pooling_layer = tf.keras.layers.Concatenate(name='Concat1')(conv_layers)
+            pooling_layer = tf.keras.layers.Multiply(name='ConvZeroPaddedOutput')([pooling_layer, mask_layer])
+            pooling_layer = tf.keras.layers.Masking(name='ConvMaskedOutput')(pooling_layer)
+            pooling_layer = tf.keras.layers.GlobalAveragePooling1D(name='AvePooling')(pooling_layer)
+            concat_layer = tf.keras.layers.Concatenate(name='Concat2')([pooling_layer, pooled_output])
         else:
-            concat_layer = conv_layers[0]
+            pooling_layer = tf.keras.layers.Multiply(name='ConvZeroPaddedOutput')([conv_layers[0], mask_layer])
+            pooling_layer = tf.keras.layers.Masking(name='ConvMaskedOutput')(pooling_layer)
+            pooling_layer = tf.keras.layers.GlobalAveragePooling1D(name='AvePooling')(pooling_layer)
+            concat_layer = tf.keras.layers.Concatenate(name='Concat')([pooling_layer, pooled_output])
         glorot_init = tf.keras.initializers.glorot_uniform(seed=self.random_seed)
-        logits = tf.layers.dense(concat_layer, len(self.classes_), kernel_initializer=glorot_init, name='Logits',
-                                 activation=(tf.nn.sigmoid if self.multioutput else tf.nn.softmax))
+        if (self.hidden_layer_size > 0) and (self.n_hidden_layers > 0):
+            if self.n_hidden_layers > 1:
+                hidden = tf.keras.layers.Dropout(rate=0.5, seed=self.random_seed, name='Dropout1')(concat_layer)
+                hidden = tf.keras.layers.Dense(
+                    units=self.hidden_layer_size, activation=None, name='HiddenLayer1',
+                    kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
+                )(hidden)
+                hidden = tf.keras.layers.BatchNormalization(name='BatchNormLayer1')(hidden)
+                hidden = tf.keras.layers.Activation(name='Activation1', activation=tf.nn.elu)(hidden)
+                for layer_idx in range(1, self.n_hidden_layers):
+                    hidden = tf.keras.layers.Dropout(rate=0.5, seed=self.random_seed,
+                                                     name='Dropout{0}'.format(layer_idx + 1))(hidden)
+                    hidden = tf.keras.layers.Dense(
+                        units=self.hidden_layer_size, activation=None, name='HiddenLayer{0}'.format(layer_idx + 1),
+                        kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
+                    )(hidden)
+                    hidden = tf.keras.layers.BatchNormalization(name='BatchNormLayer{0}'.format(layer_idx + 1))(hidden)
+                    hidden = tf.keras.layers.Activation(name='Activation{0}'.format(layer_idx + 1),
+                                                        activation=tf.nn.elu)(hidden)
+            else:
+                hidden = tf.keras.layers.Dropout(rate=0.5, seed=self.random_seed, name='Dropout')(concat_layer)
+                hidden = tf.keras.layers.Dense(
+                    units=self.hidden_layer_size, activation=None, name='HiddenLayer',
+                    kernel_initializer=tf.keras.initializers.he_uniform(seed=self.random_seed)
+                )(hidden)
+                hidden = tf.keras.layers.BatchNormalization(name='BatchNormLayer')(hidden)
+                hidden = tf.keras.layers.Activation(name='Activation', activation=tf.nn.elu)(hidden)
+            output_dropout = tf.keras.layers.Dropout(rate=0.5, seed=self.random_seed, name='OutputDropout')(hidden)
+            logits = tf.layers.dense(output_dropout, units=len(self.classes_), kernel_initializer=glorot_init,
+                                     name='Logits', activation=(tf.nn.sigmoid if self.multioutput else tf.nn.softmax),
+                                     reuse=False)
+        else:
+            output_dropout = tf.keras.layers.Dropout(rate=0.5, seed=self.random_seed,
+                                                     name='OutputDropout')(concat_layer)
+            logits = tf.layers.dense(output_dropout, units=len(self.classes_), kernel_initializer=glorot_init,
+                                     name='Logits', activation=(tf.nn.sigmoid if self.multioutput else tf.nn.softmax),
+                                     reuse=False)
         with tf.name_scope('loss'):
             if self.multioutput:
                 loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=y_ph, logits=logits)
             else:
                 loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y_ph, logits=logits)
-            loss = tf.reduce_sum(loss, name='loss')
+            loss = tf.reduce_mean(loss, name='loss')
         with tf.name_scope('train'):
-            optimizer = tf.compat.v1.train.AdamOptimizer()
+            optimizer = tf.contrib.opt.AdamWOptimizer(learning_rate=3e-4, weight_decay=1e-5)
             train_op = optimizer.minimize(loss)
         return train_op, loss, None, None
 
@@ -981,7 +1099,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size, multioutput=self.multioutput,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
             gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
-            bayesian=self.bayesian
+            bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size, n_hidden_layers=self.n_hidden_layers,
+            kl_weight_init=self.kl_weight_init, kl_weight_fin=self.kl_weight_fin
         )
         try:
             self.is_fitted()
@@ -1006,7 +1125,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             num_monte_carlo=self.num_monte_carlo, batch_size=self.batch_size, multioutput=self.multioutput,
             validation_fraction=self.validation_fraction, max_epochs=self.max_epochs, patience=self.patience,
             gpu_memory_frac=self.gpu_memory_frac, verbose=self.verbose, random_seed=self.random_seed,
-            bayesian=self.bayesian
+            bayesian=self.bayesian, hidden_layer_size=self.hidden_layer_size, n_hidden_layers=self.n_hidden_layers,
+            kl_weight_init=self.kl_weight_init, kl_weight_fin=self.kl_weight_fin
         )
         try:
             self.is_fitted()
@@ -1162,6 +1282,26 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         if kwargs['patience'] < 1:
             raise ValueError('`patience` is wrong! Expected a positive integer value, '
                              'but {0} is not positive.'.format(kwargs['patience']))
+        if 'hidden_layer_size' not in kwargs:
+            raise ValueError('`hidden_layer_size` is not specified!')
+        if (not isinstance(kwargs['hidden_layer_size'], int)) and \
+                (not isinstance(kwargs['hidden_layer_size'], np.int32)) and \
+                (not isinstance(kwargs['hidden_layer_size'], np.uint32)):
+            raise ValueError('`hidden_layer_size` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(3), type(kwargs['hidden_layer_size'])))
+        if kwargs['hidden_layer_size'] < 0:
+            raise ValueError('`hidden_layer_size` is wrong! Expected a positive integer value or zero, '
+                             'but {0} is negative.'.format(kwargs['hidden_layer_size']))
+        if 'n_hidden_layers' not in kwargs:
+            raise ValueError('`n_hidden_layers` is not specified!')
+        if (not isinstance(kwargs['n_hidden_layers'], int)) and \
+                (not isinstance(kwargs['n_hidden_layers'], np.int32)) and \
+                (not isinstance(kwargs['n_hidden_layers'], np.uint32)):
+            raise ValueError('`n_hidden_layers` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(3), type(kwargs['n_hidden_layers'])))
+        if kwargs['n_hidden_layers'] < 0:
+            raise ValueError('`n_hidden_layers` is wrong! Expected a positive integer value or zero, '
+                             'but {0} is negative.'.format(kwargs['n_hidden_layers']))
         if 'random_seed' not in kwargs:
             raise ValueError('`random_seed` is not specified!')
         if kwargs['random_seed'] is not None:
@@ -1173,7 +1313,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             raise ValueError('`gpu_memory_frac` is not specified!')
         if (not isinstance(kwargs['gpu_memory_frac'], float)) and \
                 (not isinstance(kwargs['gpu_memory_frac'], np.float32)) and \
-                (not isinstance(kwargs['gpu_memory_frac'], np.float64)):
+                (not isinstance(kwargs['gpu_memory_frac'], np.float64)) and \
+                (not isinstance(kwargs['gpu_memory_frac'], np.float)):
             raise ValueError('`gpu_memory_frac` is wrong! Expected `{0}`, got `{1}`.'.format(
                 type(3.5), type(kwargs['gpu_memory_frac'])))
         if (kwargs['gpu_memory_frac'] <= 0.0) or (kwargs['gpu_memory_frac'] > 1.0):
@@ -1183,7 +1324,8 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
             raise ValueError('`validation_fraction` is not specified!')
         if (not isinstance(kwargs['validation_fraction'], float)) and \
                 (not isinstance(kwargs['validation_fraction'], np.float32)) and \
-                (not isinstance(kwargs['validation_fraction'], np.float64)):
+                (not isinstance(kwargs['validation_fraction'], np.float64)) and \
+                (not isinstance(kwargs['validation_fraction'], np.float)):
             raise ValueError('`validation_fraction` is wrong! Expected `{0}`, got `{1}`.'.format(
                 type(3.5), type(kwargs['validation_fraction'])))
         if kwargs['validation_fraction'] < 0.0:
@@ -1213,6 +1355,34 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                 (not isinstance(kwargs['bayesian'], bool)) and (not isinstance(kwargs['bayesian'], np.bool)):
             raise ValueError('`bayesian` is wrong! Expected `{0}`, got `{1}`.'.format(
                 type(True), type(kwargs['bayesian'])))
+        if 'kl_weight_init' not in kwargs:
+            raise ValueError('`kl_weight_init` is not specified!')
+        if (not isinstance(kwargs['kl_weight_init'], float)) and \
+                (not isinstance(kwargs['kl_weight_init'], np.float32)) and \
+                (not isinstance(kwargs['kl_weight_init'], np.float64)) and \
+                (not isinstance(kwargs['kl_weight_init'], np.float)):
+            raise ValueError('`kl_weight_init` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(3.5), type(kwargs['kl_weight_init'])))
+        if kwargs['kl_weight_init'] <= 0.0:
+            raise ValueError('`kl_weight_init` is wrong! Expected a non-negative floating-point value, '
+                             'but {0} is {1}.'.format(
+                kwargs['kl_weight_init'],
+                'zero' if abs(kwargs['kl_weight_init']) <= ImpartialTextClassifier.EPSILON else 'negative'
+            ))
+        if 'kl_weight_fin' not in kwargs:
+            raise ValueError('`kl_weight_fin` is not specified!')
+        if (not isinstance(kwargs['kl_weight_fin'], float)) and \
+                (not isinstance(kwargs['kl_weight_fin'], np.float32)) and \
+                (not isinstance(kwargs['kl_weight_fin'], np.float64)) and \
+                (not isinstance(kwargs['kl_weight_fin'], np.float)):
+            raise ValueError('`kl_weight_fin` is wrong! Expected `{0}`, got `{1}`.'.format(
+                type(3.5), type(kwargs['kl_weight_fin'])))
+        if kwargs['kl_weight_fin'] <= 0.0:
+            raise ValueError('`kl_weight_fin` is wrong! Expected a non-negative floating-point value, '
+                             'but {0} is {1}.'.format(
+                kwargs['kl_weight_fin'],
+                'zero' if abs(kwargs['kl_weight_fin']) <= ImpartialTextClassifier.EPSILON else 'negative'
+            ))
         if 'filters_for_conv1' not in kwargs:
             raise ValueError('`filters_for_conv1` is not specified!')
         if (not isinstance(kwargs['filters_for_conv1'], int)) and \
@@ -1285,7 +1455,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
     @staticmethod
     def check_Xy(X: Union[list, tuple, np.ndarray], X_name: str,
                  y: Union[list, tuple, np.ndarray], y_name: str, multioutput: bool=False) -> Tuple[dict, list]:
-        ImpatialTextClassifier.check_X(X, X_name)
+        ImpartialTextClassifier.check_X(X, X_name)
         if (not hasattr(y, '__len__')) or (not hasattr(y, '__getitem__')):
             raise ValueError('`{0}` is wrong, because it is not a list-like object!'.format(y_name))
         if isinstance(y, np.ndarray):
@@ -1354,7 +1524,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
 
     @staticmethod
     def train_test_split(y: Union[list, tuple, np.ndarray], test_part: float) -> Tuple[np.ndarray, np.ndarray]:
-        y_prep = ImpatialTextClassifier.prepare_y(y)
+        y_prep = ImpartialTextClassifier.prepare_y(y)
         n = len(y_prep)
         n_test = int(round(n * test_part))
         if n_test < 1:
@@ -1432,7 +1602,7 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
                  random_state: int=None) -> List[Tuple[np.ndarray, np.ndarray]]:
         if cv < 2:
             raise ValueError('{0} is too small for the CV parameter!'.format(cv))
-        y_prep = ImpatialTextClassifier.prepare_y(y)
+        y_prep = ImpartialTextClassifier.prepare_y(y)
         all_classes_list = set()
         is_multioutput = False
         for cur in y_prep:
@@ -1524,14 +1694,17 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         return prep_y
 
     @staticmethod
-    def calculate_pi_value(epoch: float, n_epochs: int, init_value: float, fin_value: float) -> float:
-        if epoch > n_epochs:
-            res = -float(n_epochs)
+    def calculate_kl_weight(epoch: int, n_epochs: int, init_kl_weight: float, fin_kl_weight: float) -> float:
+        if n_epochs < 2:
+            return init_kl_weight
+        if abs(init_kl_weight - fin_kl_weight) <= ImpartialTextClassifier.EPSILON:
+            return init_kl_weight
+        a = abs(init_kl_weight - fin_kl_weight) / (float(n_epochs - 1) * float(n_epochs - 1))
+        if init_kl_weight > fin_kl_weight:
+            cur_kl_weight = a * float(epoch - (n_epochs - 1)) * float(epoch - (n_epochs - 1)) + fin_kl_weight
         else:
-            res = -epoch
-        res = np.power(2.0, res)
-        return (res - np.power(2.0, -1.0)) / (np.power(2.0, float(-n_epochs)) - np.power(2.0, -1.0)) * \
-               (fin_value - init_value) + init_value
+            cur_kl_weight = a * float(epoch) * float(epoch) + init_kl_weight
+        return cur_kl_weight
 
     @staticmethod
     def check_path_to_bert(dir_name: str) -> bool:
@@ -1548,3 +1721,28 @@ class ImpatialTextClassifier(BaseEstimator, ClassifierMixin):
         if not os.path.isfile(os.path.join(dir_name, 'bert_config.json')):
             return False
         return True
+
+    @staticmethod
+    def shuffle_train_data(X: List[np.ndarray], y: np.ndarray) -> Tuple[List[np.ndarray], np.ndarray]:
+        indices = np.arange(0, X[0].shape[0], 1, dtype=np.int32)
+        np.random.shuffle(indices)
+        return [X[channel_idx][indices] for channel_idx in range(len(X))], y[indices]
+
+
+class MaskingMultiplicationLayer(tf.keras.layers.Layer):
+
+    def __init__(self, feature_vector_size, **kwargs):
+        self.feature_vector_size = feature_vector_size
+        super(MaskingMultiplicationLayer, self).__init__(**kwargs)
+
+    def call(self, inputs, **kwargs):
+        new_masking_shape = tf.keras.backend.concatenate(
+            [tf.keras.backend.shape(inputs), tf.keras.backend.ones(shape=(1,), dtype='int32')],
+            axis=-1
+        )
+        mask = tf.keras.backend.reshape(tf.keras.backend.cast(inputs, 'float32'), shape=new_masking_shape)
+        return tf.keras.backend.repeat_elements(mask, rep=self.feature_vector_size, axis=-1)
+
+    def compute_output_shape(self, input_shape):
+        shape = list(input_shape)
+        return tuple(shape + [self.feature_vector_size])

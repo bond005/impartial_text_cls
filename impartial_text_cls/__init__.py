@@ -12,5 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__version__ = '0.0.2'
-__all__ = ['impatial_text_cls', 'utils']
+__version__ = '0.0.3'
+__all__ = ['impartial_text_cls', 'utils']

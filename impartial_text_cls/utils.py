@@ -38,6 +38,36 @@ def str_to_layers(descr: str) -> List[int]:
     return sizes
 
 
+def parse_hidden_layers_description(hidden_layer: Union[str, None]) -> Tuple[int, int]:
+    if hidden_layer is None:
+        return (0, 0)
+    if len(hidden_layer.strip()) == 0:
+        return (0, 0)
+    parts = list(filter(lambda it2: len(it2) > 0, map(lambda it1: it1.strip(), hidden_layer.split(':'))))
+    if len(parts) < 1:
+        raise ValueError('Description of hidden layers is empty!')
+    if len(parts) > 2:
+        raise ValueError('`{0}` is wrong description of hidden layers!'.format(hidden_layer))
+    if not parts[0].isdigit():
+        raise ValueError('`{0}` is wrong description of hidden layers!'.format(hidden_layer))
+    hidden_layer_size = int(parts[0])
+    if hidden_layer_size < 0:
+        raise ValueError('`{0}` is wrong description of hidden layers!'.format(hidden_layer))
+    if len(parts) > 1:
+        if not parts[1].isdigit():
+            raise ValueError('`{0}` is wrong description of hidden layers!'.format(hidden_layer))
+        number_of_hidden_layers = int(parts[1])
+        if number_of_hidden_layers < 0:
+            raise ValueError('`{0}` is wrong description of hidden layers!'.format(hidden_layer))
+        if number_of_hidden_layers == 0:
+            hidden_layer_size = 0
+    else:
+        number_of_hidden_layers = 1
+    if hidden_layer_size == 0:
+        number_of_hidden_layers = 0
+    return (hidden_layer_size, number_of_hidden_layers)
+
+
 def read_dstc2_data(archive_name: str, classes_list: Union[None, List[str]]=None) -> \
         Tuple[np.ndarray, np.ndarray, List[str]]:
     texts = []
@@ -172,11 +202,11 @@ def read_snips2017_file(file_name: str) -> List[str]:
     return all_texts
 
 
-def read_snips2017_data(dir_name: str) -> Tuple[Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray],
-                                                Tuple[np.ndarray, np.ndarray], List[str]]:
-    true_intents = {'addtoplaylist', 'bookrestaurant', 'getweather', 'playmusic', 'ratebook', 'searchcreativework',
-                    'searchscreeningevent'}
-    intents = list(filter(lambda it: it.lower() in true_intents, os.listdir(dir_name)))
+def read_snips2017_data(dir_name: str) -> Tuple[Tuple[List[str], List[str]], Tuple[List[str], List[str]],
+                                                Tuple[List[str], List[str]]]:
+    true_intents = {'AddToPlaylist', 'BookRestaurant', 'GetWeather', 'PlayMusic', 'RateBook', 'SearchCreativeWork',
+                    'SearchScreeningEvent'}
+    intents = list(filter(lambda it: it in true_intents, os.listdir(dir_name)))
     if len(intents) != len(true_intents):
         raise ValueError('The directory `{0}` does not contain the SNIPS-2017 dataset!'.format(dir_name))
     subdirs_with_intents = sorted([os.path.join(dir_name, cur) for cur in intents])
@@ -189,7 +219,7 @@ def read_snips2017_data(dir_name: str) -> Tuple[Tuple[np.ndarray, np.ndarray], T
     true_intents = sorted(list(true_intents))
     for cur_subdir in subdirs_with_intents:
         base_intent_dir = os.path.basename(cur_subdir)
-        intent_idx = true_intents.index(os.path.basename(cur_subdir).lower())
+        intent_name = os.path.basename(cur_subdir)
         if not os.path.isfile(os.path.join(cur_subdir, 'train_{0}.json'.format(base_intent_dir))):
             raise ValueError('The file `{0}` does not exist!'.format(
                 os.path.join(cur_subdir, 'train_{0}.json'.format(base_intent_dir))))
@@ -200,21 +230,19 @@ def read_snips2017_data(dir_name: str) -> Tuple[Tuple[np.ndarray, np.ndarray], T
             raise ValueError('The file `{0}` does not exist!'.format(
                 os.path.join(cur_subdir, 'validate_{0}.json'.format(base_intent_dir))))
         texts = read_snips2017_file(os.path.join(cur_subdir, 'train_{0}_full.json'.format(base_intent_dir)))
-        labels = [intent_idx for _ in range(len(texts))]
+        labels = [intent_name for _ in range(len(texts))]
         data_for_training += texts
         labels_for_training += labels
         texts = read_snips2017_file(os.path.join(cur_subdir, 'train_{0}.json'.format(base_intent_dir)))
-        labels = [intent_idx for _ in range(len(texts))]
+        labels = [intent_name for _ in range(len(texts))]
         data_for_validation += texts
         labels_for_validation += labels
         texts = read_snips2017_file(os.path.join(cur_subdir, 'validate_{0}.json'.format(base_intent_dir)))
-        labels = [intent_idx for _ in range(len(texts))]
+        labels = [intent_name for _ in range(len(texts))]
         data_for_final_testing += texts
         labels_for_final_testing += labels
-    return (np.array(data_for_training, dtype=object), np.array(labels_for_training, dtype=np.int32)), \
-           (np.array(data_for_validation, dtype=object), np.array(labels_for_validation, dtype=np.int32)), \
-           (np.array(data_for_final_testing, dtype=object), np.array(labels_for_final_testing, dtype=np.int32)), \
-           true_intents
+    return (data_for_training, labels_for_training), (data_for_validation, labels_for_validation), \
+           (data_for_final_testing, labels_for_final_testing)
 
 
 def read_csv(file_name: str, min_freq: int=0) -> Tuple[np.ndarray, np.ndarray, List[str]]:
