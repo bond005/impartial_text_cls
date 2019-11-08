@@ -146,6 +146,10 @@ All aforecited experiments organize as special Python script which is available 
 Breaking Changes
 -----
 
+**Breaking changes in version 0.0.4**
+
+- security vulnerabilities in dependencies have been eliminated. 
+
 **Breaking changes in version 0.0.3**
 - hidden layers has been added (but number of hidden layers can be zero, and in this case structure of neural network come same as previous version);
 - an average-over-time pooling with masking has been come to use now instead of a max-over-time one (special masks are applied after convolution layer output for more correctly averaging);
