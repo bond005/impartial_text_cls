@@ -62,7 +62,7 @@ setup(
         'Programming Language :: Python :: 3.7',
     ],
     keywords=['bert', 'bayesian', 'intent', 'text', 'nlp', 'tensorflow', 'scikit-learn'],
-    install_requires=['bert-tensorflow==1.0.1', 'nltk==3.4.5', 'numpy==1.16.4', 'scikit-learn==0.21.2',
+    install_requires=['bert-tensorflow==1.0.1', 'nltk==3.4.5', 'numpy==1.22.0', 'scikit-learn==0.21.2',
                       'scikit-optimize==0.5.2', 'tensorflow-gpu==1.14.0', 'tensorflow-hub==0.5.0',
                       'tensorflow-probability==0.7.0'],
     test_suite='tests'
